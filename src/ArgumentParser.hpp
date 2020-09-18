@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   17/09/2020, 17:41:28
+ *   18/09/2020, 18:38:56
  * Auto updated?
  *   Yes
  *
@@ -1032,7 +1032,7 @@ namespace Lut99 {
         }
 
     };
-    /* Exception for when given longlabel is unknown. */
+    /* Exception for when given longlabel (name) is unknown. */
     class UnknownLonglabelException : public UnknownLabelException {
     private:
         /* The longlabel that was unknown. */
@@ -1682,6 +1682,83 @@ failure:
 
 
 
+    /******************** TOKENIZER ********************/
+
+    /* Enum describing the type of a Token. Executable is simply the first argument, label is anything signalling a Flag or an Option and value is some value that will need to be parsed. */
+    enum class TokenType {
+        executable,
+        label,
+        value
+    };
+
+    /* The Token struct, which represents a single CLI argument returned by the Tokenizer. */
+    struct Token {
+    public:
+        /* The type of the Token. */
+        TokenType type;
+        /* The string value of the token (excluding any '-' or '--' if label). */
+        std::string value;
+
+    };
+
+    /* The Tokenizer class, which acts as a stream returning one token at a time or allowing the user to put a token back on it. */
+    class Tokenizer {
+    private:
+        /* The vector containing the input. */
+        std::vector<std::string> input;
+        /* The total number of input arguments. */
+        size_t n_args;
+        /* Determines whether we seen '--' or not. */
+        bool accepts_options;
+
+    public:
+        /* Constructor for the Tokenizer class, which takes the raw CLI-input. */
+        Tokenizer(const int argc, const char** argv) :
+            n_args(argc),
+            accepts_options(true)
+        {
+            // Copy the argv strings to our own input vector. Note that we reverse it, as we treat this as stack-based vector.
+            this->input.resize((size_t) argc);
+            for (int i = 0; i < argc; i++) {
+                this->input.at(argc - 1 - i) = std::string(argv[i]);
+            }
+        }
+
+        /* If we've reached the end of the input, this returns true. */
+        inline bool eof() const { return this->input.size() == 0; }
+        /* Returns the number of tokens left in the stream. */
+        inline size_t size() const { return this->input.size(); }
+        /* Returns the number of arguments that the stream had in the beginning. */
+        inline size_t max_size() const { return this->n_args; }
+
+        /* Returns the first token on the stream as the given token object. */
+        Tokenizer& operator>>(Token& result) {
+            // Get the head of the vector in the Token
+            result.value = this->input.at(this->input.size() - 1);
+            this->input.pop_back();
+
+            // Analyze its type
+            if (this->input.size() == this->n_args - 1) {
+                // It's the executable!
+                result.type = TokenType::executable;
+            } else if (this->accepts_options && result.value.size() >= 2 && result.value[0] == '-') {
+                // It's a dash with at least something else; an Option
+                if (!is_valid_shortlabel(result.value[1])) {
+                    throw <EXCEPTION>
+                }
+            }
+        }
+        /* Puts a given token back on the stream. */
+        Tokenizer& operator<<(const Token& to_return) {
+            
+        }
+
+    };
+
+
+
+
+
     /******************** DEFAULT TYPES ********************/
 
     /* Unsigned byte, which refer's to C's unsigned char. */
@@ -1748,9 +1825,6 @@ failure:
         inline ArgumentType get_arg_type() const { return this->arg_type; }
         /* Returns if this Argument is actually an Atomic argument. */
         inline bool is_atomic() const { return this->arg_type >= ArgumentType::multi_argument; };
-
-        /* Allows ArgumentParser to let each Argument simply parse themselves. Receives a list of strings, one for each space-separated value, out of which the Argument cherry picks its own values and removes those from the list, ready to be parsed by the next one. Can throw ParseException derivates if it failed somehow, but returns the appropriate std::any value otherwise. */
-        virtual std::any parse(std::vector<std::string>& raw_args) const = 0;
 
         /* Swap operator for the Argument class. */
         friend void swap(Argument& a1, Argument& a2);
@@ -1870,6 +1944,9 @@ failure:
         /* Gets the default value of this AtomicArgument. Note that the returned any object may be unitialized if AtomicArgument::has_default() return false. */
         inline std::any get_default() const { return this->default_value; }
 
+        /* Allows ArgumentParser to let each AtomicArgument simply parse itself. Receives a list of strings, one for each space-separated value, out of which the Argument cherry picks its own values and may remove those from the list (if Option or Flag) or keeps them so their relative index makes sense (if Positional). Can throw ParseException derivates if the user did something illegal. Returns 'true' if this Argument was found and parsed, or 'false' if it wasn't but instead used some default value. */
+        virtual bool parse(std::any& result, std::vector<std::string>& raw_args) const = 0;
+
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual AtomicArgument* copy() const = 0;
 
@@ -1915,8 +1992,9 @@ failure:
         /* Sets the default value of this Positional. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_default(const std::any& default_value) { return (Positional&) AtomicArgument::set_default(default_value); }
 
-        /* Attempts to parse the appropriate Positional from the given list of CLI arguments. Doesn't it remove the value when found (in contradication to Options and Flags) to keep their index encoded. Throws an appropriate ParseException derivative if it wasn't successul. Note that we assume all Options & Flags have already been parsed, and only Positionals are left. */
-        virtual std::any parse(std::vector<std::string>& raw_args) const {
+        /* Allows ArgumentParser to let the Positional simply parse itself. Receives a list of strings, one for each space-separated value, out of which the Argument cherry picks its own values. Can throw ParseException derivates if the user did something illegal. Returns 'true' if this Argument was found and parsed, or 'false' if it wasn't but instead used some default value. */
+        virtual bool parse(std::any& result, std::vector<std::string>& raw_args) const {
+            // Check if we occur, based on the size of our index
             if (this->index >= raw_args.size()) {
                 if (this->optional) {
                     // Return an empty any, to indicate we succeeded but still didn't parse anything
@@ -1927,7 +2005,7 @@ failure:
                 }
             }
 
-            // Otherwise, try to parse
+            // It does, so try to parse its value
             std::any result;
             try {
                 result = this->type.parse_func(std::vector<std::string>(raw_args.begin() + this->index, raw_args.end()));
@@ -1937,7 +2015,7 @@ failure:
             }
 
             // Success!
-            return result;
+            return true;
         }
 
         /* Allows the Positional to copy itself polymorphically. */
