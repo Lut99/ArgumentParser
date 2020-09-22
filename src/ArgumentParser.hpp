@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   18/09/2020, 18:59:15
+ *   22/09/2020, 20:09:38
  * Auto updated?
  *   Yes
  *
@@ -344,7 +344,35 @@ namespace Lut99 {
             return new ProgrammingException(*this);
         }
     };
+
+    /* Exception for when a Token is added on the Tokenizer while there's already an executable at it's head. */
+    class DuplicateExecutableTokenException: public ProgrammingException {
+    private:
+        /* The value of the Executable token that was already on the stream. */
+        std::string existing;
+        /* The value of the token that was attempted to be added. */
+        std::string given;
     
+    public:
+        /* Constructor for the ProgrammingException that takes a programming context, the value of the existing token already on the stream and the value of the newly given token. */
+        DuplicateExecutableTokenException(const std::string& context, const std::string& existing_token, const std::string& given_token) :
+            ProgrammingException(context, "Cannot put token '" + given_token + "' on the stream when Executable token '" + existing_token + "' is at its head (no token has been taken)."),
+            existing(existing_token),
+            given(given_token)
+        {}
+
+        /* Returns the value of the already existing, executable token on the stream. */
+        inline std::string get_existing() const { return this->existing; }
+        /* Returns the value of the newly given token. */
+        inline std::string get_given() const { return this->given; }
+
+        /* Allows the DuplicateExecutableTokenException to be copied polymorphically. */
+        virtual DuplicateExecutableTokenException* copy() const {
+            return new DuplicateExecutableTokenException(*this);
+        }
+
+    };
+
 
 
     /* Exception which forms the base for all exceptions when something went wrong on the CLI-user's side - can be automatically handled by the ArgumentParser. */
@@ -361,6 +389,65 @@ namespace Lut99 {
         }
     };
     
+    /* Baseclass exception for when an illegal character was encountered during name or shortlabel parsing. */
+    class IllegalIDCharException: public ParseException {
+    private:
+        /* The character that was illegal. */
+        char illegal;
+    
+    public:
+        /* Constructor for the IllegalCharException which takes the illegal character parsed and optionally a message. */
+        IllegalIDCharException(const char illegal_char, const std::string& message = "") :
+            ParseException(message),
+            illegal(illegal_char)
+        {}
+
+        /* Returns the illegal character that was encountered. */
+        inline char get_illegal() const { return this->illegal; }
+
+        /* Allows the IllegalIDCharException to be copied polymorphically. */
+        virtual IllegalIDCharException* copy() const {
+            return new IllegalIDCharException(*this);
+        }
+
+    };
+    /* Exception for when we wanted to parse a shortlabel, but we encountered an illegal character instead. */
+    class IllegalShortlabelCharException: public IllegalIDCharException {
+    public:
+        /* Constructor for the IllegalShortlabelCharException which takes the illegal character. */
+        IllegalShortlabelCharException(const char illegal_char) :
+            IllegalIDCharException(illegal_char, (std::string("Encountered illegal shortlabel '") += illegal_char)  + "'.")
+        {}
+
+        /* Allows the IllegalShortlabelCharException to be copied polymorphically. */
+        virtual IllegalShortlabelCharException* copy() const {
+            return new IllegalShortlabelCharException(*this);
+        }
+
+    };
+    /* Exception for when we wanted to parse a name, but we encountered an illegal character instead. */
+    class IllegalNameCharException: public IllegalIDCharException {
+    private:
+        /* The name where the illegal character occurred. */
+        std::string name;
+
+    public:
+        /* Constructor for the IllegalNameCharException which takes the illegal character and the string where it occurred. */
+        IllegalNameCharException(const char illegal_char, const std::string& name) :
+            IllegalIDCharException(illegal_char, (std::string("Encountered illegal character '") += illegal_char)  + "' in the name '" + name + "'."),
+            name(name)
+        {}
+
+        /* Returns the name where the illegal character occurred. */
+        inline std::string get_name() const { return this->name; }
+
+        /* Allows the IllegalNameCharException to be copied polymorphically. */
+        virtual IllegalNameCharException* copy() const {
+            return new IllegalNameCharException(*this);
+        }
+
+    };
+
     /* Baseclass exception for any error related to TypeParsing. */
     class TypeParseException: public ParseException {
     private:
@@ -372,58 +459,301 @@ namespace Lut99 {
         std::string type_name;
         /* The name of the argument we wanted to parse. */
         std::string arg_name;
+        /* The name of the shortlabel we wanted to parse. Is equal to: '\0' if there isn't any. */
+        char shortlabel;
 
         /* Generates a message by calling the parent generator and adding the name of the argument and the type. */
         static inline std::string generate_message(const std::string& type_name, const std::string& name, const std::string& message) {
-            return ParseException::generate_message("Could not parse value of '" + name + "' as " + type_name + (message.empty() ? "" : ": " + message));
+            return ParseException::generate_message("Could not parse value of Positional '" + name + "' as " + type_name + (message.empty() ? "" : ": " + message));
         }
         /* Generates a message by calling the parent generator and adding the name and the the shortlabel of the argument and the type. */
         static inline std::string generate_message(const std::string& type_name, const std::string& name, const char shortlabel, const std::string& message) {
-            return ParseException::generate_message("Could not parse value of '--" + name + "'" + () + " as " + type_name + (message.empty() ? "" : ": " + message));
+            return ParseException::generate_message("Could not parse value of '--" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" (-") += shortlabel) + ")") + " as " + type_name + (message.empty() ? "" : ": " + message));
         }
-        
-
-    };
-    /* Baseclass exception for when there are not enough values to unpack from the given arguments. */
-    class NotEnoughValuesException : public ParseException {
-    protected:
-        /* The number of values we expect. */
-        size_t expected;
-        /* The number of values we got. */
-        size_t got;
 
     public:
-        /* Constructor for the NotEnoughValuesException that takes the name of the type parsed, how many values we expected and how many we got. Use extend() to inject the uid. */
-        NotEnoughValuesException(const std::string& type_name, const size_t expected_n_values, const size_t got_n_values) :
-            TypeParseException(type_name, "Not enough values given (expected " + std::to_string(expected_n_values) + ", got " + std::to_string(got_n_values) + ")"),
-            expected(expected_n_values),
-            got(got_n_values)
-        {}
-        /* Constructor for the NotEnoughValuesException that takes the name of the type parsed, how many values we expected, how many we got and the index of a Positional. */
-        NotEnoughValuesException(const std::string& type_name, const size_t expected_n_values, const size_t got_n_values, const std::string& name) :
-            TypeParseException(type_name, name, generate_message(type_name, name, "Not enough values given (expected " + std::to_string(expected_n_values) + ", got " + std::to_string(got_n_values) + ")")),
-            expected(expected_n_values),
-            got(got_n_values)
-        {}
-                /* Constructor for the NotEnoughValuesException that takes the name of the type parsed, how many values we expected, how many we got and the shortlabel / longlabel of an Option. */
-        NotEnoughValuesException(const std::string& type_name, const size_t expected_n_values, const size_t got_n_values, const std::string& name, const char shortlabel) :
-            TypeParseException(type_name, name, generate_message(type_name, name, shortlabel, "Not enough values given (expected " + std::to_string(expected_n_values) + ", got " + std::to_string(got_n_values) + ")")),
-            expected(expected_n_values),
-            got(got_n_values)
+        /* Constructor for the TypeParseException class which only takes the name of the type and optionally a message. Other values, like the argument name and the shortlabel, will have to be injected later using 'inject'. */
+        TypeParseException(const std::string& type_name, const std::string& message) :
+            ParseException(),
+            derived_msg(message),
+            type_name(type_name)
         {}
 
-        /* Returns the number of values that we expected. */
+        /* Returns the name of the type that we couldn't parse to. */
+        inline std::string get_type_name() const { return this->type_name; }
+        /* Returns the name of the argument that we attempted to parse. */
+        inline std::string get_arg_name() const { return this->arg_name; }
+        /* Returns the shortlabel of the argument that we attempted to parse to. If there wasn't any shortlabel, the return value is equal to '\0'. */
+        inline char get_shortlabel() const { return this->shortlabel; }
+        
+        /* Inserts information about a Positional that is very useful to have but not available in the parsers. */
+        void insert(const std::string& name) {
+            this->msg = this->generate_message(this->type_name, name, this->derived_msg);
+            this->arg_name = name;
+            this->shortlabel = '\0';
+        }
+        /* Inserts information about an Option that is very useful to have but not available in the parsers. */
+        void insert(const std::string& name, char shortlabel) {
+            this->msg = this->generate_message(this->type_name, name, shortlabel, this->derived_msg);
+            this->arg_name = name;
+            this->shortlabel = shortlabel;
+        }
+    
+        /* Allows the TypeParseException to be copied polymorphically. */
+        virtual TypeParseException* copy() const {
+            return new TypeParseException(*this);
+        }
+
+    };
+    /* Exception for when a type does not have enough values to unpack for an argument. */
+    class NotEnoughValuesException: public TypeParseException {
+    private:
+        /* The expected amount of values to unpack. */
+        size_t expected;
+        /* The given amount of values to unpack. */
+        size_t given;
+    
+    public:
+        /* Constructor for the NotEnoughValuesException class, which accepts the name of the type we wanted to parse to, the number of arguments for that type and the actual number of values. */
+        NotEnoughValuesException(const std::string& type_name, const size_t expected_n_values, const size_t given_n_values) :
+            TypeParseException(type_name, "Not enough values to unpack (expected at least " + std::to_string(expected_n_values) + ", got " + std::to_string(given_n_values) + ")."),
+            expected(expected_n_values),
+            given(given_n_values)
+        {}
+
+        /* Returns the minimum number of values required for this type. */
         inline size_t get_expected() const { return this->expected; }
-        /* Returns the number of values that we got. */
-        inline size_t get_got() const { return this->got; }
+        /* Returns the illegal amount of values got when we attempted to parse. */
+        inline size_t get_given() const { return this->given; }
 
-        /* Allows derived classes to copy themselves. */
+        /* Allows the NotEnoughValuesException to be copied polymorphically. */
         virtual NotEnoughValuesException* copy() const {
             return new NotEnoughValuesException(*this);
         }
 
     };
+    /* Baseclass exception for all OutOfRangeExceptions. */
+    class OutOfRangeException: public TypeParseException {
+    protected:
+        /* Constructor for the OutOfRangeException, which takes a type name and possibly a message. */
+        OutOfRangeException(const std::string& type_name, const std::string& message = "") :
+            TypeParseException(type_name, message)
+        {}
+
+    public:
+        /* Allows the OutOfRangeException to be copied polymorphically. */
+        virtual OutOfRangeException* copy() const {
+            return new OutOfRangeException(*this);
+        }
+
+    };
+    /* Templated exception for when a value is out of range for some type. The given type should be a numberical type that can accept the given range. */
+    template <class T, typename = std::enable_if_t<std::is_arithmetic<T>::value> >
+    class OutOfTRangeException: public OutOfRangeException {
+    private:
+        /* The minimum value that is allowed (inclusive). */
+        T minimum;
+        /* The maximum value that is allowed (inclusive). */
+        T maximum;
+        /* The value we actually got, as string (since it might not fit in T). */
+        std::string given;
     
+    public:
+        /* Constructor for the OutOfTRangeException class, which accepts the type we attempted to parse to, that type's minimum value (inclusive), that type's maximum value (exclusive) and the given value as string. */
+        OutOfTRangeException(const std::string& type_name, const T minimum, const T maximum, const std::string& given) :
+            OutOfRangeException(type_name, "Value '" + given + "' is out of range [" + std::to_string(minimum) + ", " + std::to_string(maximum) + "]."),
+            minimum(minimum),
+            maximum(maximum),
+            given(given)
+        {}
+
+        /* Returns the minimum value for this type (inclusive). */
+        inline T get_minimum() const { return this->minimum; }
+        /* Returns the maximum value for this type (inclusive). */
+        inline T get_maximum() const { return this->maximum; }
+        /* Returns the value that we were given (as string). */
+        inline std::string get_given() const { return this->given; }
+
+        /* Allows the OutOfTRangeException to be copied polymorphically. */
+        virtual OutOfTRangeException* copy() const {
+            return new OutOfTRangeException(*this);
+        }
+
+    };
+    /* Exception for when an illegal character is encountered when parsing a value to a type. */
+    class IllegalCharException: public TypeParseException {
+    private:
+        /* The message describing the range of allowed characters. */
+        std::string allowed;
+        /* The character that was illegal. */
+        char illegal;
+    
+    public:
+        /* Constructor for the IllegalCharException which takes the name of type we wanted to parse to, the illegal character and a string describing the allowed characters. See the Wiki for more details. */
+        IllegalCharException(const std::string& type_name, const char illegal_char, const std::string& allowed_chars) :
+            TypeParseException(type_name, "Encountered illegal characters (" + type_name + " only accepts " + allowed_chars + ")."),
+            allowed(allowed_chars),
+            illegal(illegal_char)
+        {}
+
+        /* Returns the illegal character that was encountered. */
+        inline char get_illegal() const { return this->illegal; }
+        /* Returns the string describing the valid characters. */
+        inline std::string get_allowed() const { return this->allowed; }
+
+        /* Allows the IllegalCharException to be copied polymorphically. */
+        virtual IllegalCharException* copy() const {
+            return new IllegalCharException(*this);
+        }
+
+    };
+
+
+
+
+
+    /******************** TOKENIZER ********************/
+
+    /* Enum describing the type of a Token. Executable is simply the first argument, label is anything signalling a Flag or an Option and value is some value that will need to be parsed. */
+    enum class TokenType {
+        executable,
+        label,
+        value,
+        empty
+    };
+
+    /* The Token struct, which represents a single CLI argument returned by the Tokenizer. */
+    struct Token {
+    public:
+        /* The type of the Token. */
+        TokenType type;
+        /* The string value of the token (excluding the first '-' if Option or Flag (but including the second)). */
+        std::string value;
+    };
+
+    /* The Tokenizer class, which acts as a stream returning one token at a time or allowing the user to put a token back on it. */
+    class Tokenizer {
+    private:
+        /* The vector containing the input. */
+        std::vector<std::string> input;
+        /* Whether or not we have seen the executable yet. */
+        bool executable_to_go;
+        /* Determines whether we have seen '--' or not. */
+        bool accepts_options;
+
+    public:
+        /* Constructor for the Tokenizer class, which takes the raw CLI-input. */
+        Tokenizer(const int argc, const char** argv) :
+            executable_to_go(true),
+            accepts_options(true)
+        {
+            // If we get an empty stream, override executable_to_go to false
+            if (argc == 0) {
+                this->executable_to_go = false;
+            }
+
+            // Copy the argv strings to our own input vector. Note that we reverse it, as we treat this vector as a stack of sorts.
+            this->input.resize((size_t) argc);
+            for (int i = 0; i < argc; i++) {
+                this->input.at(argc - 1 - i) = std::string(argv[i]);
+            }
+        }
+
+        /* Returns the first token on the stream as the given token object. If no more tokens are available, returns a Token with 'empty' TokenType. */
+        Tokenizer& operator>>(Token& result) {
+            // If there are no more tokens to get, give the token an empty value
+            if (this->input.size() == 0) {
+                result.type = TokenType::empty;
+                result.value = "";
+                return *this;
+            }
+
+            // Get the head of the vector in the Token
+            result.value = this->input.at(this->input.size() - 1);
+            this->input.pop_back();
+
+            // Analyze its type
+            if (this->executable_to_go) {
+                // It's the executable!
+                result.type = TokenType::executable;
+                executable_to_go = false;
+                return *this;
+            } else if (this->accepts_options && result.value.size() >= 2 && result.value[0] == '-') {
+                // It's a dash with at least something else; an Option
+                result.type = TokenType::label;
+                std::string label = result.value.substr(1);
+
+                // Check if it's a shortlabel or a name and, if either, if it's valid
+                if (label[0] != '-' && !is_valid_shortlabel(label[0])) {
+                    throw IllegalShortlabelCharException(label[0]);
+                } else if (label[0] == '-') {
+                    // If we just see two '--', we mark it so and return the next token instead
+                    if (label.size() == 1) {
+                        this->accepts_options = false;
+                        return *this << result;
+                    }
+
+                    // Check if that name happens to be illegal
+                    char result = is_valid_name(label.substr(1));
+                    if (result != '\0') { throw IllegalNameCharException(result, label); }
+                }
+
+                // It's valid, so overwrite result.value with label and return
+                result.value = label;
+                return *this;
+            } else {
+                // We parse it as a normal value
+                result.type = TokenType::value;
+                return *this;
+            }
+        }
+        
+        /* Puts a given token back on the stream. */
+        Tokenizer& operator<<(const Token& to_return) {
+            const std::string context = "Tokenizer::operator<<(Token)";
+
+            // If the type is empty, do nothing
+            if (to_return.type == TokenType::empty) { return *this; }
+
+            // If we have an executable lying on top, throw an error that we went too far
+            if (this->executable_to_go) { throw DuplicateExecutableTokenException(context, this->input.at(this->input.size() - 1), to_return.value); }
+
+            // Otherwise, be sure to possibly re-mark the executable flag if we're given one
+            if (to_return.type == TokenType::executable) { this->executable_to_go = true; }
+
+            // Get the to-be-added value & prepend it with a '-' if it's a Label
+            std::string value = to_return.value;
+            if (to_return.type == TokenType::label) {
+                value = "-" + value;
+            }
+
+            // Push the value on the input stack
+            this->input.push_back(value);
+
+            // Done, return ourselves!
+            return *this;
+        }
+        /* Puts a given string back on the stream as if it were a value token. */
+        Tokenizer& operator<<(const std::string& to_return) {
+            // If the value is equal to '--', do not add it but to set the accepts_options flag to true
+            if (to_return == "--") {
+                this->accepts_options = true;
+                return *this;
+            }
+
+            // Otherwise, push the value to the input stack
+            this->input.push_back(to_return);
+
+            // Done, return ourselves!
+            return *this;
+        }
+
+        /* If we've reached the end of the input, this returns true. */
+        inline bool eof() const { return this->input.size() == 0; }
+        /* Returns the number of tokens left in the stream. */
+        inline size_t size() const { return this->input.size(); }
+
+    };
 
 
 
@@ -433,11 +763,14 @@ namespace Lut99 {
 
     /* Parser for signed integer types (signed char, short, int, long, long long). */
     template <class T, typename = std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value> >
-    std::any parse_int(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<T>::value, 1, values.size()); }
+    std::any parse_int(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<T>::value, 1, 0); }
 
-        std::string text = values[0];
+        // Get an easy-to-use reference to the parsed string
+        std::string& text = token.value;
 
         // Strip any preceding whitespaces
         size_t strip_i = 0;
@@ -483,12 +816,12 @@ namespace Lut99 {
                 if (modifier >= 0) {
                     // Positive check
                     if (result > std::numeric_limits<T>::max() / 10 || result * 10 > std::numeric_limits<T>::max() - value) {
-                        throw OutOfBoundsException(type_name<T>::value, std::to_string(std::numeric_limits<T>::max()), text);
+                        throw OutOfTRangeException<T>(type_name<T>::value, std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), text);
                     }
                 } else {
                     // Negative check
                     if (result < std::numeric_limits<T>::min() / 10 || result * 10 < std::numeric_limits<T>::min() + value) {
-                        throw OutOfBoundsException(type_name<T>::value, std::to_string(std::numeric_limits<T>::min()), "-" + text);
+                        throw OutOfTRangeException<T>(type_name<T>::value, std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), "-" + text);
                     }
                 }
 
@@ -497,7 +830,7 @@ namespace Lut99 {
                 // Add the value
                 result += modifier * value;
             } else {
-                throw IllegalCharException(type_name<T>::value, c);
+                throw IllegalCharException(type_name<T>::value, c, "0-9 and '-'");
             }
         }
 
@@ -507,11 +840,14 @@ namespace Lut99 {
 
     /* Parser for unsigned integer types (unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long) */
     template <class T, typename = std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value> >
-    std::any parse_uint(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<T>::value, 1, values.size()); }
+    std::any parse_uint(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<T>::value, 1, 0); }
 
-        std::string text = values[0];
+        // Get an easy-to-use reference to the parsed string
+        std::string& text = token.value;
 
         // Strip any preceding whitespaces
         size_t strip_i = 0;
@@ -543,7 +879,7 @@ namespace Lut99 {
                 int value = (int) (c - '0');
                 // Positive check
                 if (result > std::numeric_limits<T>::max() / 10 || result * 10 > std::numeric_limits<T>::max() - value) {
-                    throw OutOfBoundsException(type_name<T>::value, std::to_string(std::numeric_limits<T>::max()), text);
+                    throw OutOfTRangeException<T>(type_name<T>::value, std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), text);
                 }
 
                 // Increment the result
@@ -551,7 +887,7 @@ namespace Lut99 {
                 // Add the value
                 result += value;
             } else {
-                throw IllegalCharException(type_name<T>::value, c);
+                throw IllegalCharException(type_name<T>::value, c, "0-9");
             }
         }
 
@@ -560,11 +896,14 @@ namespace Lut99 {
     }
 
     /* Parser for single-precision floating-point types. */
-    std::any parse_float(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<float>::value, 1, values.size()); }
+    std::any parse_float(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<float>::value, 1, 0); }
 
-        std::string text = values[0];
+        // Get an easy-to-use reference to the parsed string
+        std::string& text = token.value;
 
         // Strip any preceding whitespaces
         size_t strip_i = 0;
@@ -592,7 +931,7 @@ namespace Lut99 {
         for (size_t i = 0; i < text.size(); ++i) {
             char c = text[i];
             if (c != '-' && c != '.' && (c < '0' || c > '9')) {
-                throw IllegalCharException(type_name<float>::value, c);
+                throw IllegalCharException(type_name<float>::value, c, "0-9, '.' and '-'");
             }
         }
 
@@ -601,9 +940,9 @@ namespace Lut99 {
         try {
             result = std::stof(text);
         } catch (std::invalid_argument& e) {
-            throw IllegalValueException(type_name<float>::value, text);
-        } catch (std::out_of_range& e) {
-            throw OutOfBoundsException(type_name<float>::value, std::to_string(std::numeric_limits<float>::max()), text);
+            throw IllegalValueException(type_name<bool>::value, text, "floating-point numbers");
+        } catch  (std::out_of_range& e) {
+            throw OutOfTRangeException<float>(type_name<float>::value, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(), text);
         }
 
         // Done, return
@@ -611,11 +950,14 @@ namespace Lut99 {
     }
 
     /* Parser for double-precision floating-point types. */
-    std::any parse_double(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<double>::value, 1, values.size()); }
+    std::any parse_double(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
 
-        std::string text = values[0];
+        // Get an easy-to-use reference to the parsed string
+        std::string& text = token.value;
 
         // Strip any preceding whitespaces
         size_t strip_i = 0;
@@ -643,7 +985,7 @@ namespace Lut99 {
         for (size_t i = 0; i < text.size(); ++i) {
             char c = text[i];
             if (c != '-' && c != '.' && (c < '0' || c > '9')) {
-                throw IllegalCharException(type_name<double>::value, c);
+                throw IllegalCharException(type_name<double>::value, c, "0-9, '.' and '-'");
             }
         }
 
@@ -652,9 +994,9 @@ namespace Lut99 {
         try {
             result = std::stod(text);
         } catch (std::invalid_argument& e) {
-            throw IllegalValueException(type_name<double>::value, text);
+            throw IllegalValueException(type_name<bool>::value, text, "floating-point numbers");
         } catch (std::out_of_range& e) {
-            throw OutOfBoundsException(type_name<double>::value, std::to_string(std::numeric_limits<double>::max()), text);
+            throw OutOfTRangeException<double>(type_name<double>::value, std::numeric_limits<double>::min(), std::numeric_limits<double>::max(), text);
         }
 
         // Done, return
@@ -662,11 +1004,13 @@ namespace Lut99 {
     }
 
     /* Parser for booleans (they can be either: "true", "1", "yes", "y" for true or "false", "0", "no", "n" for false (capitalization-independent)) */
-    std::any parse_bool(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<bool>::value, 1, values.size()); }
+    std::any parse_bool(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
 
-        const char* text = values[0].c_str();
+        const char* text = token.value.c_str();
         int i = 0;
         char c;
 
@@ -826,7 +1170,7 @@ end_false:
         }
 
 failure:
-        throw IllegalValueException(type_name<bool>::value, text);
+        throw IllegalValueException(type_name<bool>::value, text, "'true', 'false', 'y', 'yes', 'n', 'no', '1' or '0'");
     }
 
     /* Parser for single characters. Only errors if no character is given. */
@@ -852,83 +1196,6 @@ failure:
 
         return std::any(values[0]);
     }
-
-
-
-
-
-    /******************** TOKENIZER ********************/
-
-    /* Enum describing the type of a Token. Executable is simply the first argument, label is anything signalling a Flag or an Option and value is some value that will need to be parsed. */
-    enum class TokenType {
-        executable,
-        label,
-        value
-    };
-
-    /* The Token struct, which represents a single CLI argument returned by the Tokenizer. */
-    struct Token {
-    public:
-        /* The type of the Token. */
-        TokenType type;
-        /* The string value of the token (excluding any '-' or '--' if label). */
-        std::string value;
-
-    };
-
-    /* The Tokenizer class, which acts as a stream returning one token at a time or allowing the user to put a token back on it. */
-    class Tokenizer {
-    private:
-        /* The vector containing the input. */
-        std::vector<std::string> input;
-        /* The total number of input arguments. */
-        size_t n_args;
-        /* Determines whether we seen '--' or not. */
-        bool accepts_options;
-
-    public:
-        /* Constructor for the Tokenizer class, which takes the raw CLI-input. */
-        Tokenizer(const int argc, const char** argv) :
-            n_args(argc),
-            accepts_options(true)
-        {
-            // Copy the argv strings to our own input vector. Note that we reverse it, as we treat this as stack-based vector.
-            this->input.resize((size_t) argc);
-            for (int i = 0; i < argc; i++) {
-                this->input.at(argc - 1 - i) = std::string(argv[i]);
-            }
-        }
-
-        /* If we've reached the end of the input, this returns true. */
-        inline bool eof() const { return this->input.size() == 0; }
-        /* Returns the number of tokens left in the stream. */
-        inline size_t size() const { return this->input.size(); }
-        /* Returns the number of arguments that the stream had in the beginning. */
-        inline size_t max_size() const { return this->n_args; }
-
-        /* Returns the first token on the stream as the given token object. */
-        Tokenizer& operator>>(Token& result) {
-            // Get the head of the vector in the Token
-            result.value = this->input.at(this->input.size() - 1);
-            this->input.pop_back();
-
-            // Analyze its type
-            if (this->input.size() == this->n_args - 1) {
-                // It's the executable!
-                result.type = TokenType::executable;
-            } else if (this->accepts_options && result.value.size() >= 2 && result.value[0] == '-') {
-                // It's a dash with at least something else; an Option
-                if (!is_valid_shortlabel(result.value[1])) {
-                    throw <EXCEPTION>
-                }
-            }
-        }
-        /* Puts a given token back on the stream. */
-        Tokenizer& operator<<(const Token& to_return) {
-            
-        }
-
-    };
 
 
 
