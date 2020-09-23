@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   22/09/2020, 20:09:38
+ *   23/09/2020, 18:03:45
  * Auto updated?
  *   Yes
  *
@@ -188,80 +188,6 @@ namespace Lut99 {
 
 
 
-    /******************** ARGUMENTPARSER TYPE SYSTEM ********************/
-
-    /* String placeholder type. */
-    template <char... chars>
-    using tstring = std::integer_sequence<char, chars...>;
-
-    template <typename T, T... chars>
-    constexpr tstring<chars...> operator""_tstr() { return { }; }
-
-    /* Instantiated version of the DerivedType class, containing information that is moldable at runtime instead of compile time alone. */
-    struct RuntimeType {
-    public:
-        const std::string type_name;
-        const size_t type_hash;
-        const std::any (*parse_func)(std::vector<std::string>);
-        const size_t n_values;
-
-        /* Constructor of the RuntimeType class which takes the name & hash of the target type, the assigned parser and the number of values. */
-        RuntimeType(const char* type_name, const size_t type_hash, const std::any (*parse_func)(std::vector<std::string>), const size_t n_values) :
-            type_name(type_name),
-            type_hash(type_hash),
-            parse_func(parse_func),
-            n_values(n_values)
-        {}
-
-        /* Returns true if this and the other type are the same. */
-        inline bool operator==(const RuntimeType& other) const { return this->type_name == other.type_name && this->type_hash == other.type_hash && this->parse_func == other.parse_func && this->n_values == other.n_values; }
-        /* Returns true if this and the other type are different. */
-        inline bool operator!=(const RuntimeType& other) const { return this->type_name != other.type_name || this->type_hash != other.type_hash || this->parse_func != other.parse_func || this->n_values != other.n_values; }
-
-        /* Returns true if this and the given typeid point to the same type. */
-        inline bool operator==(const type_info& rhs) const { return this->type_hash == rhs.hash_code(); }
-        /* Returns true if this and the given typeid point to the same type. */
-        friend inline bool operator==(const type_info& lhs, const RuntimeType& rhs);
-        /* Returns true if this and the given typeid point to a different type. */
-        inline bool operator!=(const type_info& rhs) const { return this->type_hash != rhs.hash_code(); }
-        /* Returns true if this and the given typeid point to a different type. */
-        friend inline bool operator!=(const type_info& lhs, const RuntimeType& rhs);
-
-    };
-    /* Returns true if this and the given typeid point to the same type. */
-    inline bool operator==(const type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
-    /* Returns true if this and the given typeid point to a different type. */
-    inline bool operator!=(const type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
-
-    /* Type marks the base of all ArgumentParser-supported types. */
-    struct BaseType { };
-
-    /* Template for types used in the ArgumentParser. Used to specify behaviour for a certain type. */
-    template <typename, size_t, std::any (*)(std::vector<std::string>), typename...>
-    struct Type : public BaseType { };
-
-    /* Template for types used in the ArgumentParser. Used to specify behaviour for a certain type. This specialization focusses on string literals, and should be used with STR_T(). */
-    template <typename T, size_t N_VALUES, std::any (*PARSE_FUNC)(std::vector<std::string>), char... TYPENAME>
-    struct Type<T, N_VALUES, PARSE_FUNC, tstring<TYPENAME...>> : public BaseType {
-        /* References the chosen type. */
-        using type = T;
-        /* The name / uid of the type. */
-        static constexpr const char type_name[] = { TYPENAME..., '\0' };
-        /* The parser for this type. */
-        static constexpr const std::any (*parse_func)(std::vector<std::string>) = PARSE_FUNC;
-        /* The number of values that this type uses. */
-        static constexpr const size_t n_values = N_VALUES;
-
-        /* Generates a RuntimeType from this specific DerivedType. */
-        static RuntimeType runtime() {
-            return RuntimeType(this->type_name, typeid(this->type).hash_code(), this->parse_func, this->n_values);
-        }
-    };
-
-
-
-
-
     /******************** ARGUMENTPARSER EXCEPTIONS ********************/
 
     /* General exception which forms the baseclass of all child exceptions. */
@@ -356,7 +282,7 @@ namespace Lut99 {
     public:
         /* Constructor for the ProgrammingException that takes a programming context, the value of the existing token already on the stream and the value of the newly given token. */
         DuplicateExecutableTokenException(const std::string& context, const std::string& existing_token, const std::string& given_token) :
-            ProgrammingException(context, "Cannot put token '" + given_token + "' on the stream when Executable token '" + existing_token + "' is at its head (no token has been taken)."),
+            ProgrammingException(context, generate_message(context, "Cannot put token '" + given_token + "' on the stream when Executable token '" + existing_token + "' is at its head (no token has been taken).")),
             existing(existing_token),
             given(given_token)
         {}
@@ -369,6 +295,215 @@ namespace Lut99 {
         /* Allows the DuplicateExecutableTokenException to be copied polymorphically. */
         virtual DuplicateExecutableTokenException* copy() const {
             return new DuplicateExecutableTokenException(*this);
+        }
+
+    };
+
+    /* Exception for when we expected an argument to be non-variadic (e.g., not a variable number of arguments) but it was. */
+    class SingletonMismatchException: public ProgrammingException {
+
+    };
+
+    /* Baseclass exception for when a given name or shortlabel was illegal. */
+    class IllegalIDException: public ProgrammingException {
+    public:
+        /* Constructor for the IllegalCharException which takes a context and optionally a message. */
+        IllegalIDException(const std::string& context, const std::string& message = "") :
+            ProgrammingException(context, message)
+        {}
+
+        /* Allows the IllegalIDException to be copied polymorphically. */
+        virtual IllegalIDException* copy() const {
+            return new IllegalIDException(*this);
+        }
+
+    };
+    /* Exception for when a given shortlabel ID is invalid. */
+    class IllegalShortlabelException: public IllegalIDException {
+    private:
+        /* The shortlabel that was illegal. */
+        char shortlabel;
+
+    public:
+        /* Constructor for the IllegalShortlabelCharException which takes a context and the illegal shortlabel. */
+        IllegalShortlabelException(const std::string& context, const char illegal_shortlabel) :
+            IllegalIDException(context, generate_message(context, (std::string("Got illegal shortlabel '") += illegal_shortlabel)  + "'.")),
+            shortlabel(illegal_shortlabel)
+        {}
+
+        /* Returns the shortlabel that was illegal. */
+        inline char get_shortlabel() const { return this->shortlabel; }
+
+        /* Allows the IllegalShortlabelException to be copied polymorphically. */
+        virtual IllegalShortlabelException* copy() const {
+            return new IllegalShortlabelException(*this);
+        }
+
+    };
+    /* Exception for when a given name ID is invalid. */
+    class IllegalNameException: public IllegalIDException {
+    private:
+        /* The illegal name. */
+        std::string name;
+
+    public:
+        /* Constructor for the IllegalNameException which takes the illegal character and the string where it occurred. */
+        IllegalNameException(const std::string& context, const std::string& name) :
+            IllegalIDException(context, generate_message(context, "Got illegal name '" + name + "'.")),
+            name(name)
+        {}
+
+        /* Returns the name that was somehow illegal. */
+        inline std::string get_name() const { return this->name; }
+
+        /* Allows the IllegalNameException to be copied polymorphically. */
+        virtual IllegalNameException* copy() const {
+            return new IllegalNameException(*this);
+        }
+
+    };
+
+    /* Baseclass exception for when a given name or shortlabel is already in use. */
+    class DuplicateIDException: public ProgrammingException {
+    public:
+        /* Constructor for the DuplicateIDException class, which takes a programming context and optionally a message. */
+        DuplicateIDException(const std::string& context, const std::string& message = "") :
+            ProgrammingException(context, message)
+        {}
+
+        /* Allows the DuplicateIDException to be copied polymorphically. */
+        virtual DuplicateIDException* copy() const {
+            return new DuplicateIDException(*this);
+        }
+
+    };
+    /* Exception for when a name is already in use by another argument. */
+    class DuplicateNameException: public DuplicateIDException {
+    private:
+        /* The name that was duplicate. */
+        std::string name;
+    
+    public:
+        /* Constructor for the DuplicateNameException class which takes a programming context and the name that was already in use. */
+        DuplicateNameException(const std::string& context, const std::string& name) :
+            DuplicateIDException(context, generate_message(context, "An argument with the name '" + name + "' already exists.")),
+            name(name)
+        {}
+
+        /* Returns the name that was already in use. */
+        inline std::string get_name() const { return this->name; }
+
+        /* Allows the DuplicateNameException to be copied polymorphically. */
+        virtual DuplicateNameException* copy() const {
+            return new DuplicateNameException(*this);
+        }
+
+    };
+    /* Exception for when a shortlabel is already in use by another argument. */
+    class DuplicateShortlabelException: public DuplicateIDException {
+    private:
+        /* The shortlabel that was duplicate. */
+        char shortlabel;
+    
+    public:
+        /* Constructor for the DuplicateShortlabelException class which takes a programming context and the shortlabel that was already in use. */
+        DuplicateShortlabelException(const std::string& context, const char shortlabel) :
+            DuplicateIDException(context, generate_message(context, (std::string("An argument with the shortlabel '") += shortlabel) + "' already exists.")),
+            shortlabel(shortlabel)
+        {}
+
+        /* Returns the shortlabel that was already in use. */
+        inline char get_shortlabel() const { return this->shortlabel; }
+
+        /* Allows the DuplicateShortlabelException to be copied polymorphically. */
+        virtual DuplicateShortlabelException* copy() const {
+            return new DuplicateShortlabelException(*this);
+        }
+
+    };
+
+    /* Baseclass exception for when a given name or shortlabel does not exist. */
+    class UnknownIDException: public ProgrammingException {
+    public:
+        /* Constructor for the UnknownIDException which takes a programming context and optionally a message. */
+        UnknownIDException(const std::string& context, const std::string& message = "") :
+            ProgrammingException(context, message)
+        {}
+
+        /* Allows the UnknownIDException to be copied polymorphically. */
+        virtual UnknownIDException* copy() const {
+            return new UnknownIDException(*this);
+        }
+
+    };
+    /* Exception for when a given name does not exist. */
+    class UnknownNameException: public UnknownIDException {
+    private:
+        /* The name that was unknown. */
+        std::string name;
+    
+    public:
+        /* Constructor for the DuplicateNameException class which takes a programming context and the name that was unknown. */
+        UnknownNameException(const std::string& context, const std::string& name) :
+            UnknownIDException(context, generate_message(context, "Could not find Argument with name '" + name + "'.")),
+            name(name)
+        {}
+
+        /* Returns the name that was unknown. */
+        inline std::string get_name() const { return this->name; }
+
+        /* Allows the UnknownNameException to be copied polymorphically. */
+        virtual UnknownNameException* copy() const {
+            return new UnknownNameException(*this);
+        }
+
+    };
+
+    /* Exception for when we have mismatched the argument's type. */
+    class ArgumentTypeException: public ProgrammingException {
+    protected:
+        /* The name of the argument that was mismatched. */
+        std::string name;
+        /* The ArgumentType we expected the argument to have. */
+        ArgumentType expected;
+        /* The ArgumentType the argument actually had. */
+        ArgumentType given;
+
+    public:
+        /* Constructor for the ArgumentTypeException that takes a context, the name of the argument that was mismatched, the expected type and the given type. */
+        ArgumentTypeException(const std::string& context, const std::string& name, const ArgumentType expected_type, const ArgumentType given_type) :
+            ProgrammingException(context, generate_message(context, "Expected argument '" + name + "' to be of type " + argtype_name_map[(int) expected_type] + ", but is of type " + argtype_name_map[(int) given_type] + ".")),
+            name(name),
+            expected(expected_type),
+            given(given_type)
+        {}
+
+        /* Returns the name of the argument that we mismatched its type of. */
+        inline std::string get_name() const { return this->name; }
+        /* Returns the ArgumentType that we expected the argument to have. */
+        inline ArgumentType get_expected_argtype() const { return this->expected; }
+        /* Returns the ArgumentType that the argument actually had. */
+        inline ArgumentType get_given_argtype() const { return this->given; }
+
+        /* Allows the ArgumentTypeException to be copied polymorphically. */
+        virtual ArgumentTypeException* copy() const {
+            return new ArgumentTypeException(*this);
+        }
+
+    };
+    /* Specialized exception for when an Argument is assumed to have a value (e.g., a Positional or an Option, it assumes Option) but it didn't (it was a Flag). */
+    class ValueTypeMismatchException: public ArgumentTypeException {
+    public:
+        /* The constructor of the ValueTypeMismatchException, that takes a context and the name of the argument that was mismatched. */
+        ValueTypeMismatchException(const std::string& context, const std::string& name) :
+            ArgumentTypeException(context, name, ArgumentType::option, ArgumentType::flag)
+        {
+            this->msg = generate_message(context, "Expected argument '" + name + "' to have a value, but it didn't (it was a Flag).");
+        }
+
+        /* Allows the ValueTypeMismatchException to be copied polymorphically. */
+        virtual ValueTypeMismatchException* copy() const {
+            return new ValueTypeMismatchException(*this);
         }
 
     };
@@ -389,6 +524,61 @@ namespace Lut99 {
         }
     };
     
+    /* Exception for when a non-optional Positional was defined after optional Positionals. */
+    class OptionalPositionalException: public ParseException {
+    private:
+        /* The name of the violating Positional. */
+        std::string name;
+        /* The index of the violating Positional. */
+        size_t index;
+    
+    public:
+        /* Constructor for the OptionalPositionalException class, which takes the name and the index of the Positional that was mandatory but declared after optional ones. */
+        OptionalPositionalException(const std::string& name, const size_t index) :
+            ParseException(generate_message("Mandatory Positional '" + name + "' at index " + std::to_string(index) + " was declared after Optional Positionals have been declared.")),
+            name(name),
+            index(index)
+        {}
+
+        /* Returns the name of the violating, mandatory Positional. */
+        inline std::string get_name() const { return this->name; }
+        /* Returns the CLI-relevant index of the violating, mandatory Positional. */
+        inline size_t get_index() const { return this->index; }
+
+        /* Allows the OptionalPositionalException to be copied polymorphically. */
+        virtual OptionalPositionalException* copy() const {
+            return new OptionalPositionalException(*this);
+        }
+
+    };
+    /* Exception for when any Positional other than the last one is declared to be variadic. */
+    class VariadicPositionalException: public ParseException {
+    private:
+        /* The name of the violating Positional. */
+        std::string name;
+        /* The index of the violating Positional. */
+        size_t index;
+    
+    public:
+        /* Constructor for the VariadicPositionalException class, which takes the name and the index of the Positional that was declared variadic but not the last one. */
+        VariadicPositionalException(const std::string& name, const size_t index) :
+            ParseException(generate_message("Positional '" + name + "' at index " + std::to_string(index) + " was declared to be variadic, but was not the last Positional.")),
+            name(name),
+            index(index)
+        {}
+
+        /* Returns the name of the violating, variadic Positional. */
+        inline std::string get_name() const { return this->name; }
+        /* Returns the CLI-relevant index of the violating, variadic Positional. */
+        inline size_t get_index() const { return this->index; }
+
+        /* Allows the VariadicPositionalException to be copied polymorphically. */
+        virtual VariadicPositionalException* copy() const {
+            return new VariadicPositionalException(*this);
+        }
+
+    };
+
     /* Baseclass exception for when an illegal character was encountered during name or shortlabel parsing. */
     class IllegalIDCharException: public ParseException {
     private:
@@ -416,7 +606,7 @@ namespace Lut99 {
     public:
         /* Constructor for the IllegalShortlabelCharException which takes the illegal character. */
         IllegalShortlabelCharException(const char illegal_char) :
-            IllegalIDCharException(illegal_char, (std::string("Encountered illegal shortlabel '") += illegal_char)  + "'.")
+            IllegalIDCharException(illegal_char, generate_message((std::string("Encountered illegal shortlabel '") += illegal_char)  + "'."))
         {}
 
         /* Allows the IllegalShortlabelCharException to be copied polymorphically. */
@@ -434,7 +624,7 @@ namespace Lut99 {
     public:
         /* Constructor for the IllegalNameCharException which takes the illegal character and the string where it occurred. */
         IllegalNameCharException(const char illegal_char, const std::string& name) :
-            IllegalIDCharException(illegal_char, (std::string("Encountered illegal character '") += illegal_char)  + "' in the name '" + name + "'."),
+            IllegalIDCharException(illegal_char, generate_message((std::string("Encountered illegal character '") += illegal_char)  + "' in the name '" + name + "'.")),
             name(name)
         {}
 
@@ -444,6 +634,56 @@ namespace Lut99 {
         /* Allows the IllegalNameCharException to be copied polymorphically. */
         virtual IllegalNameCharException* copy() const {
             return new IllegalNameCharException(*this);
+        }
+
+    };
+
+    /* Exception for when an Argument should have been specified, but wasn't. */
+    class MissingMandatoryException: public ParseException {
+    private:
+        /* The name of the missing argument. */
+        std::string name;
+    
+    public:
+        /* Constructor for the MissingMandatoryException class that takes the name of the argument that was missing. */
+        MissingMandatoryException(const std::string& name) :
+            ParseException(generate_message("Missing mandatory argument '" + name + "'.")),
+            name(name)
+        {}
+
+        /* Returns the name of the mandatory argument that was missing. */
+        inline std::string get_name() const { return this->name; }
+
+        /* Allows the MissingMandatoryException to be copied polymorphically. */
+        virtual MissingMandatoryException* copy() const {
+            return new MissingMandatoryException(*this);
+        }
+
+    };
+    /* Exception for when an Argument was specified multiple times when it wasn't allowed to be. */
+    class DuplicateArgumentException: public ParseException {
+    private:
+        /* The name of the duplicate argument. */
+        std::string name;
+        /* The shortlabel of the duplicate argument. */
+        char shortlabel;
+    
+    public:
+        /* Constructor for the MissingMandatoryException class that takes the name of the argument that was specified more than once and its shortlabel. */
+        DuplicateArgumentException(const std::string& name, const char shortabel) :
+            ParseException(generate_message("Duplicate argument '" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" -(") += shortlabel) + ")") + ".")),
+            name(name),
+            shortlabel(shortlabel)
+        {}
+
+        /* Returns the name of the mandatory argument that was missing. */
+        inline std::string get_name() const { return this->name; }
+        /* Returns the shortlabel of the mandatory argument that was missing. If the argument had no shortlabel, returns '\0'. */
+        inline char get_shortlabel() const { return this->shortlabel; }
+
+        /* Allows the DuplicateArgumentException to be copied polymorphically. */
+        virtual DuplicateArgumentException* copy() const {
+            return new DuplicateArgumentException(*this);
         }
 
     };
@@ -607,6 +847,123 @@ namespace Lut99 {
         }
 
     };
+    /* Exception for when an illegal value is given for a type. */
+    class IllegalValueException: public TypeParseException {
+    private:
+        /* The message describing the range of allowed characters. */
+        std::string allowed;
+        /* The value that was illegal. */
+        std::string illegal;
+    
+    public:
+        /* Constructor for the IllegalCharException which takes the name of type we wanted to parse to, the illegal character and a string describing the allowed characters. See the Wiki for more details. */
+        IllegalValueException(const std::string& type_name, const std::string illegal_value, const std::string& allowed_values) :
+            TypeParseException(type_name, "Encountered illegal characters (" + type_name + " only accepts " + allowed_values + ")."),
+            allowed(allowed_values),
+            illegal(illegal_value)
+        {}
+
+        /* Returns the illegal value that was encountered. */
+        inline std::string get_illegal() const { return this->illegal; }
+        /* Returns the string describing the valid characters. */
+        inline std::string get_allowed() const { return this->allowed; }
+
+        /* Allows the IllegalValueException to be copied polymorphically. */
+        virtual IllegalValueException* copy() const {
+            return new IllegalValueException(*this);
+        }
+
+    };
+    /* Baseclass exception for when the given length of a string is incorrect. */
+    class StringSizeException: public TypeParseException {
+    protected:
+        /* The string that had the incorrect length. If the string is empty, we'll hide it. */
+        std::string given;
+    
+    public:
+        /* Constructor for the StringSizeException class that takes the typename, the string that was incorrectly sized and optionally a message. */
+        StringSizeException(const std::string& type_name, const std::string& given_string, const std::string& message = "") :
+            TypeParseException(type_name, message),
+            given(given_string)
+        {}
+
+        /* Returns the string that was incorrectly sized. */
+        inline std::string get_given() const { return this->given; }
+        /* Returns the size of the string that was incorrectly sized. */
+        inline size_t get_given_size() const { return this->given.size(); }
+
+        /* Allows the StringSizeException to be copied polymorphically. */
+        virtual StringSizeException* copy() const {
+            return new StringSizeException(*this);
+        }
+  
+    };
+    /* Exception for when a given string is too large. */
+    class StringTooLargeException: public StringSizeException {
+    protected:
+        /* The maximum length of the string. */
+        size_t max_size;
+    
+    public:
+        /* Constructor for the StringTooLargeException class that takes the name of the type we wanted to parse to, the given string and the maximum string length. */
+        StringTooLargeException(const std::string& type_name, const std::string& given, const size_t max_size) :
+            StringSizeException(type_name, given, "Given string is too large (" + std::to_string(given.size()) + " > " + std::to_string(max_size) + ")."),
+            max_size(max_size)
+        {}
+
+        /* Returns the maximum allowed string size. */
+        inline size_t get_max_size() const { return this->max_size; }
+
+        /* Allows the StringTooLargeException to be copied polymorphically. */
+        virtual StringTooLargeException* copy() const {
+            return new StringTooLargeException(*this);
+        }
+
+    };
+    /* Exception for when a given string is too small. */
+    class StringTooSmallException: public StringSizeException {
+    protected:
+        /* The minimum length of the string. */
+        size_t min_size;
+    
+    public:
+        /* Constructor for the StringTooSmallException class that takes the name of the type we wanted to parse to, the given string and the minimum string length. */
+        StringTooSmallException(const std::string& type_name, const std::string& given, const size_t min_size) :
+            StringSizeException(type_name, given, "Given string is too small (" + std::to_string(given.size()) + " < " + std::to_string(min_size) + ")."),
+            min_size(min_size)
+        {}
+
+        /* Returns the minimum allowed string size. */
+        inline size_t get_min_size() const { return this->min_size; }
+
+        /* Allows the StringTooSmallException to be copied polymorphically. */
+        virtual StringTooSmallException* copy() const {
+            return new StringTooSmallException(*this);
+        }
+
+    };
+    /* Exception for when a given string just has an incorrect size. */
+    class StringSizeIncorrectException: public StringSizeException {
+    protected:
+        /* A string describing the allowed sizes. */
+        std::string allowed;
+    
+    public:
+        /* Constructor for the StringSizeIncorrectException class that takes the name of the type we wanted to parse to, the given string and a string describing the allowed string sizes. */
+        StringSizeIncorrectException(const std::string& type_name, const std::string& given, const std::string& allowed_sizes) :
+            StringSizeException(type_name, given, "Given string of length " + std::to_string(given.size()) + " has incorrect size (" + type_name + " only allows " + allowed_sizes + ")."),
+            allowed(allowed_sizes)
+        {}
+
+        /* Returns a string describing all allowed sizes. */
+        inline std::string get_allowed() const { return this->allowed; }
+
+        /* Allows the StringSizeIncorrectException to be copied polymorphically. */
+        virtual StringSizeIncorrectException* copy() const {
+            return new StringSizeIncorrectException(*this);
+        }
+
+    };
 
 
 
@@ -659,7 +1016,7 @@ namespace Lut99 {
             }
         }
 
-        /* Returns the first token on the stream as the given token object. If no more tokens are available, returns a Token with 'empty' TokenType. */
+        /* Returns and removed the first token on the stream in the given token object. If no more tokens are available, returns a Token with 'empty' TokenType. */
         Tokenizer& operator>>(Token& result) {
             // If there are no more tokens to get, give the token an empty value
             if (this->input.size() == 0) {
@@ -690,7 +1047,7 @@ namespace Lut99 {
                     // If we just see two '--', we mark it so and return the next token instead
                     if (label.size() == 1) {
                         this->accepts_options = false;
-                        return *this << result;
+                        return *this >> result;
                     }
 
                     // Check if that name happens to be illegal
@@ -707,7 +1064,60 @@ namespace Lut99 {
                 return *this;
             }
         }
-        
+        /* Returns the first token on the stream as a new token object, but doesn't remove it from the stream. If no more tokens are available, returns a Token with 'empty' TokenType. */
+        Token peek() const {
+            Token result;
+
+            // If there are no more tokens to get, give the token an empty value
+            if (this->input.size() == 0) {
+                result.type = TokenType::empty;
+                result.value = "";
+                return result;
+            }
+
+            // Get the head of the vector in the Token
+            result.value = this->input.at(this->input.size() - 1);
+
+            // Analyze its type
+            if (this->executable_to_go) {
+                // It's the executable!
+                result.type = TokenType::executable;
+                return result;
+            } else if (this->accepts_options && result.value.size() >= 2 && result.value[0] == '-') {
+                // It's a dash with at least something else; an Option
+                result.type = TokenType::label;
+                std::string label = result.value.substr(1);
+
+                // Check if it's a shortlabel or a name and, if either, if it's valid
+                if (label[0] != '-' && !is_valid_shortlabel(label[0])) {
+                    throw IllegalShortlabelCharException(label[0]);
+                } else if (label[0] == '-') {
+                    // If we just see two '--', we return the next token instead
+                    if (label.size() == 1) {
+                        return this->peek();
+                    }
+
+                    // Check if that name happens to be illegal
+                    char result = is_valid_name(label.substr(1));
+                    if (result != '\0') { throw IllegalNameCharException(result, label); }
+                }
+
+                // It's valid, so overwrite result.value with label and return
+                result.value = label;
+                return result;
+            } else {
+                // We parse it as a normal value
+                result.type = TokenType::value;
+                return result;
+            }
+        }
+        /* Only removes the first token on the stream, does not return it. Simply does nothing if no more tokens are available on the stream. */
+        void pop() {
+            if (this->input.size() > 0) {
+                this->input.pop_back();
+            }
+        }
+
         /* Puts a given token back on the stream. */
         Tokenizer& operator<<(const Token& to_return) {
             const std::string context = "Tokenizer::operator<<(Token)";
@@ -753,6 +1163,76 @@ namespace Lut99 {
         /* Returns the number of tokens left in the stream. */
         inline size_t size() const { return this->input.size(); }
 
+    };
+
+
+
+
+
+    /******************** ARGUMENTPARSER TYPE SYSTEM ********************/
+
+    /* String placeholder type. */
+    template <char... chars>
+    using tstring = std::integer_sequence<char, chars...>;
+
+    template <typename T, T... chars>
+    constexpr tstring<chars...> operator""_tstr() { return { }; }
+
+    /* Instantiated version of the DerivedType class, containing information that is moldable at runtime instead of compile time alone. */
+    struct RuntimeType {
+    public:
+        const std::string type_name;
+        const size_t type_hash;
+        const std::any (*parse_func)(Tokenizer&);
+
+        /* Constructor of the RuntimeType class which takes the name & hash of the target type, the assigned parser and the number of values. */
+        RuntimeType(const char* type_name, const size_t type_hash, const std::any (*parse_func)(Tokenizer&)) :
+            type_name(type_name),
+            type_hash(type_hash),
+            parse_func(parse_func)
+        {}
+
+        /* Returns true if this and the other type are the same. */
+        inline bool operator==(const RuntimeType& other) const { return this->type_name == other.type_name && this->type_hash == other.type_hash && this->parse_func == other.parse_func; }
+        /* Returns true if this and the other type are different. */
+        inline bool operator!=(const RuntimeType& other) const { return this->type_name != other.type_name || this->type_hash != other.type_hash || this->parse_func != other.parse_func; }
+
+        /* Returns true if this and the given typeid point to the same type. */
+        inline bool operator==(const type_info& rhs) const { return this->type_hash == rhs.hash_code(); }
+        /* Returns true if this and the given typeid point to the same type. */
+        friend inline bool operator==(const type_info& lhs, const RuntimeType& rhs);
+        /* Returns true if this and the given typeid point to a different type. */
+        inline bool operator!=(const type_info& rhs) const { return this->type_hash != rhs.hash_code(); }
+        /* Returns true if this and the given typeid point to a different type. */
+        friend inline bool operator!=(const type_info& lhs, const RuntimeType& rhs);
+
+    };
+    /* Returns true if this and the given typeid point to the same type. */
+    inline bool operator==(const type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
+    /* Returns true if this and the given typeid point to a different type. */
+    inline bool operator!=(const type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
+
+    /* Type marks the base of all ArgumentParser-supported types. */
+    struct BaseType { };
+
+    /* Template for types used in the ArgumentParser. Used to specify behaviour for a certain type. */
+    template <typename, std::any (*)(Tokenizer&), typename...>
+    struct Type : public BaseType { };
+
+    /* Template for types used in the ArgumentParser. Used to specify behaviour for a certain type. This specialization focusses on string literals, and should be used with STR_T(). */
+    template <typename T, std::any (*PARSE_FUNC)(Tokenizer&), char... TYPENAME>
+    struct Type<T, PARSE_FUNC, tstring<TYPENAME...>> : public BaseType {
+        /* References the chosen type. */
+        using type = T;
+        /* The name / uid of the type. */
+        static constexpr const char type_name[] = { TYPENAME..., '\0' };
+        /* The parser for this type. */
+        static constexpr const std::any (*parse_func)(Tokenizer&) = PARSE_FUNC;
+
+        /* Generates a RuntimeType from this specific DerivedType. */
+        static RuntimeType runtime() {
+            return RuntimeType(this->type_name, typeid(this->type).hash_code(), this->parse_func);
+        }
     };
 
 
@@ -1174,27 +1654,37 @@ failure:
     }
 
     /* Parser for single characters. Only errors if no character is given. */
-    std::any parse_char(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<char>::value, 1, values.size()); }
+    std::any parse_char(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
 
-        if (values[0].size() != 1) {
-            throw IllegalValueException(type_name<char>::value, values[0]);
+        // Get an easy-to-use reference to the parsed string
+        std::string& text = token.value;
+
+        if (text.size() != 1) {
+            throw StringSizeIncorrectException(type_name<char>::value, text, "single characters");
         }
 
-        return std::any(values[0][0]);
+        return std::any(text[0]);
     }
 
     /* Parser for multiple characters. Only errors if no character is given. */
-    std::any parse_string(std::vector<std::string> values) {
-        // Try to parse the first value only
-        if (values.size() < 1) { throw NotEnoughValuesException(type_name<std::string>::value, 1, values.size()); }
+    std::any parse_string(Tokenizer& input) {
+        // Get the first token
+        Token token;
+        input >> token;
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
 
-        if (values[0].size() == 0) {
-            throw IllegalValueException(type_name<std::string>::value, values[0]);
+        // Get an easy-to-use reference to the parsed string
+        std::string& text = token.value;
+
+        if (text.size() == 0) {
+            throw StringTooSmallException(type_name<std::string>::value, text, 1);
         }
 
-        return std::any(values[0]);
+        return std::any(text);
     }
 
 
@@ -1204,35 +1694,35 @@ failure:
     /******************** DEFAULT TYPES ********************/
 
     /* Unsigned byte, which refer's to C's unsigned char. */
-    using UByte = Type<unsigned char, 1, parse_uint<unsigned char>, STR_T("unsigned byte")>;
+    using UByte = Type<unsigned char, parse_uint<unsigned char>, STR_T("unsigned byte")>;
     /* Signed byte, which refer's to C's signed char. */
-    using Byte = Type<signed char, 1, parse_int<signed char>, STR_T("byte")>;
+    using Byte = Type<signed char, parse_int<signed char>, STR_T("byte")>;
     /* Unsigned short, which refer's to C's unsigned short. */
-    using UShort = Type<unsigned short, 1, parse_uint<unsigned short>, STR_T("unsigned short")>;
+    using UShort = Type<unsigned short, parse_uint<unsigned short>, STR_T("unsigned short")>;
     /* Signed short, which refer's to C's signed short. */
-    using Short = Type<short, 1, parse_int<short>, STR_T("short")>;
+    using Short = Type<short, parse_int<short>, STR_T("short")>;
     /* Unsigned int, which refer's to C's unsigned int. */
-    using UInt = Type<unsigned int, 1, parse_uint<unsigned int>, STR_T("unsigned int")>;
+    using UInt = Type<unsigned int, parse_uint<unsigned int>, STR_T("unsigned int")>;
     /* Signed int, which refer's to C's signed int. */
-    using Int = Type<int, 1, parse_int<int>, STR_T("int")>;
+    using Int = Type<int, parse_int<int>, STR_T("int")>;
     /* Unsigned long, which refer's to C's unsigned long. */
-    using ULong = Type<unsigned long, 1, parse_uint<unsigned long>, STR_T("unsigned long")>;
+    using ULong = Type<unsigned long, parse_uint<unsigned long>, STR_T("unsigned long")>;
     /* Signed long, which refer's to C's signed long. */
-    using Long = Type<long, 1, parse_int<long>, STR_T("long")>;
+    using Long = Type<long, parse_int<long>, STR_T("long")>;
     /* Unsigned long long, which refer's to C's unsigned long long. */
-    using ULongLong = Type<unsigned long long, 1, parse_uint<unsigned long long>, STR_T("unsigned long long")>;
+    using ULongLong = Type<unsigned long long, parse_uint<unsigned long long>, STR_T("unsigned long long")>;
     /* Signed long long, which refer's to C's signed long long. */
-    using LongLong = Type<long long, 1, parse_int<long long>, STR_T("long long")>;
+    using LongLong = Type<long long, parse_int<long long>, STR_T("long long")>;
     /* Float, which refers to C's float type. */
-    using Float = Type<float, 1, parse_float, STR_T("float")>;
+    using Float = Type<float, parse_float, STR_T("float")>;
     /* Double, which refers to C's double type. */
-    using Double = Type<double, 1, parse_double, STR_T("double")>;
+    using Double = Type<double, parse_double, STR_T("double")>;
     /* Boolean type, which can be used to interpret true/false, yes/no or 1/0. */
-    using Bool = Type<bool, 1, parse_bool, STR_T("bool")>;
+    using Bool = Type<bool, parse_bool, STR_T("bool")>;
     /* Char type, which is used to interpret a single character */
-    using Char = Type<char, 1, parse_char, STR_T("char")>;
+    using Char = Type<char, parse_char, STR_T("char")>;
     /* String type, which is used to interpret multiple characters. */
-    using String = Type<std::string, 1, parse_string, STR_T("string")>;
+    using String = Type<std::string, parse_string, STR_T("string")>;
 
 
 
@@ -1280,6 +1770,7 @@ failure:
     void swap(Argument& a1, Argument& a2) {
         using std::swap;
 
+        swap(a1.name, a2.name);
         swap(a1.arg_type, a2.arg_type);
     }
 
@@ -1295,8 +1786,8 @@ failure:
         
         /* Determines whether or not the AtomicArgument is optional, i.e., the user can omit specifying it. */
         bool optional;
-        /* Determines whether or not the AtomicArgument can only be defined once or not. */
-        bool singleton;
+        /* Determines whether of not the AtomicArgument can have any number of values following it (true) or just a single set (false). */
+        bool variadic;
         /* The description of the AtomicArgument. Will be used to describe the argument when generate_help() is used. Arguments without description will not be displayed there (but will be displayed using generate_usage()). */
         std::string description;
         /* The category of the AtomicArgument. Will be used to group arguments when using generate_help(). Is 'Miscellaneous' by default. */
@@ -1310,16 +1801,19 @@ failure:
             shortlabel(shortlabel),
             type(type),
             optional(false),
-            singleton(true),
+            variadic(false),
             description(""),
-            category("Miscellaneous")
+            category("Miscellaneous"),
+            default_value(false)
         {
+            const std::string context = "AtomicArgument()";
+
             // Check if the name is legal
             char valid = is_valid_name(this->name);
-            if (valid != '\0') { throw IllegalNameException("AtomicArgument", name, valid); }
+            if (valid != '\0') { throw IllegalNameException(context, name); }
             
             // Check if the shortlabel is legal
-            if (!is_valid_shortlabel(shortlabel)) { throw IllegalShortlabelException("Option", shortlabel); }
+            if (!is_valid_shortlabel(shortlabel)) { throw IllegalShortlabelException(context, shortlabel); }
         }
 
         /* Constructor for the AtomicArgument baseclass which only takes the name of the derived class. Only used by Flags. */
@@ -1328,17 +1822,19 @@ failure:
             shortlabel(shortlabel),
             type(Bool::runtime()),
             optional(true),
-            singleton(true),
+            variadic(false),
             description(""),
             category("Miscellaneous"),
             default_value(false)
         {
+            const std::string context = "AtomicArgument(name, shortlabel)";
+
             // Check if the name is legal
             char valid = is_valid_name(this->name);
-            if (valid != '\0') { throw IllegalNameException("AtomicArgument", name, valid); }
+            if (valid != '\0') { throw IllegalNameException(context, name); }
             
             // Check if the shortlabel is legal
-            if (!is_valid_shortlabel(shortlabel)) { throw IllegalShortlabelException("Option", shortlabel); }
+            if (!is_valid_shortlabel(shortlabel)) { throw IllegalShortlabelException(context, shortlabel); }
         }
 
     public:
@@ -1363,13 +1859,13 @@ failure:
         /* Gets whether or not the AtomicArgument is optional, i.e., can be omitted by the user. */
         inline bool is_optional() const { return this->optional; }
 
-        /* Sets whether or not the AtomicArgument may only be specified once. If allowed to be specified multiple times, the result must be retrieved with Arguments::getp() instead of Arguments::get() (see the ArgumentParser's Wiki for more information). Returns a reference to the AtomicArgument to allow chaining. */
-        virtual AtomicArgument& set_singleton(bool is_singleton) {
-            this->singleton = is_singleton;
+        /* Sets whether or not a single AtomicArgument can have any number of values following it (separated by spaces). */
+        virtual AtomicArgument& set_variadic(bool is_variadic) {
+            this->variadic = is_variadic;
             return *this;
         }
-        /* Gets whether or not the AtomicArgument may only be specified once. If allowed to be specified multiple times, the result must be retrieved with Arguments::getp() instead of Arguments::get() (see the ArgumentParser's Wiki for more information). */
-        inline bool is_singleton() const { return this->singleton; }
+        /* Gets whether or not a single AtomicArgument can have any number of values following it. */
+        inline bool is_variadic() const { return this->variadic; }
 
         /* Sets the description of the AtomicArgument. Returns a reference to the AtomicArgument to allow chaining. */
         virtual AtomicArgument& set_description(const std::string& description) {
@@ -1402,8 +1898,8 @@ failure:
         /* Gets the default value of this AtomicArgument. Note that the returned any object may be unitialized if AtomicArgument::has_default() return false. */
         inline std::any get_default() const { return this->default_value; }
 
-        /* Allows ArgumentParser to let each AtomicArgument simply parse itself. Receives a list of strings, one for each space-separated value, out of which the Argument cherry picks its own values and may remove those from the list (if Option or Flag) or keeps them so their relative index makes sense (if Positional). Can throw ParseException derivates if the user did something illegal. Returns 'true' if this Argument was found and parsed, or 'false' if it wasn't but instead used some default value. */
-        virtual bool parse(std::any& result, std::vector<std::string>& raw_args) const = 0;
+        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
+        virtual std::any parse(size_t n_positionals, Tokenizer& input) const = 0;
 
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual AtomicArgument* copy() const = 0;
@@ -1430,8 +1926,8 @@ failure:
     public:
         /* Sets whether or not the Positional is optional, i.e., can be omitted by the user. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_optional(bool optional) { return (Positional&) AtomicArgument::set_optional(optional); }
-        /* Sets whether or not the Positional may only be specified once. If allowed to be specified multiple times, the result must be retrieved with Arguments::getp() instead of Arguments::get() (see the ArgumentParser's Wiki for more information). Returns a reference to the Positional to allow chaining. */
-        virtual Positional& set_singleton(bool is_singleton) { return (Positional&) AtomicArgument::set_singleton(is_singleton); }
+        /* Sets whether or not a single Positional can have any number of values following it (separated by spaces). Do not that only the last Positional can have this feature enabled. */
+        virtual Positional& set_variadic(bool is_variadic) { return (Positional&) AtomicArgument::set_variadic(is_variadic); }
         /* Sets the description of the Positional. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_description(const std::string& description) { return (Positional&) AtomicArgument::set_description(description); }
         /* Sets the category of the Positional. Returns a reference to the Positional to allow chaining. */
@@ -1442,30 +1938,31 @@ failure:
         /* Sets the default value of this Positional. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_default(const std::any& default_value) { return (Positional&) AtomicArgument::set_default(default_value); }
 
-        /* Allows ArgumentParser to let the Positional simply parse itself. Receives a list of strings, one for each space-separated value, out of which the Argument cherry picks its own values. Can throw ParseException derivates if the user did something illegal. Returns 'true' if this Argument was found and parsed, or 'false' if it wasn't but instead used some default value. */
-        virtual bool parse(std::any& result, std::vector<std::string>& raw_args) const {
-            // Check if we occur, based on the size of our index
-            if (this->index >= raw_args.size()) {
-                if (this->optional) {
-                    // Return an empty any, to indicate we succeeded but still didn't parse anything
-                    return std::any();
-                } else {
-                    // Throw an error to show this message cannot be missed
-                    throw MissingMandatoryException(this->name);
-                }
+        /* Gets the CLI-relevant index of the Positional. */
+        inline size_t get_index() const { return this->index; }
+
+        /* Allows the ArgumentParser to delegate parsing to the Positional. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
+        virtual std::any parse(size_t n_positionals, Tokenizer& input) const {
+            // First, check if we could be looking at a Positional
+            Token token = input.peek();
+            if (token.type != TokenType::value) {
+                // Not for us, so return the empty any
+                return std::any();
             }
 
-            // It does, so try to parse its value
-            std::any result;
+            // Otherwise, check if it's our turn as a Positional
+            if (n_positionals != this->index) {
+                // Not for us, so return the empty any
+                return std::any();
+            }
+
+            // If it is a value, however, it's for us, so try to parse it using our internal parser!
             try {
-                result = this->type.parse_func(std::vector<std::string>(raw_args.begin() + this->index, raw_args.end()));
+                return this->type.parse_func(input);
             } catch (TypeParseException& e) {
-                e.msg = e.generate_message(this->type.type_name, this->name, e.message);
+                e.insert(this->name);
                 throw;
             }
-
-            // Success!
-            return true;
         }
 
         /* Allows the Positional to copy itself polymorphically. */
@@ -1476,9 +1973,13 @@ failure:
     /* The Option class: an argument with a label and a value. */
     class Option : public AtomicArgument {
     private:
+        /* Determines whether or not the same Option can be specified multiple times. Output resembles is_variadic, and if used in conjunction then one big (in-order) vector of values is returned. */
+        bool repeatable;
+
         /* Constructor for the Option class, which takes the name, the shortlabel for it and its type as RuntimeType. */
         Option(const std::string& name, char shortlabel, const RuntimeType& type) :
-            AtomicArgument(ArgumentType::option, name, shortlabel, type)
+            AtomicArgument(ArgumentType::option, name, shortlabel, type),
+            repeatable(false)
         {}
 
         /* Declare the ArgumentParser as friend so it can call the constructor. */
@@ -1489,8 +1990,8 @@ failure:
     public:
         /* Sets whether or not the Option is optional, i.e., can be omitted by the user. Returns a reference to the Option to allow chaining. */
         virtual Option& set_optional(bool optional) { return (Option&) AtomicArgument::set_optional(optional); }
-        /* Sets whether or not the Option may only be specified once. If allowed to be specified multiple times, the result must be retrieved with Arguments::getp() instead of Arguments::get() (see the ArgumentParser's Wiki for more information). Returns a reference to the Option to allow chaining. */
-        virtual Option& set_singleton(bool is_singleton) { return (Option&) AtomicArgument::set_singleton(is_singleton); }
+        /* Sets whether or not a single Option can have any number of values following it (separated by spaces). */
+        virtual Option& set_variadic(bool is_variadic) { return (Option&) AtomicArgument::set_variadic(is_variadic); }
         /* Sets the description of the Option. Returns a reference to the Option to allow chaining. */
         virtual Option& set_description(const std::string& description) { return (Option&) AtomicArgument::set_description(description); }
         /* Sets the category of the Option. Returns a reference to the Option to allow chaining. */
@@ -1501,34 +2002,37 @@ failure:
         /* Sets the default value of this Option. Returns a reference to the Option to allow chaining. */
         virtual Option& set_default(const std::any& default_value) { return (Option&) AtomicArgument::set_default(default_value); }
 
-        /* Attempts to parse the appropriate Option from the given list of CLI arguments. Removes the opt flag & value when found. Throws an appropriate ParseException derivative if it wasn't successul. */
-        virtual std::any parse(std::vector<std::string>& raw_args) const {
-            // Loop through all raw arguments to find any matching ourselves
-            for (size_t i = 0; i < raw_args.size(); i++) {
-                std::string arg = raw_args.at(i);
-                if ((arg.size() == 2 && arg[0] == '-' && arg[1] == this->shortlabel) || (arg == "--" + this->name)) {
-                    // It's this option! See if there are any values
-                    if (this->type.n_values > raw_args.size() - (i + 1)) {
-                        throw NotEnoughValuesException(this->type.type_name, this->type.n_values, raw_args.size() - (i + 1), this->name, this->shortlabel);
-                    }
+        /* Sets whether or not the Option can be specified multiple times. */
+        virtual Option& set_repeatable(bool is_repeatable) {
+            this->repeatable = is_repeatable;
+            return *this;
+        }
+        /* Gets whether or not the Option can be specified multiple times. */
+        inline bool is_repeatable() const { return this->repeatable; }
 
-                    // If there are, try to parse it
-                    try {
-                        return this->type.parse_func(std::vector<std::string>(raw_args.begin() + i + 1, raw_args.end()));
-                    } catch (TypeParseException& e) {
-                        e.msg = e.generate_message(this->type.type_name, this->name, e.message);
-                        throw;
-                    }
-                }
-            }
-            
-            // If not found, check if that's okay
-            if (this->optional) {
-                // Return empty to single it wasn't here
+        /* Allows the ArgumentParser to delegate parsing to the Option. Requires the number of Positionals seen (but not really) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
+        virtual std::any parse(size_t, Tokenizer& input) const {
+            // First, check if we could be looking at an Option
+            Token token = input.peek();
+            if (token.type != TokenType::label) {
+                // Not for us, so return the empty any
                 return std::any();
-            } else {
-                // Throw a lean mean error
-                throw MissingMandatoryException(this->name, this->shortlabel);
+            }
+
+            // Then, check if the label belongs to us
+            if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
+                  (token.value.size() > 1 && token.value != "-" + this->name)) {
+                // Not for us, so return the empty any
+                return std::any();
+            }
+
+            // Otherwise, remove the label from the stream and try to parse the rest as values using our internal parser
+            input.pop();
+            try {
+                return this->type.parse_func(input);
+            } catch (TypeParseException& e) {
+                e.insert(this->name, this->shortlabel);
+                throw;
             }
         }
 
@@ -1551,36 +2055,38 @@ failure:
         friend class MultiArgument;
     
     public:
-        /* This function is disabled for Flags, since they're always optional. Throws a ValueMismatchException when called. */
-        virtual Flag& set_optional(bool optional) { throw ValueMismatchException("Flag::set_optional()", this->name); }
-        /* This function is disabled for Flags, since it doesn't make sense to specify flags multiple times. Throws a ValueMismatchException when called. */
-        virtual Flag& set_singleton(bool is_singleton) { throw ValueMismatchException("Flag::set_singleton()", this->name); }
+        /* This function is disabled for Flags, since they're always optional. Throws a ValueTypeMismatchException when called. */
+        virtual Flag& set_optional(bool) { throw ValueTypeMismatchException("Flag::set_optional()", this->name); }
+        /* This function is disabled for Flags, since flags don't have any value. Throws a ValueTypeMismatchException when called. */
+        virtual Flag& set_variadic(bool) { throw ValueTypeMismatchException("Flag::set_variadic()", this->name); }
         /* Sets the description of the Flag. Returns a reference to the Flag to allow chaining. */
         virtual Flag& set_description(const std::string& description) { return (Flag&) AtomicArgument::set_description(description); }
         /* Sets the category of the Flag. Returns a reference to the Flag to allow chaining. */
         virtual Flag& set_category(const std::string& category) { return (Flag&) AtomicArgument::set_category(category); }
 
-        /* This function is disabled for Flags, since Flag's value must always be set to false or true. Throws a ValueMismatchException when called. */
-        virtual Flag& clear_default() { throw ValueMismatchException("Flag::clear_default()", this->name); }
-        /* Sets the Flag's value if the user doesn't specify it. Is true by default, but might make sense to set to false. Throws an Returns a reference to the Option to allow chaining. */
-        virtual Flag& set_default(const std::any& default_value) {
-            if (default_value.type() != typeid(bool) && default_value.type() != typeid(const bool)) { throw IllegalDefaultValueException("Flag::set_default()", this->name, default_value); }
-            return (Flag&) AtomicArgument::set_default(default_value);
-        }
+        /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
+        virtual Flag& clear_default() { throw ValueTypeMismatchException("Flag::clear_default()", this->name); }
+        /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
+        virtual Flag& set_default(const std::any&) { throw ValueTypeMismatchException("Flag::set_default()", this->name); }
 
-        /* Attempts to parse the appropriate Flag from the given list of CLI arguments. Removes the opt flag when found. Throws an appropriate ParseException derivative if it wasn't successul. */
-        virtual std::any parse(std::vector<std::string>& raw_args) const {
-            // Loop through all raw arguments to find any matching ourselves
-            for (size_t i = 0; i < raw_args.size(); i++) {
-                std::string arg = raw_args.at(i);
-                if ((arg.size() == 2 && arg[0] == '-' && arg[1] == this->shortlabel) || (arg == "--" + this->name)) {
-                    // It's this Flag! Simply return true
-                    return std::any(true);
-                }
+        /* Allows the ArgumentParser to delegate parsing to the Flag. Requires the number of Positionals seen (but not really) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
+        virtual std::any parse(size_t, Tokenizer& input) const {
+            // First, check if we could be looking at an Option
+            Token token = input.peek();
+            if (token.type != TokenType::label) {
+                // Not for us, so return the empty any
+                return std::any();
             }
-            
-            // If not found, return false
-            std::any(false);
+
+            // Then, check if the label belongs to us
+            if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
+                  (token.value.size() > 1 && token.value != "-" + this->name)) {
+                // Not for us, so return the empty any
+                return std::any();
+            }
+
+            // Otherwise, we did find it!
+            return std::any(true);
         }
 
         /* Allows the Flag to copy itself polymorphically. */
@@ -1651,9 +2157,6 @@ failure:
         Positional& add_positional(const std::string& name) {
             const std::string context = "MultiArgument::add_positional()";
 
-            // Check if n_values != 0
-            if (T::n_values == 0) { throw IllegalNValuesException(context, T::n_values); }
-
             // Check if the name exists
             if (this->root->has_name(name)) {
                 throw DuplicateNameException(context, name);
@@ -1664,7 +2167,7 @@ failure:
 
             // Create a new Positional object with the index = the number of n_positionals
             Positional* p = new Positional(name, n_positionals, T::runtime());
-            this->args.push_back(p);
+            this->args.push_back((Argument*) p);
             
             // Return it
             return *p;
@@ -1673,10 +2176,7 @@ failure:
         template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
         Option& add_option(char shortlabel, const std::string& name) {
             const std::string context = "MultiArgument::add_option()";
-
-            // Check if n_values != 0
-            if (T::n_values == 0) { throw IllegalNValuesException(context, T::n_values); }
-
+            
             // Check if either the name or the shortlabel exists
             if (this->root->has_name(name)) {
                 throw DuplicateNameException(context, name);
@@ -1686,7 +2186,7 @@ failure:
 
             // Create a new Option object and add it
             Option* o = new Option(name, shortlabel, T::runtime());
-            this->args.push_back(o);
+            this->args.push_back((Argument*) o);
 
             // Return it
             return *o;
@@ -1704,7 +2204,7 @@ failure:
 
             // Create a new Flag object and add it
             Flag* f = new Flag(name, shortlabel);
-            this->args.push_back(f);
+            this->args.push_back((Argument*) f);
 
             // Return it
             return *f;
@@ -1722,7 +2222,7 @@ failure:
 
             // Create a new IncludedGroup object
             IncludedGroup* ig = new IncludedGroup(this->root, name);
-            this->args.push_back(ig);
+            this->args.push_back((Argument*) ig);
             
             // Return it
             return *ig;
@@ -1740,7 +2240,7 @@ failure:
 
             // Create a new ExcludedGroup object
             ExcludedGroup* eg = new ExcludedGroup(this->root, name);
-            this->args.push_back(eg);
+            this->args.push_back((Argument*) eg);
             
             // Return it
             return *eg;
@@ -1758,7 +2258,7 @@ failure:
 
             // Create a new ExcludedGroup object
             RequiredGroup* rg = new RequiredGroup(this->root, name);
-            this->args.push_back(rg);
+            this->args.push_back((Argument*) rg);
             
             // Return it
             return *rg;
@@ -1773,7 +2273,7 @@ failure:
                 Argument* arg = this->args.at(i);
                 if (dynamic_cast<AtomicArgument*>(arg) && arg->has_name(name)) {
                     // It's an atomic argument
-                    if (!dynamic_cast<T*>(arg)) { throw ArgTypeMismatchException(context, name, arg->get_arg_type(), T::type_name); }
+                    if (!dynamic_cast<T*>(arg)) { throw ArgumentTypeException(context, name, T::type_name, arg->get_arg_type()); }
                     return (T&) (*arg);
                 } else if (dynamic_cast<MultiArgument*>(arg) && arg->has_name(name)) {
                     // The MultiArgument contains our target, so search that one
@@ -1798,7 +2298,7 @@ failure:
                 // Otherwise, check if this arg is the one
                 if (arg->get_name() == name) {
                     // It is, now check if the type is correct
-                    if (!dynamic_cast<T*>(arg)) { throw ArgTypeMismatchException(context, name, arg->get_arg_type(), T::type_name); }
+                    if (!dynamic_cast<T*>(arg)) { throw ArgumentTypeException(context, name, T::type_name, arg->get_arg_type()); }
                     return (T&) (*arg);
                 }
 
@@ -1992,7 +2492,7 @@ failure:
                 if (this->exists_map.find(name) == this->exists_map.end()) {
                     throw UnknownNameException(context, name);
                 } else {
-                    throw ValueMismatchException(context, name);
+                    throw ValueTypeMismatchException(context, name);
                 }
             }
 
@@ -2010,7 +2510,7 @@ failure:
 
                 // If the Positional can occur multiple times, error since they must use the other get()
                 if (pos->get_any_number()) {
-                    throw AnyNumberMismatchException(context, pos->get_name());
+                    throw SingletonMismatchException(context, pos->get_name());
                 }
             } else {
                 // Check as Option
@@ -2047,7 +2547,7 @@ failure:
                 if (this->exists_map.find(name) == this->exists_map.end()) {
                     throw UnknownNameException(context, name);
                 } else {
-                    throw ValueMismatchException(context, name);
+                    throw ValueTypeMismatchException(context, name);
                 }
             }
 
@@ -2221,26 +2721,10 @@ failure:
 
         /* Adds a new positional argument to the parser of Type T. Note that the order of defining the Positionals determines the order of parsing them. A reference to the new parameter is returned to change its properties. */
         template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
-        Positional& add_positional(const std::string& name) {
-            const std::string context = "ArgumentParser::add_positional()";
-
-            // Check if n_values != 0 to avoid having confusing contexts
-            if (T::n_values == 0) { throw IllegalNValuesException(context, T::n_values); }
-
-            // Simply call the function of the nested MultiArgument
-            return args.add_positional<T>(name);
-        }
+        inline Positional& add_positional(const std::string& name) { return args.add_positional<T>(name); }
         /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. A reference to the new parameter is returned to change its properties. */
         template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
-        Option& add_option(char shortlabel, const std::string& name) {
-            const std::string context = "ArgumentParser::add_option()";
-
-            // Check if n_values != 0 to avoid having confusing contexts
-            if (T::n_values == 0) { throw IllegalNValuesException(context, T::n_values); }
-
-            // Simply call the function of the nested MultiArgument
-            return args.add_option<T>(shortlabel, name);
-        }
+        inline Option& add_option(char shortlabel, const std::string& name) { return args.add_option<T>(shortlabel, name); }
         /* Adds a new flag argument to the parser (an argument with a label, but no value). A reference to the new parameter is returned to change its properties. */
         inline Flag& add_flag(char shortlabel, const std::string& name) { return args.add_flag(shortlabel, name); }
         /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
@@ -2257,220 +2741,24 @@ failure:
         template <class T = AtomicArgument, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
         inline T& get_multi(const std::string& name) const { return this->args.get_multi<T>(name); }
 
-        /* Checks if all arguments are valid, i.e., resolves relational dependencies, optional check for positionals, etc. Throws an appropriate ProgrammingError when not. */
-        void validate(const std::string& context = "ArgumentParser::validate() const") const {
+        /* Validates if all Positionals have been correctly defined. Specifically, checks if there aren't any mandatory Positionals following Optional ones and that only the last Positional can be variadic. */
+        void validate_positionals() const {
             // First, check if the optional positionals are all in the back and, if there's a Positional with any_number, it's the only one and at the back.
             bool optional = false;
-            size_t pos_i = 0;
-            for (Argument* a : this->args) {
-                if (dynamic_cast<Positional*>(a)) {
-                    Positional* p = (Positional*) a;
-
-                    // Check if the optional order is correct
-                    if (!optional) {
-                        if (p->optional) {
-                            optional = true;
-                        }
-                    } else {
-                        if (!p->optional) {
-                            throw OptionalPositionalException(context, p->get_name(), p->get_index());
-                        }
-                    }
-
-                    // Check if the any_number is correct
-                    if (++pos_i != this->n_positionals && p->any_number) {
-                        throw AnyNumberPositionalException(context, p->get_name(), p->get_index());
-                    }
+            for (Positional* pos : this->args.deepsearch<Positional>()) {
+                if (pos->is_optional()) {
+                    optional = true;
+                } else if (optional) {
+                    // That's illegal!
+                    throw OptionalPositionalException(pos->get_name(), pos->get_index());
                 }
             }
         }
         /* Parses the command line. Note that it does not parse any values to other types - that is left for the Arguments class. */
         Arguments parse(size_t argc, const char** argv) const {
-            const std::string context = "ArgumentParser::parse() const";
+            const std::string context = "ArgumentParser::parse()";
 
-            /* Phase 0: Prepare for parsing by extracting the executable. */
-
-            // Extract the executable name
-            const char* executable = argv[0];
-            ++argv;
-            --argc;
-
-            /* Phase 1: Check the validity of the given arguments. */
-            this->validate(context);
-
-            /* Phase 2: Parse all arguments, one-by-one */
-            size_t positional_i = 0;
-            Arguments args;
-            while (argc > 0) {
-                const char* arg = argv[0];
-                if (ArgumentParser::is_option(arg)) {
-                    // Treat it as an Option or a Flag; try to find a match
-                    bool found = false;
-                    for (Argument* a : this->args) {
-                        // Skip all Positionals
-                        if (dynamic_cast<Positional*>(a)) { continue; }
-
-                        // Check if the value matches with this Flag / Option
-                        Flag* f = (Flag*) a;                        
-                        if ((arg[2] == '\0' && arg[1] == f->get_shortlabel()) ||
-                            (arg[1] == '-' && std::string(arg + 2) == f->get_name())) {
-                            // Parse it as this Option / Flag
-                            found = true;
-                            Option* opt = dynamic_cast<Option*>(f);
-                            if (opt) {
-                                // Parse as Option
-
-                                // Advance argc and argv to dodge the option itself
-                                ++argv;
-                                --argc;
-
-                                // Try to collect the required number of values, but check if we don't go out-of-bounds in the meantime
-                                std::vector<std::string> values;
-                                values.resize(opt->n_values);
-                                bool success = true;
-                                for (size_t i = 0; i < opt->n_values; i++) {
-                                    // Check if there are any left
-                                    if (i >= argc) {
-                                        // If the Option has a default value, then we can register it nonetheless
-                                        if (i == 0 && opt->has_default_value()) {
-                                            // Register the argument and then break from the parsing
-                                            args.add_arg(*opt, opt->get_default_value(), true);
-                                            success = false;
-                                            break;
-                                        }
-                                        // Otherwise, throw exception
-                                        throw NotEnoughValuesException(opt->type_name, opt->n_values, i, opt->get_name(), opt->get_shortlabel());
-                                    }
-
-                                    // There are, so grab the next word
-                                    const char* next_arg = argv[0];
-
-                                    // If it's an option, we were tricked
-                                    if (i >= argc || ArgumentParser::is_option(next_arg)) {
-                                        // If the Option has a default value, then we can register it nonetheless
-                                        if (i == 0 && opt->has_default_value()) {
-                                            // Simply break, after setting values to the default input
-                                            args.add_arg(*opt, opt->get_default_value(), true);
-                                            success = false;
-                                            break;
-                                        }
-                                        throw NotEnoughValuesException(opt->type_name, opt->n_values, i, opt->get_name(), opt->get_shortlabel());
-                                    }
-
-                                    // Otherwise, add the value
-                                    values.at(i) = next_arg;
-
-                                    // Advance argv & argc
-                                    ++argv;
-                                    --argc;
-                                }
-
-                                // Register the argument if we were successful in collecting the values
-                                if (success) {
-                                    args.add_arg(*opt, opt->type_parser(values), true);
-                                }
-
-                            } else {
-                                // Otherwise, parse as Flag
-                                args.add_arg(*f, nullptr, true);
-
-                                // Advance argc & argv once
-                                ++argv;
-                                --argc;
-                            }
-                        }
-                    }
-                    if (!found) {
-                        if (arg[1] == '-') {
-                            throw UnknownLonglabelException(arg + 2);
-                        } else {
-                            throw UnknownShortlabelException(arg[1]);
-                        }
-                    }
-                } else {
-                    // Find the correct Positional
-                    Positional* pos = nullptr;
-                    size_t p_i = 0;
-                    for (Argument* a : this->args) {
-                        if (dynamic_cast<Positional*>(a) && p_i++ == positional_i) {
-                            pos = (Positional*) a;
-                            // Only advance the positional_i if this positional can occur multiple times
-                            if (!pos->get_any_number()) { ++positional_i; }
-                            break;
-                        }
-                    }
-                    // If it wasn't found, ignore the argument (since we've run out of Positionals)
-                    if (pos == nullptr) { continue; }
-                    
-                    // Parse the next n_values parameters as part of this positional
-                    std::vector<std::string> values;
-                    values.resize(pos->n_values);
-                    for (size_t i = 0; i < pos->n_values; i++) {
-                        // Check if there are any left
-                        if (i >= argc) {
-                            throw NotEnoughValuesException(pos->type_name, pos->n_values, i, pos->get_name(), pos->get_index());
-                        }
-
-                        // There are, so grab the next word
-                        const char* next_arg = argv[0];
-
-                        // If it's an option, we were tricked
-                        if (i >= argc || ArgumentParser::is_option(next_arg)) {
-                            throw NotEnoughValuesException(pos->type_name, pos->n_values, i, pos->get_name(), pos->get_index());
-                        }
-
-                        // Otherwise, add the value
-                        values.at(i) = next_arg;
-
-                        // Advance argv & argc
-                        ++argv;
-                        --argc;
-                    }
-
-                    // Register the argument by parsing the input values
-                    args.add_arg(*pos, pos->type_parser(values), true);
-                }
-            }
-
-            /* Phase 3: Automatically handle help. */
-            if (this->auto_help) {
-                if (args.contains("help")) {
-                    std::stringstream msg;
-                    msg << std::endl << this->generate_usage(executable) << std::endl << std::endl << this->generate_help();
-                    throw HelpHandledException(msg.str());
-                }
-            }
-
-            /* Phase 4: Check mandatory. */
-            for (Argument* a : this->args) {
-                // Do not add if it already exists
-                if (args.contains(a->get_name())) { continue; }
-
-                // Switch to the correct value (but ignore Flags)
-                if (dynamic_cast<Positional*>(a)) {
-                    Positional* p = (Positional*) a;
-
-                    // Only add it if it's optional and has a default value
-                    if (p->get_optional() && p->has_default_value()) {
-                        args.add_arg(*p, p->get_default_value(), false);
-                    } else if (!p->get_optional()) {
-                        // Throw because it's missing
-                        throw MissingMandatoryException(p->get_name(), p->get_index());
-                    }
-                } else if (dynamic_cast<Option*>(a)) {
-                    Option* o = (Option*) a;
-
-                    // Only add it if it's optional and has a default value
-                    if (o->get_optional() && o->has_default_value()) {
-                        args.add_arg(*o, o->get_default_value(), false);
-                    } else if (!o->get_optional()) {
-                        // Throw because it's missing
-                        throw MissingMandatoryException(o->get_name(), o->get_shortlabel());
-                    }
-                }
-            }
-
-            return args;
+            
         }
 
         /* Generates a usage message based on all given arguments. The given argument is the executable that was used to run the parser. */

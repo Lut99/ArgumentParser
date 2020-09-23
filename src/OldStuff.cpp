@@ -1636,3 +1636,220 @@
 
     };
 
+
+
+/* Checks if all arguments are valid, i.e., resolves relational dependencies, optional check for positionals, etc. Throws an appropriate ProgrammingError when not. */
+void validate(const std::string& context = "ArgumentParser::validate() const") const {
+    // First, check if the optional positionals are all in the back and, if there's a Positional with any_number, it's the only one and at the back.
+    bool optional = false;
+    size_t pos_i = 0;
+    for (Argument* a : this->args) {
+        if (dynamic_cast<Positional*>(a)) {
+            Positional* p = (Positional*) a;
+
+            // Check if the optional order is correct
+            if (!optional) {
+                if (p->optional) {
+                    optional = true;
+                }
+            } else {
+                if (!p->optional) {
+                    throw OptionalPositionalException(context, p->get_name(), p->get_index());
+                }
+            }
+
+            // Check if the any_number is correct
+            if (++pos_i != this->n_positionals && p->any_number) {
+                throw AnyNumberPositionalException(context, p->get_name(), p->get_index());
+            }
+        }
+    }
+}
+/* Parses the command line. Note that it does not parse any values to other types - that is left for the Arguments class. */
+Arguments parse(size_t argc, const char** argv) const {
+    const std::string context = "ArgumentParser::parse() const";
+
+    /* Phase 0: Prepare for parsing by extracting the executable. */
+
+    // Extract the executable name
+    const char* executable = argv[0];
+    ++argv;
+    --argc;
+
+    /* Phase 1: Check the validity of the given arguments. */
+    this->validate(context);
+
+    /* Phase 2: Parse all arguments, one-by-one */
+    size_t positional_i = 0;
+    Arguments args;
+    while (argc > 0) {
+        const char* arg = argv[0];
+        if (ArgumentParser::is_option(arg)) {
+            // Treat it as an Option or a Flag; try to find a match
+            bool found = false;
+            for (Argument* a : this->args) {
+                // Skip all Positionals
+                if (dynamic_cast<Positional*>(a)) { continue; }
+
+                // Check if the value matches with this Flag / Option
+                Flag* f = (Flag*) a;                        
+                if ((arg[2] == '\0' && arg[1] == f->get_shortlabel()) ||
+                    (arg[1] == '-' && std::string(arg + 2) == f->get_name())) {
+                    // Parse it as this Option / Flag
+                    found = true;
+                    Option* opt = dynamic_cast<Option*>(f);
+                    if (opt) {
+                        // Parse as Option
+
+                        // Advance argc and argv to dodge the option itself
+                        ++argv;
+                        --argc;
+
+                        // Try to collect the required number of values, but check if we don't go out-of-bounds in the meantime
+                        std::vector<std::string> values;
+                        values.resize(opt->n_values);
+                        bool success = true;
+                        for (size_t i = 0; i < opt->n_values; i++) {
+                            // Check if there are any left
+                            if (i >= argc) {
+                                // If the Option has a default value, then we can register it nonetheless
+                                if (i == 0 && opt->has_default_value()) {
+                                    // Register the argument and then break from the parsing
+                                    args.add_arg(*opt, opt->get_default_value(), true);
+                                    success = false;
+                                    break;
+                                }
+                                // Otherwise, throw exception
+                                throw NotEnoughValuesException(opt->type_name, opt->n_values, i, opt->get_name(), opt->get_shortlabel());
+                            }
+
+                            // There are, so grab the next word
+                            const char* next_arg = argv[0];
+
+                            // If it's an option, we were tricked
+                            if (i >= argc || ArgumentParser::is_option(next_arg)) {
+                                // If the Option has a default value, then we can register it nonetheless
+                                if (i == 0 && opt->has_default_value()) {
+                                    // Simply break, after setting values to the default input
+                                    args.add_arg(*opt, opt->get_default_value(), true);
+                                    success = false;
+                                    break;
+                                }
+                                throw NotEnoughValuesException(opt->type_name, opt->n_values, i, opt->get_name(), opt->get_shortlabel());
+                            }
+
+                            // Otherwise, add the value
+                            values.at(i) = next_arg;
+
+                            // Advance argv & argc
+                            ++argv;
+                            --argc;
+                        }
+
+                        // Register the argument if we were successful in collecting the values
+                        if (success) {
+                            args.add_arg(*opt, opt->type_parser(values), true);
+                        }
+
+                    } else {
+                        // Otherwise, parse as Flag
+                        args.add_arg(*f, nullptr, true);
+
+                        // Advance argc & argv once
+                        ++argv;
+                        --argc;
+                    }
+                }
+            }
+            if (!found) {
+                if (arg[1] == '-') {
+                    throw UnknownLonglabelException(arg + 2);
+                } else {
+                    throw UnknownShortlabelException(arg[1]);
+                }
+            }
+        } else {
+            // Find the correct Positional
+            Positional* pos = nullptr;
+            size_t p_i = 0;
+            for (Argument* a : this->args) {
+                if (dynamic_cast<Positional*>(a) && p_i++ == positional_i) {
+                    pos = (Positional*) a;
+                    // Only advance the positional_i if this positional can occur multiple times
+                    if (!pos->get_any_number()) { ++positional_i; }
+                    break;
+                }
+            }
+            // If it wasn't found, ignore the argument (since we've run out of Positionals)
+            if (pos == nullptr) { continue; }
+            
+            // Parse the next n_values parameters as part of this positional
+            std::vector<std::string> values;
+            values.resize(pos->n_values);
+            for (size_t i = 0; i < pos->n_values; i++) {
+                // Check if there are any left
+                if (i >= argc) {
+                    throw NotEnoughValuesException(pos->type_name, pos->n_values, i, pos->get_name(), pos->get_index());
+                }
+
+                // There are, so grab the next word
+                const char* next_arg = argv[0];
+
+                // If it's an option, we were tricked
+                if (i >= argc || ArgumentParser::is_option(next_arg)) {
+                    throw NotEnoughValuesException(pos->type_name, pos->n_values, i, pos->get_name(), pos->get_index());
+                }
+
+                // Otherwise, add the value
+                values.at(i) = next_arg;
+
+                // Advance argv & argc
+                ++argv;
+                --argc;
+            }
+
+            // Register the argument by parsing the input values
+            args.add_arg(*pos, pos->type_parser(values), true);
+        }
+    }
+
+    /* Phase 3: Automatically handle help. */
+    if (this->auto_help) {
+        if (args.contains("help")) {
+            std::stringstream msg;
+            msg << std::endl << this->generate_usage(executable) << std::endl << std::endl << this->generate_help();
+            throw HelpHandledException(msg.str());
+        }
+    }
+
+    /* Phase 4: Check mandatory. */
+    for (Argument* a : this->args) {
+        // Do not add if it already exists
+        if (args.contains(a->get_name())) { continue; }
+
+        // Switch to the correct value (but ignore Flags)
+        if (dynamic_cast<Positional*>(a)) {
+            Positional* p = (Positional*) a;
+
+            // Only add it if it's optional and has a default value
+            if (p->get_optional() && p->has_default_value()) {
+                args.add_arg(*p, p->get_default_value(), false);
+            } else if (!p->get_optional()) {
+                // Throw because it's missing
+                throw MissingMandatoryException(p->get_name(), p->get_index());
+            }
+        } else if (dynamic_cast<Option*>(a)) {
+            Option* o = (Option*) a;
+
+            // Only add it if it's optional and has a default value
+            if (o->get_optional() && o->has_default_value()) {
+                args.add_arg(*o, o->get_default_value(), false);
+            } else if (!o->get_optional()) {
+                // Throw because it's missing
+                throw MissingMandatoryException(o->get_name(), o->get_shortlabel());
+            }
+        }
+    }
+
+    return args;
+}
