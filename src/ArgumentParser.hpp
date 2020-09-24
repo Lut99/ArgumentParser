@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   23/09/2020, 18:03:45
+ *   24/09/2020, 13:50:35
  * Auto updated?
  *   Yes
  *
@@ -684,6 +684,76 @@ namespace Lut99 {
         /* Allows the DuplicateArgumentException to be copied polymorphically. */
         virtual DuplicateArgumentException* copy() const {
             return new DuplicateArgumentException(*this);
+        }
+
+    };
+
+    /* Baseclass exception for all dependency-related issues. */
+    class DependencyException: public ParseException {
+    private:
+        /* The name of the violating argument. */
+        std::string name;
+        /* The name of the argument whos presence made or broke this deal. */
+        std::string peer_name;
+
+    public:
+        /* Constructor for the DependencyException class that takes the name of the violating argument and optionally a message. */
+        DependencyException(const std::string& name, const std::string& peer_name, const std::string& message = "") :
+            ParseException(message),
+            name(name),
+            peer_name(peer_name)
+        {}
+
+        /* Returns the name of the violating argument. */
+        inline std::string get_name() const { return this->name; }
+        /* Returns the name of the argument who caused this issue by being or not being there. */
+        inline std::string get_peer_name() const { return this->peer_name; }
+        
+        /* Allows the DependencyException to be copied polymorphically. */
+        virtual DependencyException* copy() const {
+            return new DependencyException(*this);
+        }
+
+    };
+    /* Exception for when an argument part of an IncludedGroup is not specified, while at least one of the other arguments in that group is. */
+    class IncludedDependencyException: public DependencyException {
+    public:
+        /* Constructor for the IncludedDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
+        IncludedDependencyException(const std::string& name, const std::string& peer_name) :
+            DependencyException(name, generate_message("Missing argument '" + name + "' as the argument '" + peer_name + "' cannot be specified without."))
+        {}
+        
+        /* Allows the IncludedDependencyException to be copied polymorphically. */
+        virtual IncludedDependencyException* copy() const {
+            return new IncludedDependencyException(*this);
+        }
+
+    };
+    /* Exception for when an argument part of an ExcludedGroup is specified, while at least one of the other arguments in that group already was. */
+    class ExcludedDependencyException: public DependencyException {
+    public:
+        /* Constructor for the ExcludedDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
+        ExcludedDependencyException(const std::string& name, const std::string& peer_name) :
+            DependencyException(name, generate_message("Illegally specified argument '" + name + "' while conflicting argument '" + peer_name + "' was already given."))
+        {}
+        
+        /* Allows the ExcludedDependencyException to be copied polymorphically. */
+        virtual ExcludedDependencyException* copy() const {
+            return new ExcludedDependencyException(*this);
+        }
+
+    };
+    /* Exception for when an argument part of an RequiredGroup is specified, but it's previous argument wasn't. */
+    class RequiredDependencyException: public DependencyException {
+    public:
+        /* Constructor for the RequiredDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
+        RequiredDependencyException(const std::string& name, const std::string& peer_name) :
+            DependencyException(name, generate_message("Illegally specified argument '" + name + "' without specifying '" + peer_name + "'."))
+        {}
+        
+        /* Allows the RequiredDependencyException to be copied polymorphically. */
+        virtual RequiredDependencyException* copy() const {
+            return new RequiredDependencyException(*this);
         }
 
     };
@@ -1728,7 +1798,294 @@ failure:
 
 
 
+    /******************** THE RESULTING ARGUMENTS DICT ********************/
+
+    /* The Arguments class, which will be used to let the user interact with all the parsed elements. */
+    class Arguments {
+    private:
+        /* Maps all arguments to true if they exist. */
+        std::unordered_map<std::string, Argument*> exists_map;
+        /* Maps all arguments to a value if they have one. */
+        std::unordered_map<std::string, std::any> value_map;
+        /* Specifies for all arguments whether they are given or not. */
+        std::unordered_map<std::string, bool> given_map;
+
+        /* Adds an argument with a value. */
+        template <class T>
+        void add_arg(const T& arg, const std::any& value, bool given) {
+            // Register the argument in the exists_map if we didn't already
+            if (this->exists_map.find(arg.get_name()) == this->exists_map.end()) {
+                this->exists_map.insert(std::make_pair(arg.get_name(), arg.copy()));
+                this->given_map.insert(std::make_pair(arg.get_name(), given));
+
+                // Then, add either as-is or wrapped in a vector, depending on if the argument allows to be specified multiple times
+                if (!arg.get_any_number()) {
+                    this->value_map.insert(std::make_pair(arg.get_name(), value));
+                } else {
+                    this->value_map.insert(std::make_pair(arg.get_name(), std::any(std::vector<std::any>({ value }))));
+                }
+            } else if (arg.get_any_number()) {
+                // Append the value in the value map
+                std::vector<std::any> new_vec = std::vector<std::any>(std::any_cast<std::vector<std::any>>(this->value_map.at(arg.get_name())));
+                new_vec.push_back(value);
+                this->value_map.at(arg.get_name()) = std::any(new_vec);
+            } else {
+                // The argument already occurred, let's throw an exception (note that this can only occur for Options)
+                throw DuplicateArgumentException(arg.get_name(), ((const Option&) arg).get_shortlabel());
+            }
+        }
+
+        /* Declare the ArgumentParser as friend. */
+        friend class ArgumentParser;
+
+    public:
+        /* Default constructor for the Arguments class. Only available from the ArgumentParser. */
+        Arguments()
+        {}
+        /* Copy constructor for the Arguments class. */
+        Arguments(const Arguments& other) :
+            value_map(other.value_map),
+            given_map(other.given_map)
+        {
+            // Copy everything from the exists_map
+            for (std::pair<std::string, Argument*> p : other.exists_map) {
+                this->exists_map.insert(p);
+            }
+        }
+        /* Move constructor for the Arguments class. */
+        Arguments(Arguments&& other) :
+            value_map(std::move(other.value_map)),
+            given_map(std::move(other.given_map))
+        {
+            // Steal everything from the exists_map
+            for (std::pair<std::string, Argument*> p : other.exists_map) {
+                this->exists_map.insert(p);
+                p.second = nullptr;
+            }
+        }
+        /* Destructor for the Arguments class. */
+        ~Arguments() {
+            for (std::pair<std::string, Argument*> p : this->exists_map) {
+                // Only delete if not stolen
+                if (p.second != nullptr) { delete p.second; }
+            }
+        }
+
+        /* Returns true if this object contains an argument with the given name. */
+        inline bool contains(std::string name) const {
+            return this->exists_map.find(name) != this->exists_map.end();
+        }
+        /* Returns true if the user explicitly specified the argument. Otherwise, the argument does not exist or was a default argument. */
+        bool is_given(std::string name) const {
+            std::unordered_map<std::string, bool>::const_iterator iter = this->given_map.find(name);
+            return iter != this->given_map.end() && (*iter).second;
+        }
+
+        /* Returns the argument with given name as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
+        template<class T>
+        T get(std::string name) const {
+            // The context for this function
+            const std::string context = "Arguments::get<" + std::string(type_name<T>::value) + ">() const";
+
+            // Try to find the uid in the value map
+            std::unordered_map<std::string, std::any>::const_iterator iter = this->value_map.find(name);
+            if (iter == this->value_map.end()) {
+                // Check if it's because of it not being registered or it not having a value
+                if (this->exists_map.find(name) == this->exists_map.end()) {
+                    throw UnknownNameException(context, name);
+                } else {
+                    throw ValueTypeMismatchException(context, name);
+                }
+            }
+
+            // Check if the type is correct
+            std::any value = (*iter).second;
+            Argument* arg = this->exists_map.at(name);
+            if (dynamic_cast<Positional*>(arg)) {
+                // Check as Positional
+                Positional* pos = (Positional*) arg;
+
+                // Check if pos' type checks out
+                if (pos->get_type_hash() != typeid(T).hash_code()) {
+                    throw TypeMismatchException(context, pos->get_type_name(), type_name<T>::value);
+                }
+
+                // If the Positional can occur multiple times, error since they must use the other get()
+                if (pos->get_any_number()) {
+                    throw SingletonMismatchException(context, pos->get_name());
+                }
+            } else {
+                // Check as Option
+                Option* opt = (Option*) arg;
+
+                // Check if opt's type checks out
+                if (opt->get_type_hash() != typeid(T).hash_code()) {
+                    throw TypeMismatchException(context, opt->get_type_name(), type_name<T>::value);
+                }
+            }
+
+            // If the casted version happens to be a char array (constant or not), and T is a string, then return as string
+            if (typeid(T).hash_code() == typeid(std::string).hash_code()) {
+                if (value.type().hash_code() == typeid(char*).hash_code()) {
+                    value = std::any(std::string(std::any_cast<char*>(value)));
+                } else if (value.type().hash_code() == typeid(const char*).hash_code()) {
+                    value = std::any(std::string(std::any_cast<const char*>(value)));
+                }
+            }
+
+            // Everything checks out, so return the any casted version
+            return std::any_cast<T>(value);
+        }
+        /* Retrusn the argument with given name as the given type, but assumes that the argument that we request can be given more than once. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
+        template <class T>
+        std::vector<T> getp(std::string name) const {
+            // The context for this function
+            const std::string context = "Arguments::getp<" + std::string(type_name<T>::value) + ">() const";
+
+            // Try to find the uid in the value map
+            std::unordered_map<std::string, std::any>::const_iterator iter = this->value_map.find(name);
+            if (iter == this->value_map.end()) {
+                // Check if it's because of it not being registered or it not having a value
+                if (this->exists_map.find(name) == this->exists_map.end()) {
+                    throw UnknownNameException(context, name);
+                } else {
+                    throw ValueTypeMismatchException(context, name);
+                }
+            }
+
+            // Check if the type is correct
+            std::any value = (*iter).second;
+            Argument* arg = this->exists_map.at(name);
+            if (dynamic_cast<Positional*>(arg)) {
+                // Check as Positional
+                Positional* pos = (Positional*) arg;
+
+                // Check if pos' type checks out
+                if (pos->get_type_hash() != typeid(T).hash_code()) {
+                    throw TypeMismatchException(context, pos->get_type_name(), type_name<T>::value);
+                }
+
+                // If pos does not repeat, wrap the value in a vector and return
+                if (!pos->get_any_number()) {
+                    return std::vector<T>({ std::any_cast<T>(value) });
+                }
+            } else {
+                // Check as Option
+                Option* opt = (Option*) arg;
+
+                // Check if opt's type checks out
+                if (opt->get_type_hash() != typeid(T).hash_code()) {
+                    throw TypeMismatchException(context, opt->get_type_name(), type_name<T>::value);
+                }
+            }
+
+            // Everything checks out, so return the any casted version
+            std::vector<std::any> any_values = std::any_cast<std::vector<std::any>>(value);
+            std::vector<T> values;
+            values.resize(any_values.size());
+            for (size_t i = 0; i < any_values.size(); i++) {
+                std::any val = any_values.at(i);
+
+                // If the casted version happens to be a char array (constant or not), and T is a string, then return as string
+                if (typeid(T).hash_code() == typeid(std::string).hash_code()) {
+                    if (val.type().hash_code() == typeid(char*).hash_code()) {
+                        val = std::any(std::string(std::any_cast<char*>(val)));
+                    } else if (val.type().hash_code() == typeid(const char*).hash_code()) {
+                        val = std::any(std::string(std::any_cast<const char*>(val)));
+                    }
+                }
+
+                values.at(i) = std::any_cast<T>(val);
+            }
+            return values;
+        } 
+
+        /* Returns the index of given argument if it is a Positional. Throws PositionalMismatchException otherwise. */
+        size_t get_index(std::string name) const {
+            const std::string context = "Arguments::get_index() const";
+
+            // Try to find uid
+            std::unordered_map<std::string, Argument*>::const_iterator iter = this->exists_map.find(name);
+            if (iter == this->exists_map.end()) {
+                throw UnknownNameException(context, name);
+            }
+
+            // Check if it has an index, i.e., is a Positional
+            if (!dynamic_cast<Positional*>((*iter).second)) { throw PositionalMismatchException(context, name); }
+
+            // Return the index
+            return ((Positional*) (*iter).second)->get_index();
+        }
+        /* Returns the shortlabel of given argument if it is an Option or a Flag. Throws OptionMismatchException otherwise. */
+        char get_shortlabel(std::string name) const {
+            const std::string context = "Arguments::get_shortlabel() const";
+
+            // Try to find uid
+            std::unordered_map<std::string, Argument*>::const_iterator iter = this->exists_map.find(name);
+            if (iter == this->exists_map.end()) {
+                throw UnknownNameException(context, name);
+            }
+
+            // Check if it has an index, i.e., is a Flag (or derived)
+            if (!dynamic_cast<Flag*>((*iter).second)) { throw FlagMismatchException(context, name); }
+
+            // Return the index
+            return ((Flag*) (*iter).second)->get_shortlabel();
+        }
+
+        /* Copy assignment operator for the Arguments class. */
+        inline Arguments& operator=(const Arguments& other) { return *this = Arguments(other); }
+        /* Move assignment operator for the Arguments class. */
+        Arguments& operator=(Arguments&& other) {
+            if (this != &other) {
+                swap(*this, other);
+            }
+            return *this;
+        }
+        /* Swap operator for the the Arguments class. */
+        friend void swap(Arguments& a1, Arguments& a2);
+    };
+
+    /* Swap operator for the the Arguments class. */
+    void swap(Arguments& a1, Arguments& a2) {}
+
+
+
+
+
     /******************** THE ARGUMENTS ********************/
+
+    /* The ParsedArgument struct, which is used to describe arguments together with their value after they have been parsed. */
+    struct ParsedArgument {
+        /* The name of the argument. */
+        std::string name;
+        /* The shortlabel of the argument, which is equal to: '\0' is it didn't have any. */
+        char shortlabel;
+        /* The runtime type of the parsed argument. */
+        RuntimeType type;
+        /* Determines if the ParsedArgument is variadic or repeatable (or both). */
+        bool repeatable;
+        /* The parsed value, as an any struct. */
+        std::any value;
+
+        /* Constructor for the ParsedArgument struct, which takes the name of the arguments, its shortlabel, its runtime type, whether it is repeatable or not and its parsed value. */
+        ParsedArgument(const std::string& name, char shortlabel, const RuntimeType& type, bool repeatable, const std::any& value) :
+            name(name),
+            shortlabel(shortlabel),
+            type(type),
+            repeatable(repeatable),
+            value(value)
+        {}
+
+        /* Returns true if this and the other type are the same. */
+        inline bool operator==(const ParsedArgument& other) const { return this->name == other.name; }
+        /* Returns true if this and the other type are different. */
+        inline bool operator!=(const ParsedArgument& other) const { return this->name != other.name; }
+
+        /* Constructs and then returns a special 'empty' ParsedArgument. */
+        static ParsedArgument empty() { return ParsedArgument("", '\0', RuntimeType("", 0, nullptr), false, std::any()); }
+
+    };
 
     /* The Argument class, which forms the baseclass for all classes that count as command-line arguments. */
     class Argument {
@@ -1898,8 +2255,8 @@ failure:
         /* Gets the default value of this AtomicArgument. Note that the returned any object may be unitialized if AtomicArgument::has_default() return false. */
         inline std::any get_default() const { return this->default_value; }
 
-        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
-        virtual std::any parse(size_t n_positionals, Tokenizer& input) const = 0;
+        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this AtomicArgument. Suitable ParseExceptions may be thrown. */
+        virtual ParsedArgument parse(size_t& n_positionals, Tokenizer& input) const = 0;
 
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual AtomicArgument* copy() const = 0;
@@ -1941,24 +2298,25 @@ failure:
         /* Gets the CLI-relevant index of the Positional. */
         inline size_t get_index() const { return this->index; }
 
-        /* Allows the ArgumentParser to delegate parsing to the Positional. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
-        virtual std::any parse(size_t n_positionals, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Positional. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this Positional. Suitable ParseExceptions may be thrown. */
+        virtual ParsedArgument parse(size_t& n_positionals, Tokenizer& input) const {
             // First, check if we could be looking at a Positional
             Token token = input.peek();
             if (token.type != TokenType::value) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so return the empty ParsedArgument
+                return ParsedArgument::empty();
             }
 
             // Otherwise, check if it's our turn as a Positional
             if (n_positionals != this->index) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so return the empty ParsedArgument
+                return ParsedArgument::empty();
             }
 
             // If it is a value, however, it's for us, so try to parse it using our internal parser!
+            ++n_positionals;
             try {
-                return this->type.parse_func(input);
+                return ParsedArgument({this->name, '\0', this->type, this->variadic, this->type.parse_func(input)});
             } catch (TypeParseException& e) {
                 e.insert(this->name);
                 throw;
@@ -2010,26 +2368,26 @@ failure:
         /* Gets whether or not the Option can be specified multiple times. */
         inline bool is_repeatable() const { return this->repeatable; }
 
-        /* Allows the ArgumentParser to delegate parsing to the Option. Requires the number of Positionals seen (but not really) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
-        virtual std::any parse(size_t, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Option. Requires the number of Positionals seen (but doesn't really use it) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this Option. Suitable ParseExceptions may be thrown. */
+        virtual ParsedArgument parse(size_t&, Tokenizer& input) const {
             // First, check if we could be looking at an Option
             Token token = input.peek();
             if (token.type != TokenType::label) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so return the empty ParsedArgument
+                return ParsedArgument::empty();
             }
 
             // Then, check if the label belongs to us
             if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
                   (token.value.size() > 1 && token.value != "-" + this->name)) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so return the empty ParsedArgument
+                return ParsedArgument::empty();
             }
 
             // Otherwise, remove the label from the stream and try to parse the rest as values using our internal parser
             input.pop();
             try {
-                return this->type.parse_func(input);
+                return ParsedArgument({this->name, this->shortlabel, this->type, this->variadic || this->repeatable, this->type.parse_func(input)});
             } catch (TypeParseException& e) {
                 e.insert(this->name, this->shortlabel);
                 throw;
@@ -2069,24 +2427,24 @@ failure:
         /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
         virtual Flag& set_default(const std::any&) { throw ValueTypeMismatchException("Flag::set_default()", this->name); }
 
-        /* Allows the ArgumentParser to delegate parsing to the Flag. Requires the number of Positionals seen (but not really) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns the parsed value, or an empty std::any if that failed. Suitable ParseExceptions may be thrown. */
-        virtual std::any parse(size_t, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Flag. Requires the number of Positionals seen (but doesn't really use it) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this Flag. Suitable ParseExceptions may be thrown. */
+        virtual ParsedArgument parse(size_t&, Tokenizer& input) const {
             // First, check if we could be looking at an Option
             Token token = input.peek();
             if (token.type != TokenType::label) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so return the empty ParsedArgument
+                return ParsedArgument::empty();
             }
 
             // Then, check if the label belongs to us
             if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
                   (token.value.size() > 1 && token.value != "-" + this->name)) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so return the empty ParsedArgument
+                return ParsedArgument::empty();
             }
 
             // Otherwise, we did find it!
-            return std::any(true);
+            return ParsedArgument({this->name, this->shortlabel, this->type, this->variadic, std::any(true)});
         }
 
         /* Allows the Flag to copy itself polymorphically. */
@@ -2364,6 +2722,9 @@ failure:
         /* Swap operator for the MultiArgument class. */
         friend void swap(MultiArgument& ma1, MultiArgument& ma2);
 
+        /* Lets the child classes validate whether their specific dependency rule is met, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
+        virtual void validate(const Arguments& parsed_args) const { /* Being only a group of arguments, we always allow! */ }
+
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual MultiArgument* copy() const { return new MultiArgument(*this); };
 
@@ -2379,291 +2740,82 @@ failure:
 
     /* The IncludedGroup class: when the user specifies one of this classes' children, he or she must specify all of them. */
     class IncludedGroup : public MultiArgument {
+    public:
+        /* Constructor for the IncludedGroup class, which takes the root MultiArgument and a name. */
+        IncludedGroup(MultiArgument* root, const std::string& name) :
+            MultiArgument(ArgumentType::included_group, root, name)
+        {}
+
+        /* Lets this IncludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
+        virtual void validate(const Arguments& parsed_args) const {
+            std::string peer;
+            for (size_t i = 0; i < this->args.size(); i++) {
+                Argument* arg = this->args.at(i);
+                if (parsed_args.is_given(arg->get_name())) {
+                    peer = arg->get_name();
+                } else if (!peer.empty()) {
+                    // One given, but also at least one is missing! Throw the appropriate exception
+                    throw IncludedDependencyException(this->name, peer);
+                }
+            }
+        }
 
     };
 
     /* The ExcludedGroup class: when the user specifies one of this classes' children, he or she cannot specify any other. */
     class ExcludedGroup : public MultiArgument {
+    public:
+        /* Constructor for the ExcludedGroup class, which takes the root MultiArgument and a name. */
+        ExcludedGroup(MultiArgument* root, const std::string& name) :
+            MultiArgument(ArgumentType::included_group, root, name)
+        {}
+
+        /* Lets this ExcludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
+        virtual void validate(const Arguments& parsed_args) const {
+            std::string peer;
+            for (size_t i = 0; i < this->args.size(); i++) {
+                Argument* arg = this->args.at(i);
+                if (parsed_args.is_given(arg->get_name())) {
+                    if (peer.empty()) {
+                        peer = arg->get_name();
+                    } else {
+                        // More than one given! Throw the appropriate exception
+                        throw ExcludedDependencyException(this->name, peer);
+                    }
+                }
+            }
+        }
 
     };
 
     /* The RequiredGroup class: the user must specify the preceding argument before the following argument can be given. */
     class RequiredGroup : public MultiArgument {
-
-    };
-
-
-
-
-
-    /******************** THE RESULTING ARGUMENTS DICT ********************/
-
-    /* The Arguments class, which will be used to let the user interact with all the parsed elements. */
-    class Arguments {
-    private:
-        /* Maps all arguments to true if they exist. */
-        std::unordered_map<std::string, Argument*> exists_map;
-        /* Maps all arguments to a value if they have one. */
-        std::unordered_map<std::string, std::any> value_map;
-        /* Specifies for all arguments whether they are given or not. */
-        std::unordered_map<std::string, bool> given_map;
-
-        /* Adds an argument with a value. */
-        template <class T>
-        void add_arg(const T& arg, const std::any& value, bool given) {
-            // Register the argument in the exists_map if we didn't already
-            if (this->exists_map.find(arg.get_name()) == this->exists_map.end()) {
-                this->exists_map.insert(std::make_pair(arg.get_name(), arg.copy()));
-                this->given_map.insert(std::make_pair(arg.get_name(), given));
-
-                // Then, add either as-is or wrapped in a vector, depending on if the argument allows to be specified multiple times
-                if (!arg.get_any_number()) {
-                    this->value_map.insert(std::make_pair(arg.get_name(), value));
-                } else {
-                    this->value_map.insert(std::make_pair(arg.get_name(), std::any(std::vector<std::any>({ value }))));
-                }
-            } else if (arg.get_any_number()) {
-                // Append the value in the value map
-                std::vector<std::any> new_vec = std::vector<std::any>(std::any_cast<std::vector<std::any>>(this->value_map.at(arg.get_name())));
-                new_vec.push_back(value);
-                this->value_map.at(arg.get_name()) = std::any(new_vec);
-            } else {
-                // The argument already occurred, let's throw an exception (note that this can only occur for Options)
-                throw DuplicateArgumentException(arg.get_name(), ((const Option&) arg).get_shortlabel());
-            }
-        }
-
-        /* Declare the ArgumentParser as friend. */
-        friend class ArgumentParser;
-
     public:
-        /* Default constructor for the Arguments class. Only available from the ArgumentParser. */
-        Arguments()
+        /* Constructor for the RequiredGroup class, which takes the root MultiArgument and a name. */
+        RequiredGroup(MultiArgument* root, const std::string& name) :
+            MultiArgument(ArgumentType::included_group, root, name)
         {}
-        /* Copy constructor for the Arguments class. */
-        Arguments(const Arguments& other) :
-            value_map(other.value_map),
-            given_map(other.given_map)
-        {
-            // Copy everything from the exists_map
-            for (std::pair<std::string, Argument*> p : other.exists_map) {
-                this->exists_map.insert(p);
-            }
-        }
-        /* Move constructor for the Arguments class. */
-        Arguments(Arguments&& other) :
-            value_map(std::move(other.value_map)),
-            given_map(std::move(other.given_map))
-        {
-            // Steal everything from the exists_map
-            for (std::pair<std::string, Argument*> p : other.exists_map) {
-                this->exists_map.insert(p);
-                p.second = nullptr;
-            }
-        }
-        /* Destructor for the Arguments class. */
-        ~Arguments() {
-            for (std::pair<std::string, Argument*> p : this->exists_map) {
-                // Only delete if not stolen
-                if (p.second != nullptr) { delete p.second; }
-            }
-        }
 
-        /* Returns true if this object contains an argument with the given name. */
-        inline bool contains(std::string name) const {
-            return this->exists_map.find(name) != this->exists_map.end();
-        }
-        /* Returns true if the user explicitly specified the argument. Otherwise, the argument does not exist or was a default argument. */
-        bool is_given(std::string name) const {
-            std::unordered_map<std::string, bool>::const_iterator iter = this->given_map.find(name);
-            return iter != this->given_map.end() && (*iter).second;
-        }
-
-        /* Returns the argument with given name as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
-        template<class T>
-        T get(std::string name) const {
-            // The context for this function
-            const std::string context = "Arguments::get<" + std::string(type_name<T>::value) + ">() const";
-
-            // Try to find the uid in the value map
-            std::unordered_map<std::string, std::any>::const_iterator iter = this->value_map.find(name);
-            if (iter == this->value_map.end()) {
-                // Check if it's because of it not being registered or it not having a value
-                if (this->exists_map.find(name) == this->exists_map.end()) {
-                    throw UnknownNameException(context, name);
-                } else {
-                    throw ValueTypeMismatchException(context, name);
-                }
-            }
-
-            // Check if the type is correct
-            std::any value = (*iter).second;
-            Argument* arg = this->exists_map.at(name);
-            if (dynamic_cast<Positional*>(arg)) {
-                // Check as Positional
-                Positional* pos = (Positional*) arg;
-
-                // Check if pos' type checks out
-                if (pos->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, pos->get_type_name(), type_name<T>::value);
-                }
-
-                // If the Positional can occur multiple times, error since they must use the other get()
-                if (pos->get_any_number()) {
-                    throw SingletonMismatchException(context, pos->get_name());
-                }
-            } else {
-                // Check as Option
-                Option* opt = (Option*) arg;
-
-                // Check if opt's type checks out
-                if (opt->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, opt->get_type_name(), type_name<T>::value);
-                }
-            }
-
-            // If the casted version happens to be a char array (constant or not), and T is a string, then return as string
-            if (typeid(T).hash_code() == typeid(std::string).hash_code()) {
-                if (value.type().hash_code() == typeid(char*).hash_code()) {
-                    value = std::any(std::string(std::any_cast<char*>(value)));
-                } else if (value.type().hash_code() == typeid(const char*).hash_code()) {
-                    value = std::any(std::string(std::any_cast<const char*>(value)));
-                }
-            }
-
-            // Everything checks out, so return the any casted version
-            return std::any_cast<T>(value);
-        }
-        /* Retrusn the argument with given name as the given type, but assumes that the argument that we request can be given more than once. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
-        template <class T>
-        std::vector<T> getp(std::string name) const {
-            // The context for this function
-            const std::string context = "Arguments::getp<" + std::string(type_name<T>::value) + ">() const";
-
-            // Try to find the uid in the value map
-            std::unordered_map<std::string, std::any>::const_iterator iter = this->value_map.find(name);
-            if (iter == this->value_map.end()) {
-                // Check if it's because of it not being registered or it not having a value
-                if (this->exists_map.find(name) == this->exists_map.end()) {
-                    throw UnknownNameException(context, name);
-                } else {
-                    throw ValueTypeMismatchException(context, name);
-                }
-            }
-
-            // Check if the type is correct
-            std::any value = (*iter).second;
-            Argument* arg = this->exists_map.at(name);
-            if (dynamic_cast<Positional*>(arg)) {
-                // Check as Positional
-                Positional* pos = (Positional*) arg;
-
-                // Check if pos' type checks out
-                if (pos->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, pos->get_type_name(), type_name<T>::value);
-                }
-
-                // If pos does not repeat, wrap the value in a vector and return
-                if (!pos->get_any_number()) {
-                    return std::vector<T>({ std::any_cast<T>(value) });
-                }
-            } else {
-                // Check as Option
-                Option* opt = (Option*) arg;
-
-                // Check if opt's type checks out
-                if (opt->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, opt->get_type_name(), type_name<T>::value);
-                }
-            }
-
-            // Everything checks out, so return the any casted version
-            std::vector<std::any> any_values = std::any_cast<std::vector<std::any>>(value);
-            std::vector<T> values;
-            values.resize(any_values.size());
-            for (size_t i = 0; i < any_values.size(); i++) {
-                std::any val = any_values.at(i);
-
-                // If the casted version happens to be a char array (constant or not), and T is a string, then return as string
-                if (typeid(T).hash_code() == typeid(std::string).hash_code()) {
-                    if (val.type().hash_code() == typeid(char*).hash_code()) {
-                        val = std::any(std::string(std::any_cast<char*>(val)));
-                    } else if (val.type().hash_code() == typeid(const char*).hash_code()) {
-                        val = std::any(std::string(std::any_cast<const char*>(val)));
+        /* Lets this RequiredGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
+        virtual void validate(const Arguments& parsed_args) const {
+            std::string last_arg;
+            std::string peer;
+            for (size_t i = 0; i < this->args.size(); i++) {
+                Argument* arg = this->args.at(i);
+                if (parsed_args.is_given(arg->get_name())) {
+                    if (last_arg == peer) {
+                        // The last one is still on track, so allow this one and set it as peer
+                        peer = arg->get_name();
+                    } else {
+                        // Not on track! Throw the appropriate exception
+                        throw RequiredDependencyException(this->name, peer);
                     }
                 }
-
-                values.at(i) = std::any_cast<T>(val);
+                last_arg = arg->get_name();
             }
-            return values;
-        } 
-
-        /* Returns the index of given argument if it is a Positional. Throws PositionalMismatchException otherwise. */
-        size_t get_index(std::string name) const {
-            const std::string context = "Arguments::get_index() const";
-
-            // Try to find uid
-            std::unordered_map<std::string, Argument*>::const_iterator iter = this->exists_map.find(name);
-            if (iter == this->exists_map.end()) {
-                throw UnknownNameException(context, name);
-            }
-
-            // Check if it has an index, i.e., is a Positional
-            if (!dynamic_cast<Positional*>((*iter).second)) { throw PositionalMismatchException(context, name); }
-
-            // Return the index
-            return ((Positional*) (*iter).second)->get_index();
-        }
-        /* Returns the shortlabel of given argument if it is an Option or a Flag. Throws OptionMismatchException otherwise. */
-        char get_shortlabel(std::string name) const {
-            const std::string context = "Arguments::get_shortlabel() const";
-
-            // Try to find uid
-            std::unordered_map<std::string, Argument*>::const_iterator iter = this->exists_map.find(name);
-            if (iter == this->exists_map.end()) {
-                throw UnknownNameException(context, name);
-            }
-
-            // Check if it has an index, i.e., is a Flag (or derived)
-            if (!dynamic_cast<Flag*>((*iter).second)) { throw FlagMismatchException(context, name); }
-
-            // Return the index
-            return ((Flag*) (*iter).second)->get_shortlabel();
         }
 
-        /* Copy assignment operator for the Arguments class. */
-        inline Arguments& operator=(const Arguments& other) { return *this = Arguments(other); }
-        /* Move assignment operator for the Arguments class. */
-        Arguments& operator=(Arguments&& other) {
-            if (this != &other) {
-                swap(*this, other);
-            }
-            return *this;
-        }
-        /* Swap operator for the the Arguments class. */
-        friend void swap(Arguments& a1, Arguments& a2);
     };
-
-    /* Swap operator for the the Arguments class. */
-    void swap(Arguments& a1, Arguments& a2) {
-        using std::swap;
-
-        swap(a1.exists_map, a2.exists_map);
-        swap(a1.value_map, a2.value_map);
-        swap(a1.given_map, a2.given_map);
-    }
-    /* Adds an argument without value, aka, a Flag (full specialization for the add_arg member). */
-    template <>
-    void Arguments::add_arg<Flag>(const Flag& arg, const std::any&, bool given) {
-        // If it was already given, throw
-        if (this->exists_map.find(arg.get_name()) != this->exists_map.end()) {
-            throw DuplicateArgumentException(arg.get_name(), arg.get_shortlabel());
-        }
-
-        // The argument always occurs if it's registered
-        this->exists_map.insert(std::make_pair(arg.get_name(), arg.copy()));
-        this->given_map.insert(std::make_pair(arg.get_name(), given));
-    }
 
 
 
