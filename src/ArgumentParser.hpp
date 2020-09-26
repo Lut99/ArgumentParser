@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   24/09/2020, 13:50:35
+ *   9/26/2020, 17:24:56
  * Auto updated?
  *   Yes
  *
@@ -524,6 +524,21 @@ namespace Lut99 {
         }
     };
     
+    /* Exception for when no input is given to the parser. */
+    class NoInputException: public ParseException {
+    public:
+        /* Constructor for the NoInputException which takes... nothing! */
+        NoInputException() :
+            ParseException(generate_message("No input given (not even an executable!)"))
+        {}
+
+        /* Allows the NoInputException to be copied polymorphically. */
+        virtual NoInputException* copy() const {
+            return new NoInputException(*this);
+        }
+
+    };
+
     /* Exception for when a non-optional Positional was defined after optional Positionals. */
     class OptionalPositionalException: public ParseException {
     private:
@@ -1803,35 +1818,40 @@ failure:
     /* The Arguments class, which will be used to let the user interact with all the parsed elements. */
     class Arguments {
     private:
-        /* Maps all arguments to true if they exist. */
-        std::unordered_map<std::string, Argument*> exists_map;
-        /* Maps all arguments to a value if they have one. */
-        std::unordered_map<std::string, std::any> value_map;
-        /* Specifies for all arguments whether they are given or not. */
-        std::unordered_map<std::string, bool> given_map;
+        /* The ParsedArgument struct, which is used to store parsed arguments. */
+        struct ParsedArgument {
+            /* The name of the argument. */
+            std::string name;
+            /* The shortlabel of the argument. */
+            char shortlabel;
+            /* The RuntimeType of the Argument. */
+            RuntimeType type;
+            /* Whether the ParsedArgument can accept any number of arguments or not (bot is_variadic and is_repeatable). */
+            bool is_variadic;
 
-        /* Adds an argument with a value. */
-        template <class T>
-        void add_arg(const T& arg, const std::any& value, bool given) {
-            // Register the argument in the exists_map if we didn't already
-            if (this->exists_map.find(arg.get_name()) == this->exists_map.end()) {
-                this->exists_map.insert(std::make_pair(arg.get_name(), arg.copy()));
-                this->given_map.insert(std::make_pair(arg.get_name(), given));
+            /* The parsed value of the Argument. */
+            std::any value;
 
-                // Then, add either as-is or wrapped in a vector, depending on if the argument allows to be specified multiple times
-                if (!arg.get_any_number()) {
-                    this->value_map.insert(std::make_pair(arg.get_name(), value));
-                } else {
-                    this->value_map.insert(std::make_pair(arg.get_name(), std::any(std::vector<std::any>({ value }))));
-                }
-            } else if (arg.get_any_number()) {
-                // Append the value in the value map
-                std::vector<std::any> new_vec = std::vector<std::any>(std::any_cast<std::vector<std::any>>(this->value_map.at(arg.get_name())));
-                new_vec.push_back(value);
-                this->value_map.at(arg.get_name()) = std::any(new_vec);
-            } else {
-                // The argument already occurred, let's throw an exception (note that this can only occur for Options)
-                throw DuplicateArgumentException(arg.get_name(), ((const Option&) arg).get_shortlabel());
+            /* Whether the ParsedArgument is explicitly given by the user (true) or if it's a default value (false). */
+            bool is_given;
+        };
+
+        /* Lists all items, sorted by their name. */
+        std::unordered_map<std::string, ParsedArgument*> args;
+        /* Allows arguments to be found by their shortname, if they have one. */
+        std::unordered_map<char, ParsedArgument*> short_args;
+
+        /* Adds an argument. */
+        void add_arg(const ParsedArgument& arg) {
+            // Create a locally managed copy of the ParsedArgument
+            ParsedArgument* copy = new ParsedArgument(arg);
+
+            // Insert it into the exists map (since it always exists if given)
+            this->args.insert(std::make_pair(copy.name, copy));
+
+            // Insert it into the shortlabel map if it has a shortlabel
+            if (arg.shortlabel != '\0') {
+                this->short_args.insert(std::make_pair(copy.shortlabel, copy));
             }
         }
 
@@ -1843,42 +1863,37 @@ failure:
         Arguments()
         {}
         /* Copy constructor for the Arguments class. */
-        Arguments(const Arguments& other) :
-            value_map(other.value_map),
-            given_map(other.given_map)
-        {
-            // Copy everything from the exists_map
-            for (std::pair<std::string, Argument*> p : other.exists_map) {
-                this->exists_map.insert(p);
+        Arguments(const Arguments& other) {
+            // Copy everything from the args map using this->add_arg, since that does the trick really
+            for (std::pair<std::string, ParsedArgument*> p : other.args) {
+                this->add_arg(*(p.second));
             }
         }
         /* Move constructor for the Arguments class. */
         Arguments(Arguments&& other) :
-            value_map(std::move(other.value_map)),
-            given_map(std::move(other.given_map))
+            args(std::move(other.args)),
+            shirt_args(std::move(other.shirt_args))
         {
-            // Steal everything from the exists_map
-            for (std::pair<std::string, Argument*> p : other.exists_map) {
-                this->exists_map.insert(p);
-                p.second = nullptr;
-            }
+            // Simply clear out the other's maps
+            other.args.clear();
+            other.short_args.clear();
         }
         /* Destructor for the Arguments class. */
         ~Arguments() {
-            for (std::pair<std::string, Argument*> p : this->exists_map) {
-                // Only delete if not stolen
-                if (p.second != nullptr) { delete p.second; }
+            // Delete immediate as stealing doesn't leave any nullptrs
+            for (std::pair<std::string, ParsedArgument*> p : this->args) {
+                delete p.second;
             }
         }
 
         /* Returns true if this object contains an argument with the given name. */
         inline bool contains(std::string name) const {
-            return this->exists_map.find(name) != this->exists_map.end();
+            return this->args.find(name) != this->args.end();
         }
         /* Returns true if the user explicitly specified the argument. Otherwise, the argument does not exist or was a default argument. */
         bool is_given(std::string name) const {
-            std::unordered_map<std::string, bool>::const_iterator iter = this->given_map.find(name);
-            return iter != this->given_map.end() && (*iter).second;
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
+            return iter != this->args.end() && (*iter).second->is_given;
         }
 
         /* Returns the argument with given name as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
@@ -2000,46 +2015,51 @@ failure:
             return values;
         } 
 
-        /* Returns the index of given argument if it is a Positional. Throws PositionalMismatchException otherwise. */
-        size_t get_index(std::string name) const {
-            const std::string context = "Arguments::get_index() const";
-
-            // Try to find uid
-            std::unordered_map<std::string, Argument*>::const_iterator iter = this->exists_map.find(name);
-            if (iter == this->exists_map.end()) {
-                throw UnknownNameException(context, name);
-            }
-
-            // Check if it has an index, i.e., is a Positional
-            if (!dynamic_cast<Positional*>((*iter).second)) { throw PositionalMismatchException(context, name); }
-
-            // Return the index
-            return ((Positional*) (*iter).second)->get_index();
-        }
-        /* Returns the shortlabel of given argument if it is an Option or a Flag. Throws OptionMismatchException otherwise. */
+        /* Returns the shortlabel of given argument if it has one. Returns '\0' if it doesn't. */
         char get_shortlabel(std::string name) const {
-            const std::string context = "Arguments::get_shortlabel() const";
+            const std::string context = "Arguments::get_shortlabel()";
 
             // Try to find uid
-            std::unordered_map<std::string, Argument*>::const_iterator iter = this->exists_map.find(name);
-            if (iter == this->exists_map.end()) {
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
+            if (iter == this->args.end()) {
                 throw UnknownNameException(context, name);
             }
 
-            // Check if it has an index, i.e., is a Flag (or derived)
-            if (!dynamic_cast<Flag*>((*iter).second)) { throw FlagMismatchException(context, name); }
+            // Return it
+            return (*iter).second->shortlabel;
+        }
+        /* Returns whether or not given argument is variadic, i.e., it can accept any number of arguments. */
+        bool is_variadic(std::string name) const {
+            const std::string context = "Arguments::is_variadic()";
 
-            // Return the index
-            return ((Flag*) (*iter).second)->get_shortlabel();
+            // Try to find uid
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
+            if (iter == this->args.end()) {
+                throw UnknownNameException(context, name);
+            }
+
+            // Return it
+            return (*iter).second->is_variadic;
+        }
+        /* Returns a copy of the RuntimeType of the argument, which can be used to learn its wrapped Type. */
+        RuntimeType get_type(std::string name) const {
+            const std::string context = "Arguments::get_type()";
+
+            // Try to find uid
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
+            if (iter == this->args.end()) {
+                throw UnknownNameException(context, name);
+            }
+
+            // Return it
+            return (*iter).second->type;
         }
 
         /* Copy assignment operator for the Arguments class. */
         inline Arguments& operator=(const Arguments& other) { return *this = Arguments(other); }
         /* Move assignment operator for the Arguments class. */
         Arguments& operator=(Arguments&& other) {
-            if (this != &other) {
-                swap(*this, other);
-            }
+            if (this != &other) { swap(*this, other); }
             return *this;
         }
         /* Swap operator for the the Arguments class. */
@@ -2047,7 +2067,12 @@ failure:
     };
 
     /* Swap operator for the the Arguments class. */
-    void swap(Arguments& a1, Arguments& a2) {}
+    void swap(Arguments& a1, Arguments& a2) {
+        using std::swap;
+
+        swap(a1.args, a2.args);
+        swap(a1.short_args, a2.short_args);
+    }
 
 
 
@@ -2255,8 +2280,8 @@ failure:
         /* Gets the default value of this AtomicArgument. Note that the returned any object may be unitialized if AtomicArgument::has_default() return false. */
         inline std::any get_default() const { return this->default_value; }
 
-        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this AtomicArgument. Suitable ParseExceptions may be thrown. */
-        virtual ParsedArgument parse(size_t& n_positionals, Tokenizer& input) const = 0;
+        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
+        virtual std::any parse(size_t& n_positionals, Tokenizer& input) const = 0;
 
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual AtomicArgument* copy() const = 0;
@@ -2298,25 +2323,25 @@ failure:
         /* Gets the CLI-relevant index of the Positional. */
         inline size_t get_index() const { return this->index; }
 
-        /* Allows the ArgumentParser to delegate parsing to this Positional. Requires the number of Positionals seen and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this Positional. Suitable ParseExceptions may be thrown. */
-        virtual ParsedArgument parse(size_t& n_positionals, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Positional. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
+        virtual std::any parse(size_t& n_positionals, Tokenizer& input) const {
             // First, check if we could be looking at a Positional
             Token token = input.peek();
             if (token.type != TokenType::value) {
-                // Not for us, so return the empty ParsedArgument
-                return ParsedArgument::empty();
+                // Not for us, so return the empty any
+                return std::any();
             }
 
             // Otherwise, check if it's our turn as a Positional
             if (n_positionals != this->index) {
-                // Not for us, so return the empty ParsedArgument
-                return ParsedArgument::empty();
+                // Not for us, so return the empty any
+                return std::any();
             }
 
             // If it is a value, however, it's for us, so try to parse it using our internal parser!
             ++n_positionals;
             try {
-                return ParsedArgument({this->name, '\0', this->type, this->variadic, this->type.parse_func(input)});
+                return this->type.parse_func(input);
             } catch (TypeParseException& e) {
                 e.insert(this->name);
                 throw;
@@ -2368,26 +2393,26 @@ failure:
         /* Gets whether or not the Option can be specified multiple times. */
         inline bool is_repeatable() const { return this->repeatable; }
 
-        /* Allows the ArgumentParser to delegate parsing to this Option. Requires the number of Positionals seen (but doesn't really use it) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this Option. Suitable ParseExceptions may be thrown. */
-        virtual ParsedArgument parse(size_t&, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Option. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
+        virtual std::any parse(size_t&, Tokenizer& input) const {
             // First, check if we could be looking at an Option
             Token token = input.peek();
             if (token.type != TokenType::label) {
-                // Not for us, so return the empty ParsedArgument
-                return ParsedArgument::empty();
+                // Not for us, so return the empty any
+                return std::any();
             }
 
             // Then, check if the label belongs to us
             if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
                   (token.value.size() > 1 && token.value != "-" + this->name)) {
-                // Not for us, so return the empty ParsedArgument
-                return ParsedArgument::empty();
+                // Not for us, so return the empty any
+                return std::any();
             }
 
             // Otherwise, remove the label from the stream and try to parse the rest as values using our internal parser
             input.pop();
             try {
-                return ParsedArgument({this->name, this->shortlabel, this->type, this->variadic || this->repeatable, this->type.parse_func(input)});
+                return this->type.parse_func(input);
             } catch (TypeParseException& e) {
                 e.insert(this->name, this->shortlabel);
                 throw;
@@ -2427,24 +2452,24 @@ failure:
         /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
         virtual Flag& set_default(const std::any&) { throw ValueTypeMismatchException("Flag::set_default()", this->name); }
 
-        /* Allows the ArgumentParser to delegate parsing to this Flag. Requires the number of Positionals seen (but doesn't really use it) and reads from the given Tokenizer. If the first token wasn't a match for this argument, the Tokenizer is left unaltered; otherwise, the correct tokens have been removed from the stream. Returns a ParsedArgument, or one with an empty name if the first token wasn't for this Flag. Suitable ParseExceptions may be thrown. */
-        virtual ParsedArgument parse(size_t&, Tokenizer& input) const {
-            // First, check if we could be looking at an Option
+        /* Allows the ArgumentParser to delegate parsing to this Flag. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
+        virtual std::any parse(size_t&, Tokenizer& input) const {
+            // First, check if we could be looking at a Flag
             Token token = input.peek();
             if (token.type != TokenType::label) {
-                // Not for us, so return the empty ParsedArgument
-                return ParsedArgument::empty();
+                // Not for us, so return the empty any
+                return std::any();
             }
 
             // Then, check if the label belongs to us
             if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
                   (token.value.size() > 1 && token.value != "-" + this->name)) {
-                // Not for us, so return the empty ParsedArgument
-                return ParsedArgument::empty();
+                // Not for us, so return the empty any
+                return std::any();
             }
 
             // Otherwise, we did find it!
-            return ParsedArgument({this->name, this->shortlabel, this->type, this->variadic, std::any(true)});
+            return std::any(true);
         }
 
         /* Allows the Flag to copy itself polymorphically. */
@@ -2897,12 +2922,26 @@ failure:
         void validate_positionals() const {
             // First, check if the optional positionals are all in the back and, if there's a Positional with any_number, it's the only one and at the back.
             bool optional = false;
+            bool seen_last = false;
             for (Positional* pos : this->args.deepsearch<Positional>()) {
+                // Check if we have seen a variadic argument
+                if (seen_last) {
+                    // It's illegal for any Positionals to follow!
+                    throw VariadicPositionalException(pos->get_name(), pos->get_index());
+                }
+
+                // Check if the optionality is still correct
                 if (pos->is_optional()) {
                     optional = true;
                 } else if (optional) {
                     // That's illegal!
                     throw OptionalPositionalException(pos->get_name(), pos->get_index());
+                }
+
+                // If it's variadic, make sure that it's the last one
+                if (pos->is_variadic()) {
+                    // Seen the last one
+                    seen_last = true;
                 }
             }
         }
@@ -2910,7 +2949,37 @@ failure:
         Arguments parse(size_t argc, const char** argv) const {
             const std::string context = "ArgumentParser::parse()";
 
-            
+            /* STEP 1: Check the Positional's validity. */
+            this->validate_positionals();
+
+            /* STEP 2: Prepare parsing by creating the Tokenizer and extracting the executable. */
+            Tokenizer input(argc, argv);
+            Token executable;
+            input >> executable;
+            if (executable.type == TokenType::empty) {
+                // Got nothing!
+                throw NoInputException();
+            }
+
+            /* STEP 3: Loop through the AtomicArguments and find if they want to parse this. */
+            Arguments args;
+            size_t positional_index = 0;
+            while (!input.eof()) {
+                for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
+                    std::any result = aarg->parse(positional_index, input);
+                    if (!result.has_value()) {
+                        // Parsed as such! Register the argument with this value and then start again
+                        /* TBD */
+                        break;
+                    }
+                }
+            }
+
+            /* STEP 4: Check if all mandatory objects were present and give default values otherwise. */
+            for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
+                /* TBD */
+            }
+
         }
 
         /* Generates a usage message based on all given arguments. The given argument is the executable that was used to run the parser. */
