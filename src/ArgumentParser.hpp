@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   06/10/2020, 14:24:49
+ *   06/10/2020, 14:26:52
  * Auto updated?
  *   Yes
  *
@@ -1898,8 +1898,8 @@ failure:
             char shortlabel;
             /* The RuntimeType of the Argument. */
             RuntimeType type;
-            /* Whether the ParsedArgument can accept any number of arguments or not (bot is_variadic and is_repeatable). */
-            bool is_variadic;
+            /* Whether the ParsedArgument can accept any number of arguments or not (both is_variadic and is_repeatable). */
+            bool repeatable;
 
             /* The parsed value of the Argument, as vector to accomodate variadic arguments. */
             std::vector<std::any> values;
@@ -1908,11 +1908,11 @@ failure:
             bool is_given;
 
             /* Useful constructor for the ArgumentParser side of things. */
-            ParsedArgument(const std::string& name, char shortlabel, const RuntimeType& type, bool is_variadic, const std::any& value, bool is_given) :
+            ParsedArgument(const std::string& name, char shortlabel, const RuntimeType& type, bool repeatable, const std::any& value, bool is_given) :
                 name(name),
                 shortlabel(shortlabel),
                 type(type),
-                is_variadic(is_variadic),
+                repeatable(repeatable),
                 value(std::vector<std::any>({ value })),
                 is_given(is_given)
             {}
@@ -1927,7 +1927,7 @@ failure:
         template <class T>
         T _get(const std::string& context, ParsedArgument* arg) {
             // If the argument is variadic, let's error, as they must use getp
-            if (arg->is_variadic) { throw SingletonMismatchException(context, name); }
+            if (arg->repeatable) { throw SingletonMismatchException(context, name); }
 
             // Try to return the type as the given type
             try {
@@ -1963,7 +1963,7 @@ failure:
             // First, check if we already have this argument (based on its name)
             std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(arg.name);
             if (iter != this->args.end()) {
-                if (arg.is_variadic) {
+                if (arg.repeatable) {
                     // Append to the existing list of values, and then return as we're done
                     (*iter).second->values.insert((*iter).second->values.end(), arg.values.begin(), arg.values.end());
                     return;
@@ -2110,8 +2110,8 @@ failure:
             // Return its name
             return (*iter).second->name;
         }
-        /* Returns whether or not given argument is variadic, i.e., it can accept any number of arguments. */
-        bool is_variadic(std::string name) const {
+        /* Returns whether or not given argument is repeatable, i.e., it can accept any number of arguments or can be specified more than once. */
+        bool is_repeatable(std::string name) const {
             const std::string context = "Arguments::is_variadic(name)";
 
             // Try to find uid
@@ -2121,10 +2121,10 @@ failure:
             }
 
             // Return it
-            return (*iter).second->is_variadic;
+            return (*iter).second->repeatable;
         }
-        /* Returns whether or not given argument is variadic, i.e., it can accept any number of arguments. */
-        bool is_variadic(char shortlabel) const {
+        /* Returns whether or not given argument is repeatable, i.e., it can accept any number of arguments or can be specified more than once. */
+        bool is_repeatable(char shortlabel) const {
             const std::string context = "Arguments::is_variadic(shortlabel)";
 
             // Try to find uid
@@ -2134,7 +2134,7 @@ failure:
             }
 
             // Return it
-            return (*iter).second->is_variadic;
+            return (*iter).second->repeatable;
         }
         /* Returns a copy of the RuntimeType of the argument, which can be used to learn its wrapped Type. */
         RuntimeType get_type(std::string name) const {
@@ -2185,40 +2185,6 @@ failure:
 
 
 
-
-    /******************** THE ARGUMENTS ********************/
-
-    /* The ParsedArgument struct, which is used to describe arguments together with their value after they have been parsed. */
-    struct ParsedArgument {
-        /* The name of the argument. */
-        std::string name;
-        /* The shortlabel of the argument, which is equal to: '\0' is it didn't have any. */
-        char shortlabel;
-        /* The runtime type of the parsed argument. */
-        RuntimeType type;
-        /* Determines if the ParsedArgument is variadic or repeatable (or both). */
-        bool repeatable;
-        /* The parsed value, as an any struct. */
-        std::any value;
-
-        /* Constructor for the ParsedArgument struct, which takes the name of the arguments, its shortlabel, its runtime type, whether it is repeatable or not and its parsed value. */
-        ParsedArgument(const std::string& name, char shortlabel, const RuntimeType& type, bool repeatable, const std::any& value) :
-            name(name),
-            shortlabel(shortlabel),
-            type(type),
-            repeatable(repeatable),
-            value(value)
-        {}
-
-        /* Returns true if this and the other type are the same. */
-        inline bool operator==(const ParsedArgument& other) const { return this->name == other.name; }
-        /* Returns true if this and the other type are different. */
-        inline bool operator!=(const ParsedArgument& other) const { return this->name != other.name; }
-
-        /* Constructs and then returns a special 'empty' ParsedArgument. */
-        static ParsedArgument empty() { return ParsedArgument("", '\0', RuntimeType("", 0, nullptr), false, std::any()); }
-
-    };
 
     /* The Argument class, which forms the baseclass for all classes that count as command-line arguments. */
     class Argument {
