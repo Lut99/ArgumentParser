@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   9/26/2020, 17:24:56
+ *   06/10/2020, 14:24:49
  * Auto updated?
  *   Yes
  *
@@ -60,7 +60,7 @@ namespace Lut99 {
     /******************** HELPER FUNCTIONS ********************/
 
     /* Returns the name of a given standard type. */
-    template<class T> struct type_name { static constexpr const char* value = "other"; };
+    template<class T> struct type_name { static constexpr const char* value = "???"; };
     template<> struct type_name<unsigned char> { static constexpr const char* value = "unsigned byte"; };
     template<> struct type_name<signed char> { static constexpr const char* value = "byte"; };
     template<> struct type_name<unsigned short> { static constexpr const char* value = "unsigned short"; };
@@ -301,6 +301,56 @@ namespace Lut99 {
 
     /* Exception for when we expected an argument to be non-variadic (e.g., not a variable number of arguments) but it was. */
     class SingletonMismatchException: public ProgrammingException {
+    private:
+        /* The name of the Argument that was mismatched. */
+        std::string name;
+    
+    public:
+        /* Constructor for the SingletonMismatchException class, which takes a context and the name of the variadic exception. */
+        SingletonMismatchException(const std::string& context, const std::string& name) :
+            ProgrammingException(context, generate_message(context, "Argument '" + name + "' can accept any number of values, which we expected it to only accept its values once.")),
+            name(name)
+        {}
+
+        /* Returns the name of the mismatching argument. */
+        inline std::string get_name() const { return this->name; }
+
+        /* Allows the SingletonMismatchException to be copied polymorphically. */
+        virtual SingletonMismatchException* copy() const {
+            return new SingletonMismatchException(*this);
+        }
+
+    };
+    /* Exception for when we mismatched the value type of an Argument. */
+    class TypeMismatchException: public ProgrammingException {
+    private:
+        /* The name of the argument with the unexpected value type. */
+        std::string arg_name;
+        /* The name of the type that we expected the argument to have. */
+        std::string expected_name;
+        /* The name of the type that the argument actually had. */
+        std::string given_name;
+    
+    public:
+        /* Constructor for the TypeMismatchException class, which takes a context, the name of the conflicting argument, the name of the type we expected the argument to have and the name of the type it actually had. */
+        TypeMismatchException(const std::string& context, const std::string& arg_name, const std::string& expected_type_name, const std::string& given_type_name) :
+            ProgrammingException(context, generate_message(context, "")),
+            arg_name(arg_name),
+            expected_name(expected_type_name),
+            given_name(given_type_name)
+        {}
+
+        /* Returns the name of the mismatching argument. */
+        inline std::string get_arg_name() const { return this->arg_name; }
+        /* Returns the name of the type we expected the mismatching argument to have. */
+        inline std::string get_expected_type_name() const { return this->expected_name; }
+        /* Returns the name of the type that the mismatching argument actually had. */
+        inline std::string get_given_type_name() const { return this->given_name; }
+
+        /* Allows the TypeMismatchException to be copied polymorphically. */
+        virtual TypeMismatchException* copy() const {
+            return new TypeMismatchException(*this);
+        }
 
     };
 
@@ -443,7 +493,7 @@ namespace Lut99 {
         std::string name;
     
     public:
-        /* Constructor for the DuplicateNameException class which takes a programming context and the name that was unknown. */
+        /* Constructor for the UnknownNameException class which takes a programming context and the name that was unknown. */
         UnknownNameException(const std::string& context, const std::string& name) :
             UnknownIDException(context, generate_message(context, "Could not find Argument with name '" + name + "'.")),
             name(name)
@@ -455,6 +505,28 @@ namespace Lut99 {
         /* Allows the UnknownNameException to be copied polymorphically. */
         virtual UnknownNameException* copy() const {
             return new UnknownNameException(*this);
+        }
+
+    };
+    /* Exception for when a given shortlabel does not exist. */
+    class UnknownShortlabelException: public UnknownIDException {
+    private:
+        /* The shortlabel that was unknown. */
+        char shortlabel;
+    
+    public:
+        /* Constructor for the UnknownShortlabelException class which takes a programming context and the shortlabel that was unknown. */
+        UnknownShortlabelException(const std::string& context, const char shortlabel) :
+            UnknownIDException(context, generate_message(context, (std::string("Could not find Argument with shortlabel '") += shortlabel) + "'.")),
+            shortlabel(shortlabel)
+        {}
+
+        /* Returns the shortlabel that was unknown. */
+        inline std::string get_shortlabel() const { return this->shortlabel; }
+
+        /* Allows the UnknownShortlabelException to be copied polymorphically. */
+        virtual UnknownShortlabelException* copy() const {
+            return new UnknownShortlabelException(*this);
         }
 
     };
@@ -1829,11 +1901,21 @@ failure:
             /* Whether the ParsedArgument can accept any number of arguments or not (bot is_variadic and is_repeatable). */
             bool is_variadic;
 
-            /* The parsed value of the Argument. */
-            std::any value;
+            /* The parsed value of the Argument, as vector to accomodate variadic arguments. */
+            std::vector<std::any> values;
 
             /* Whether the ParsedArgument is explicitly given by the user (true) or if it's a default value (false). */
             bool is_given;
+
+            /* Useful constructor for the ArgumentParser side of things. */
+            ParsedArgument(const std::string& name, char shortlabel, const RuntimeType& type, bool is_variadic, const std::any& value, bool is_given) :
+                name(name),
+                shortlabel(shortlabel),
+                type(type),
+                is_variadic(is_variadic),
+                value(std::vector<std::any>({ value })),
+                is_given(is_given)
+            {}
         };
 
         /* Lists all items, sorted by their name. */
@@ -1841,17 +1923,65 @@ failure:
         /* Allows arguments to be found by their shortname, if they have one. */
         std::unordered_map<char, ParsedArgument*> short_args;
 
+        /* Returns the value from the given ParsedArgument, making sure it's non-variadic and performing some other checks. */
+        template <class T>
+        T _get(const std::string& context, ParsedArgument* arg) {
+            // If the argument is variadic, let's error, as they must use getp
+            if (arg->is_variadic) { throw SingletonMismatchException(context, name); }
+
+            // Try to return the type as the given type
+            try {
+                return std::any_cast<T>(arg->values[0]);
+            } catch (std::bad_any_cast& e) {
+                // Re-throw as TypeMismatchException
+                std::string raw_name = typeid(T).name();
+                throw TypeMismatchException(context, name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
+            }
+        }
+        /* Returns the value from the given ParsedArgument as if it was variadic. Also performs some other checks. */
+        template <class T>
+        std::vector<T> _getv(const std::string& context, ParsedArgument* arg) {
+            // Try to cast each element in the vector, throwing TypeMismatchs errors if we couldn't.
+            std::vector<T> result;
+            result.reserve(arg->values.size());
+            try {
+                for (size_t i = 0; i < arg->values.size(); i++) {
+                    result.push_back(std::any_cast<T>(arg->values[i]));
+                }
+            } catch (std::bad_any_cast& e) {
+                // Re-throw as TypeMismatchException
+                std::string raw_name = typeid(T).name();
+                throw TypeMismatchException(context, name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
+            }
+            
+            // If we were successful, return the result
+            return result;
+        }
+
         /* Adds an argument. */
         void add_arg(const ParsedArgument& arg) {
-            // Create a locally managed copy of the ParsedArgument
+            // First, check if we already have this argument (based on its name)
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(arg.name);
+            if (iter != this->args.end()) {
+                if (arg.is_variadic) {
+                    // Append to the existing list of values, and then return as we're done
+                    (*iter).second->values.insert((*iter).second->values.end(), arg.values.begin(), arg.values.end());
+                    return;
+                } else {
+                    // Shouldn't be allowed!
+                    throw DuplicateArgumentException(arg.name, arg.shortlabel);
+                }
+            }
+
+            // Otherwise, add it as new, so create a locally managed copy of the ParsedArgument
             ParsedArgument* copy = new ParsedArgument(arg);
 
             // Insert it into the exists map (since it always exists if given)
-            this->args.insert(std::make_pair(copy.name, copy));
+            this->args.insert(std::make_pair(copy->name, copy));
 
-            // Insert it into the shortlabel map if it has a shortlabel
+            // Also insert it into the shortlabel map if it has a shortlabel
             if (arg.shortlabel != '\0') {
-                this->short_args.insert(std::make_pair(copy.shortlabel, copy));
+                this->short_args.insert(std::make_pair(copy->shortlabel, copy));
             }
         }
 
@@ -1872,7 +2002,7 @@ failure:
         /* Move constructor for the Arguments class. */
         Arguments(Arguments&& other) :
             args(std::move(other.args)),
-            shirt_args(std::move(other.shirt_args))
+            short_args(std::move(other.short_args))
         {
             // Simply clear out the other's maps
             other.args.clear();
@@ -1887,139 +2017,78 @@ failure:
         }
 
         /* Returns true if this object contains an argument with the given name. */
-        inline bool contains(std::string name) const {
-            return this->args.find(name) != this->args.end();
-        }
+        inline bool contains(std::string name) const { return this->args.find(name) != this->args.end(); }
+        /* Returns true if this object contains an argument with the given shortlabel. */
+        inline bool contains(char shortlabel) const { return this->short_args.find(shortlabel) != this->short_args.end(); }
         /* Returns true if the user explicitly specified the argument. Otherwise, the argument does not exist or was a default argument. */
         bool is_given(std::string name) const {
             std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
             return iter != this->args.end() && (*iter).second->is_given;
+        }
+        /* Returns true if the user explicitly specified the argument. Otherwise, the argument does not exist or was a default argument. */
+        bool is_given(char shortlabel) const {
+            std::unordered_map<char, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            return iter != this->short_args.end() && (*iter).second->is_given;
         }
 
         /* Returns the argument with given name as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
         template<class T>
         T get(std::string name) const {
             // The context for this function
-            const std::string context = "Arguments::get<" + std::string(type_name<T>::value) + ">() const";
+            const std::string context = "Arguments::get<" + std::string(type_name<T>::value) + ">(name) const";
 
-            // Try to find the uid in the value map
-            std::unordered_map<std::string, std::any>::const_iterator iter = this->value_map.find(name);
-            if (iter == this->value_map.end()) {
-                // Check if it's because of it not being registered or it not having a value
-                if (this->exists_map.find(name) == this->exists_map.end()) {
-                    throw UnknownNameException(context, name);
-                } else {
-                    throw ValueTypeMismatchException(context, name);
-                }
-            }
+            // Try to find the argument with that name
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
+            if (iter == this->args.end()) { throw UnknownNameException(context, name); }
 
-            // Check if the type is correct
-            std::any value = (*iter).second;
-            Argument* arg = this->exists_map.at(name);
-            if (dynamic_cast<Positional*>(arg)) {
-                // Check as Positional
-                Positional* pos = (Positional*) arg;
-
-                // Check if pos' type checks out
-                if (pos->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, pos->get_type_name(), type_name<T>::value);
-                }
-
-                // If the Positional can occur multiple times, error since they must use the other get()
-                if (pos->get_any_number()) {
-                    throw SingletonMismatchException(context, pos->get_name());
-                }
-            } else {
-                // Check as Option
-                Option* opt = (Option*) arg;
-
-                // Check if opt's type checks out
-                if (opt->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, opt->get_type_name(), type_name<T>::value);
-                }
-            }
-
-            // If the casted version happens to be a char array (constant or not), and T is a string, then return as string
-            if (typeid(T).hash_code() == typeid(std::string).hash_code()) {
-                if (value.type().hash_code() == typeid(char*).hash_code()) {
-                    value = std::any(std::string(std::any_cast<char*>(value)));
-                } else if (value.type().hash_code() == typeid(const char*).hash_code()) {
-                    value = std::any(std::string(std::any_cast<const char*>(value)));
-                }
-            }
-
-            // Everything checks out, so return the any casted version
-            return std::any_cast<T>(value);
+            // Return using the internal extraction method
+            return this->_get(context, (*iter).second);
         }
-        /* Retrusn the argument with given name as the given type, but assumes that the argument that we request can be given more than once. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
-        template <class T>
-        std::vector<T> getp(std::string name) const {
+        /* Returns the argument with given shortlabel as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
+        template<class T>
+        T get(char shortlabel) const {
             // The context for this function
-            const std::string context = "Arguments::getp<" + std::string(type_name<T>::value) + ">() const";
+            const std::string context = "Arguments::get<" + std::string(type_name<T>::value) + ">(shortlabel) const";
 
-            // Try to find the uid in the value map
-            std::unordered_map<std::string, std::any>::const_iterator iter = this->value_map.find(name);
-            if (iter == this->value_map.end()) {
-                // Check if it's because of it not being registered or it not having a value
-                if (this->exists_map.find(name) == this->exists_map.end()) {
-                    throw UnknownNameException(context, name);
-                } else {
-                    throw ValueTypeMismatchException(context, name);
-                }
-            }
+            // Try to find the argument with that name
+            std::unordered_map<char, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            if (iter == this->short_args.end()) { throw UnknownShortlabelException(context, shortlabel); }
 
-            // Check if the type is correct
-            std::any value = (*iter).second;
-            Argument* arg = this->exists_map.at(name);
-            if (dynamic_cast<Positional*>(arg)) {
-                // Check as Positional
-                Positional* pos = (Positional*) arg;
+            // Return using the internal extraction method
+            return this->_get(context, (*iter).second);
+        }
+        /* Returns the argument with given name as the given type, but assumes that the argument that we request can be given more than once / can accept more than one value. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
+        template <class T>
+        std::vector<T> getv(std::string name) const {
+            // The context for this function
+            const std::string context = "Arguments::getv<" + std::string(type_name<T>::value) + ">(name) const";
 
-                // Check if pos' type checks out
-                if (pos->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, pos->get_type_name(), type_name<T>::value);
-                }
+            // Try to find the argument with that name
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
+            if (iter == this->args.end()) { throw UnknownNameException(context, name); }
 
-                // If pos does not repeat, wrap the value in a vector and return
-                if (!pos->get_any_number()) {
-                    return std::vector<T>({ std::any_cast<T>(value) });
-                }
-            } else {
-                // Check as Option
-                Option* opt = (Option*) arg;
+            // Return using the internal extraction method
+            return this->_getv(context, (*iter).second);
+        }
+        /* Returns the argument with given shortlabel as the given type, but assumes that the argument that we request can be given more than once / can accept more than one value. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
+        template <class T>
+        std::vector<T> getv(char shortlabel) const {
+            // The context for this function
+            const std::string context = "Arguments::getv<" + std::string(type_name<T>::value) + ">(shortlabel) const";
 
-                // Check if opt's type checks out
-                if (opt->get_type_hash() != typeid(T).hash_code()) {
-                    throw TypeMismatchException(context, opt->get_type_name(), type_name<T>::value);
-                }
-            }
+            // Try to find the argument with that name
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            if (iter == this->short_args.end()) { throw UnknownShortlabelException(context, shortlabel); }
 
-            // Everything checks out, so return the any casted version
-            std::vector<std::any> any_values = std::any_cast<std::vector<std::any>>(value);
-            std::vector<T> values;
-            values.resize(any_values.size());
-            for (size_t i = 0; i < any_values.size(); i++) {
-                std::any val = any_values.at(i);
-
-                // If the casted version happens to be a char array (constant or not), and T is a string, then return as string
-                if (typeid(T).hash_code() == typeid(std::string).hash_code()) {
-                    if (val.type().hash_code() == typeid(char*).hash_code()) {
-                        val = std::any(std::string(std::any_cast<char*>(val)));
-                    } else if (val.type().hash_code() == typeid(const char*).hash_code()) {
-                        val = std::any(std::string(std::any_cast<const char*>(val)));
-                    }
-                }
-
-                values.at(i) = std::any_cast<T>(val);
-            }
-            return values;
-        } 
+            // Return using the internal extraction method
+            return this->_getv(context, (*iter).second);
+        }
 
         /* Returns the shortlabel of given argument if it has one. Returns '\0' if it doesn't. */
         char get_shortlabel(std::string name) const {
             const std::string context = "Arguments::get_shortlabel()";
 
-            // Try to find uid
+            // Try to find argument
             std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
             if (iter == this->args.end()) {
                 throw UnknownNameException(context, name);
@@ -2028,9 +2097,22 @@ failure:
             // Return it
             return (*iter).second->shortlabel;
         }
+        /* Returns the name of the argument with the given shortlabel. */
+        std::string get_name(char shortlabel) const {
+            const std::string context = "Arguments::get_name()";
+
+            // Try to find argument
+            std::unordered_map<char, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            if (iter == this->short_args.end()) {
+                throw UnknownShortlabelException(context, shortlabel);
+            }
+
+            // Return its name
+            return (*iter).second->name;
+        }
         /* Returns whether or not given argument is variadic, i.e., it can accept any number of arguments. */
         bool is_variadic(std::string name) const {
-            const std::string context = "Arguments::is_variadic()";
+            const std::string context = "Arguments::is_variadic(name)";
 
             // Try to find uid
             std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
@@ -2041,14 +2123,40 @@ failure:
             // Return it
             return (*iter).second->is_variadic;
         }
+        /* Returns whether or not given argument is variadic, i.e., it can accept any number of arguments. */
+        bool is_variadic(char shortlabel) const {
+            const std::string context = "Arguments::is_variadic(shortlabel)";
+
+            // Try to find uid
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            if (iter == this->short_args.end()) {
+                throw UnknownShortlabelException(context, shortlabel);
+            }
+
+            // Return it
+            return (*iter).second->is_variadic;
+        }
         /* Returns a copy of the RuntimeType of the argument, which can be used to learn its wrapped Type. */
         RuntimeType get_type(std::string name) const {
-            const std::string context = "Arguments::get_type()";
+            const std::string context = "Arguments::get_type(name)";
 
             // Try to find uid
             std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
             if (iter == this->args.end()) {
                 throw UnknownNameException(context, name);
+            }
+
+            // Return it
+            return (*iter).second->type;
+        }
+        /* Returns a copy of the RuntimeType of the argument, which can be used to learn its wrapped Type. */
+        RuntimeType get_type(char shortlabel) const {
+            const std::string context = "Arguments::get_type(shortlabel)";
+
+            // Try to find uid
+            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            if (iter == this->short_args.end()) {
+                throw UnknownShortlabelException(context, shortlabel);
             }
 
             // Return it
