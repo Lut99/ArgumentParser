@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   06/10/2020, 14:26:52
+ *   06/10/2020, 15:16:29
  * Auto updated?
  *   Yes
  *
@@ -807,7 +807,7 @@ namespace Lut99 {
     public:
         /* Constructor for the IncludedDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
         IncludedDependencyException(const std::string& name, const std::string& peer_name) :
-            DependencyException(name, generate_message("Missing argument '" + name + "' as the argument '" + peer_name + "' cannot be specified without."))
+            DependencyException(name, generate_message("Missing argument '" + name + "' since argument '" + peer_name + "' is given."))
         {}
         
         /* Allows the IncludedDependencyException to be copied polymorphically. */
@@ -821,7 +821,7 @@ namespace Lut99 {
     public:
         /* Constructor for the ExcludedDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
         ExcludedDependencyException(const std::string& name, const std::string& peer_name) :
-            DependencyException(name, generate_message("Illegally specified argument '" + name + "' while conflicting argument '" + peer_name + "' was already given."))
+            DependencyException(name, generate_message("Argument '" + name + "' specified while conflicting argument '" + peer_name + "' was already given."))
         {}
         
         /* Allows the ExcludedDependencyException to be copied polymorphically. */
@@ -835,7 +835,7 @@ namespace Lut99 {
     public:
         /* Constructor for the RequiredDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
         RequiredDependencyException(const std::string& name, const std::string& peer_name) :
-            DependencyException(name, generate_message("Illegally specified argument '" + name + "' without specifying '" + peer_name + "'."))
+            DependencyException(name, generate_message("Argument '" + name + "' specified without specifying required argument '" + peer_name + "'."))
         {}
         
         /* Allows the RequiredDependencyException to be copied polymorphically. */
@@ -2017,11 +2017,11 @@ failure:
         }
 
         /* Returns true if this object contains an argument with the given name. */
-        inline bool contains(std::string name) const { return this->args.find(name) != this->args.end(); }
+        inline bool contains(const std::string& name) const { return this->args.find(name) != this->args.end(); }
         /* Returns true if this object contains an argument with the given shortlabel. */
         inline bool contains(char shortlabel) const { return this->short_args.find(shortlabel) != this->short_args.end(); }
         /* Returns true if the user explicitly specified the argument. Otherwise, the argument does not exist or was a default argument. */
-        bool is_given(std::string name) const {
+        bool is_given(const std::string& name) const {
             std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->args.find(name);
             return iter != this->args.end() && (*iter).second->is_given;
         }
@@ -2033,7 +2033,7 @@ failure:
 
         /* Returns the argument with given name as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
         template<class T>
-        T get(std::string name) const {
+        T get(const std::string& name) const {
             // The context for this function
             const std::string context = "Arguments::get<" + std::string(type_name<T>::value) + ">(name) const";
 
@@ -2059,7 +2059,7 @@ failure:
         }
         /* Returns the argument with given name as the given type, but assumes that the argument that we request can be given more than once / can accept more than one value. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
         template <class T>
-        std::vector<T> getv(std::string name) const {
+        std::vector<T> getv(const std::string& name) const {
             // The context for this function
             const std::string context = "Arguments::getv<" + std::string(type_name<T>::value) + ">(name) const";
 
@@ -2085,7 +2085,7 @@ failure:
         }
 
         /* Returns the shortlabel of given argument if it has one. Returns '\0' if it doesn't. */
-        char get_shortlabel(std::string name) const {
+        char get_shortlabel(const std::string& name) const {
             const std::string context = "Arguments::get_shortlabel()";
 
             // Try to find argument
@@ -2111,7 +2111,7 @@ failure:
             return (*iter).second->name;
         }
         /* Returns whether or not given argument is repeatable, i.e., it can accept any number of arguments or can be specified more than once. */
-        bool is_repeatable(std::string name) const {
+        bool is_repeatable(const std::string& name) const {
             const std::string context = "Arguments::is_variadic(name)";
 
             // Try to find uid
@@ -2137,7 +2137,7 @@ failure:
             return (*iter).second->repeatable;
         }
         /* Returns a copy of the RuntimeType of the argument, which can be used to learn its wrapped Type. */
-        RuntimeType get_type(std::string name) const {
+        RuntimeType get_type(const std::string& name) const {
             const std::string context = "Arguments::get_type(name)";
 
             // Try to find uid
@@ -2209,6 +2209,9 @@ failure:
         virtual bool has_name(const std::string& name) const = 0;
         /* Checks if this Argument listens to or contains an Argument that listens to the given shortlabel. Note that it throws if used on a Positional. */
         virtual bool has_shortlabel(char shortlabel) const = 0;
+
+        /* Allows derived classes to create the correct string for the usage string. */
+        virtual std::string usage() const = 0;
         
         /* Returns the type of the Argument. */
         inline ArgumentType get_arg_type() const { return this->arg_type; }
@@ -2388,6 +2391,12 @@ failure:
         virtual Positional& set_description(const std::string& description) { return (Positional&) AtomicArgument::set_description(description); }
         /* Sets the category of the Positional. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_category(const std::string& category) { return (Positional&) AtomicArgument::set_category(category); }
+
+        /* Allows derived classes to create the correct string for the usage string. */
+        virtual std::string usage() const {
+            // Simply return our own name
+            return this->name;
+        }
 
         /* Clears the default value of the Positional if it had any. Returns a reference to the Positional to allow chaining. */
         virtual Positional& clear_default() { return (Positional&) AtomicArgument::clear_default(); }
@@ -2821,6 +2830,18 @@ failure:
         /* Swap operator for the MultiArgument class. */
         friend void swap(MultiArgument& ma1, MultiArgument& ma2);
 
+        /* Returns whether or not anything from this MultiArgument is given based on the given Arguments dict. */
+        virtual bool is_given(const Arguments& parsed_args) const {
+            for (size_t i = 0; i < this->args.size(); i++) {
+                Argument* arg = this->args[i];
+                if (arg->is_atomic()) {
+                    if (parsed_args.is_given(arg->get_name())) { return true; }
+                } else {
+                    // Recursively call is_given
+                    if (((MultiArgument*) arg)->is_given(parsed_args)) { return true; }
+                }
+            }
+        }
         /* Lets the child classes validate whether their specific dependency rule is met, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
         virtual void validate(const Arguments& parsed_args) const { /* Being only a group of arguments, we always allow! */ }
 
@@ -2849,12 +2870,15 @@ failure:
         virtual void validate(const Arguments& parsed_args) const {
             std::string peer;
             for (size_t i = 0; i < this->args.size(); i++) {
-                Argument* arg = this->args.at(i);
-                if (parsed_args.is_given(arg->get_name())) {
+                Argument* arg = this->args[i];
+                
+                // Check if it occurs, either directly as AtomicArgument or indirectly using a recursive-like is_given
+                if (    (arg->is_atomic() && parsed_args.is_given(arg->get_name())) ||
+                        (!arg->is_atomic() && ((MultiArgument*) arg)->is_given(parsed_args))) {
                     peer = arg->get_name();
                 } else if (!peer.empty()) {
                     // One given, but also at least one is missing! Throw the appropriate exception
-                    throw IncludedDependencyException(this->name, peer);
+                    throw IncludedDependencyException(arg->name, peer);
                 }
             }
         }
@@ -2874,12 +2898,15 @@ failure:
             std::string peer;
             for (size_t i = 0; i < this->args.size(); i++) {
                 Argument* arg = this->args.at(i);
-                if (parsed_args.is_given(arg->get_name())) {
+                
+                // Check if it occurs, either directly as AtomicArgument or indirectly using a recursive-like is_given
+                if (    (arg->is_atomic() && parsed_args.is_given(arg->get_name())) ||
+                        (!arg->is_atomic() && ((MultiArgument*) arg)->is_given(parsed_args))) {
                     if (peer.empty()) {
                         peer = arg->get_name();
                     } else {
                         // More than one given! Throw the appropriate exception
-                        throw ExcludedDependencyException(this->name, peer);
+                        throw ExcludedDependencyException(arg->name, peer);
                     }
                 }
             }
@@ -2901,13 +2928,16 @@ failure:
             std::string peer;
             for (size_t i = 0; i < this->args.size(); i++) {
                 Argument* arg = this->args.at(i);
-                if (parsed_args.is_given(arg->get_name())) {
+                
+                // Check if it occurs, either directly as AtomicArgument or indirectly using a recursive-like is_given
+                if (    (arg->is_atomic() && parsed_args.is_given(arg->get_name())) ||
+                        (!arg->is_atomic() && ((MultiArgument*) arg)->is_given(parsed_args))) {
                     if (last_arg == peer) {
                         // The last one is still on track, so allow this one and set it as peer
                         peer = arg->get_name();
                     } else {
                         // Not on track! Throw the appropriate exception
-                        throw RequiredDependencyException(this->name, peer);
+                        throw RequiredDependencyException(arg->name, peer);
                     }
                 }
                 last_arg = arg->get_name();
@@ -3043,17 +3073,49 @@ failure:
                     std::any result = aarg->parse(positional_index, input);
                     if (!result.has_value()) {
                         // Parsed as such! Register the argument with this value and then start again
-                        /* TBD */
+                        bool is_repeatable = (dynamic_cast<Positional*>(aarg) && ((Positional*) aarg)->is_variadic()) ||
+                                             (dynamic_cast<Option*>(aarg) && (((Option*) aarg)->is_variadic() || ((Option*) aarg)->is_repeatable()));
+                        args.add_arg(Arguments::ParsedArgument(
+                            aarg->get_name(),
+                            aarg->get_shortlabel(),
+                            aarg->get_type(),
+                            is_repeatable,
+                            result,
+                            true
+                        ));
                         break;
                     }
                 }
             }
 
-            /* STEP 4: Check if all mandatory objects were present and give default values otherwise. */
-            for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
-                /* TBD */
+            /* STEP 4: Check if all MultiArguments were given correctly. */
+            for (MultiArgument* marg : this->args.deepsearch<MultiArgument*>()) {
+                // Just call validate. It will throw appropriate exceptions if needed
+                marg->validate(args);
             }
 
+            /* STEP 5: Check if all mandatory objects were present and give default values otherwise. */
+            for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
+                if (!args.contains(aarg)) {
+                    if (!aarg->is_optional()) { throw MissingMandatoryException(aarg->get_name()); }
+                    else if (aarg->has_default()) {
+                        // Add it as a default value
+                        bool is_repeatable = (dynamic_cast<Positional*>(aarg) && ((Positional*) aarg)->is_variadic()) ||
+                                             (dynamic_cast<Option*>(aarg) && (((Option*) aarg)->is_variadic() || ((Option*) aarg)->is_repeatable()));
+                        args.add_arg(Arguments::ParsedArgument(
+                            aarg->get_name(),
+                            aarg->get_shortlabel(),
+                            aarg->get_type(),
+                            is_repeatable,
+                            aarg->get_default(),
+                            false
+                        ));
+                    }
+                }
+            }
+
+            /* STEP 6: Done! Return the arguments dict. */
+            return args;
         }
 
         /* Generates a usage message based on all given arguments. The given argument is the executable that was used to run the parser. */
