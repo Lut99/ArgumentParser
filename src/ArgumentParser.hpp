@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   06/10/2020, 15:16:29
+ *   10/7/2020, 19:20:31
  * Auto updated?
  *   Yes
  *
@@ -2952,7 +2952,7 @@ failure:
 
     /******************** THE ARGUMENTPARSER CLASS ITSELF ********************/
 
-    /* The ArgumentParser class itself. */
+    /* The ArgumentParser class, which can be used to parse arguments in a high-level, easy-to-use way. */
     class ArgumentParser {
     private:
         /* Returns whether given string is an option or not. */
