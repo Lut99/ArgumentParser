@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   10/7/2020, 19:20:31
+ *   11/10/2020, 18:39:21
  * Auto updated?
  *   Yes
  *
@@ -2463,6 +2463,24 @@ failure:
         /* Sets the category of the Option. Returns a reference to the Option to allow chaining. */
         virtual Option& set_category(const std::string& category) { return (Option&) AtomicArgument::set_category(category); }
 
+        /* Allows the Positional to correctly describe its own name. */
+        virtual std::string usage() const {
+            std::stringstream sstr;
+
+            // Return our shortlabel first if we have one, otherwise do the long one
+            if (this->shortlabel != '\0') {
+                sstr << '-' << this->shortlabel << ' ';
+            } else {
+                sstr << "--" << this->name << ' ';
+            }
+
+            // Then, append the placeholder (in caps)
+            sstr << upperify(this->type.type_name);
+
+            // Done, so return the build string
+            return sstr.str();
+        }
+
         /* Clears the default value of the Option if it had any. Returns a reference to the Option to allow chaining. */
         virtual Option& clear_default() { return (Option&) AtomicArgument::clear_default(); }
         /* Sets the default value of this Option. Returns a reference to the Option to allow chaining. */
@@ -2529,6 +2547,21 @@ failure:
         virtual Flag& set_description(const std::string& description) { return (Flag&) AtomicArgument::set_description(description); }
         /* Sets the category of the Flag. Returns a reference to the Flag to allow chaining. */
         virtual Flag& set_category(const std::string& category) { return (Flag&) AtomicArgument::set_category(category); }
+
+        /* Allows the Positional to correctly describe its own name. */
+        virtual std::string usage() const {
+            std::stringstream sstr;
+
+            // Return our shortlabel first if we have one, otherwise do the long one
+            if (this->shortlabel != '\0') {
+                sstr << '-' << this->shortlabel;
+            } else {
+                sstr << "--" << this->name;
+            }
+
+            // Done, so return the build string
+            return sstr.str();
+        }
 
         /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
         virtual Flag& clear_default() { throw ValueTypeMismatchException("Flag::clear_default()", this->name); }
@@ -2845,6 +2878,25 @@ failure:
         /* Lets the child classes validate whether their specific dependency rule is met, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
         virtual void validate(const Arguments& parsed_args) const { /* Being only a group of arguments, we always allow! */ }
 
+        /* Allows the nested elements to correctly describe their names. */
+        virtual std::string usage() const {
+            std::stringstream sstr;
+
+            // Return our shortlabel first if we have one, otherwise do the long one
+            bool did_first = false;
+            for (size_t i = 0; i < this->args.size(); i++) {
+                // Write a space if we're not at the first argument
+                if (!did_first) { did_first = true; }
+                else { sstr << ' '; }
+
+                // Write the usage string of the argument
+                sstr << (this->args[i]->usage());
+            }
+
+            // Done, so return the build string
+            return sstr.str();
+        }
+
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual MultiArgument* copy() const { return new MultiArgument(*this); };
 
@@ -2878,7 +2930,7 @@ failure:
                     peer = arg->get_name();
                 } else if (!peer.empty()) {
                     // One given, but also at least one is missing! Throw the appropriate exception
-                    throw IncludedDependencyException(arg->name, peer);
+                    throw IncludedDependencyException(arg->get_name(), peer);
                 }
             }
         }
