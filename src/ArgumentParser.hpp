@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   14/10/2020, 15:28:54
+ *   14/10/2020, 16:52:49
  * Auto updated?
  *   Yes
  *
@@ -39,7 +39,7 @@ namespace Lut99 {
     /******************** ENUMS ********************/
 
     enum class ArgumentType {
-        none = -1,
+        any = -1,
         positional = 0,
         option = 1,
         flag = 2,
@@ -49,7 +49,7 @@ namespace Lut99 {
         required_group = 6
     };
     const static std::string argtype_name_map[] = {
-        "None",
+        "Any",
         "Positional",
         "Option",
         "Flag",
@@ -581,6 +581,45 @@ namespace Lut99 {
         }
 
     };
+
+    /* Baseclass exception for when a certain argument is illegally added to a MultiGroup argument. */
+    class MultiGroupTypeException: public ProgrammingException {
+    private:
+        /* The name of the group to which we tried to add an argument. */
+        std::string group_name;
+        /* The type of the group to which we tried to add an argument. */
+        ArgumentType group_type;
+        /* The name of the argument we tried to add to the group. */
+        std::string arg_name;
+        /* The type of the argument we tried to add to the group. */
+        ArgumentType arg_type;
+    
+    public:
+        /* Constructor for the MultiGroupTypeException, which takes a context, the name of the group, the type of the group, the name of the argument, the type of the argument and optionally a message. */
+        MultiGroupTypeException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const std::string& arg_name, const ArgumentType arg_type, const std::string& message = "") :
+            ProgrammingException(context, message),
+            group_name(group_name),
+            group_type(group_type),
+            arg_name(arg_name),
+            arg_type(arg_type)
+        {}
+
+        /* Returns the name of the MultiArgument to which we tried to add another argument. */
+        inline std::string get_group_name() const { return this->group_name; }
+        /* Returns the type of the MultiArgument to which we tried to add another argument. */
+        inline ArgumentType get_group_type() const { return this->group_type; }
+        /* Returns the name of the argument which we tried to illegaly add to the MultiArgument. */
+        inline std::string get_arg_name() const { return this->arg_name; }
+        /* Returns the type of the argument which we tried to illegaly add to the MultiArgument. */
+        inline ArgumentType get_arg_type() const { return this->arg_type; }
+
+        /* Allows the MultiGroupTypeException to be copied polymorphically. */
+        virtual MultiGroupTypeException* copy() const {
+            return new MultiGroupTypeException(*this);
+        }
+
+    };
+    /* TBD: Add MemberTypeMismatchException + IllegalGroupTypeException etc */
 
 
 
@@ -2604,6 +2643,8 @@ failure:
         MultiArgument* root;
         /* A list of all nested arguments. */
         std::vector<Argument*> args;
+        /* Keeps track of the type of AtomicArgument stored in this MultiArgument. */
+        ArgumentType member_type;
 
         /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
         virtual void _add_validated(Argument* arg) {
@@ -2614,7 +2655,8 @@ failure:
         /* Constructor for the MultiArgument which takes a name and an ArgumentType. */
         MultiArgument(ArgumentType arg_type, MultiArgument* root, const std::string& name) :
             Argument(arg_type, name),
-            root(root)
+            root(root),
+            member_type(ArgumentType::any)
         {}
 
     public:
@@ -2917,6 +2959,9 @@ failure:
             return sstr.str();
         }
 
+        /* Returns the type of the argument stored in this MultiArgument. */
+        inline ArgumentType get_member_type() const { return this->member_type; }
+
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual MultiArgument* copy() const { return new MultiArgument(*this); };
 
@@ -2933,16 +2978,26 @@ failure:
     /* The IncludedGroup class: when the user specifies one of this classes' children, he or she must specify all of them. */
     class IncludedGroup : public MultiArgument {
     private:
-        /* Stores the atomic argument type stored in this IncludedGroup. */
-        ArgumentType group_type;
-
         /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
         virtual void _add_validated(Argument* arg) {
             // The IncludedGroup only accepts Positionals with adjacent indices and Options, but not flags and not intermixed
             if (arg->is_atomic()) {
-                
+                AtomicArgument* aarg = (AtomicArgument*) arg;
+                if (aarg->get_arg_type() == ArgumentType::flag) {
+                    // We never accept flags as an IncludedGroup
+                    throw IllegalArgumentTypeException(arg->get_name(), this->get_name(), arg->get_member_type());
+                } else if (aarg->get_arg_type() == ArgumentType::positional) {
+                    
+                }
             } else {
-                
+                MultiArgument* marg = (MultiArgument*) arg;
+                if (this->member_type == ArgumentType::any) {
+                    // Set the group type to this type
+                    this->member_type = marg->get_member_type();
+                } else if (this->member_type != marg->get_member_type()) {
+                    // Doesn't match the type of this group; abort
+                    throw GroupTypeMismatchException(arg->get_name(), this->get_name(), this->member_type, marg->get_member_type());
+                }
             }
 
             this->args.push_back(arg);
@@ -2951,8 +3006,7 @@ failure:
     public:
         /* Constructor for the IncludedGroup class, which takes the root MultiArgument and a name. */
         IncludedGroup(MultiArgument* root, const std::string& name) :
-            MultiArgument(ArgumentType::included_group, root, name),
-            group_type(ArgumentType::none)
+            MultiArgument(ArgumentType::included_group, root, name)
         {}
 
         /* Lets this IncludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
