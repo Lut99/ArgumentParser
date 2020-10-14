@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   11/10/2020, 18:39:21
+ *   14/10/2020, 15:28:54
  * Auto updated?
  *   Yes
  *
@@ -39,6 +39,7 @@ namespace Lut99 {
     /******************** ENUMS ********************/
 
     enum class ArgumentType {
+        none = -1,
         positional = 0,
         option = 1,
         flag = 2,
@@ -48,6 +49,7 @@ namespace Lut99 {
         required_group = 6
     };
     const static std::string argtype_name_map[] = {
+        "None",
         "Positional",
         "Option",
         "Flag",
@@ -1913,7 +1915,7 @@ failure:
                 shortlabel(shortlabel),
                 type(type),
                 repeatable(repeatable),
-                value(std::vector<std::any>({ value })),
+                values(std::vector<std::any>({ value })),
                 is_given(is_given)
             {}
         };
@@ -2128,7 +2130,7 @@ failure:
             const std::string context = "Arguments::is_variadic(shortlabel)";
 
             // Try to find uid
-            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            std::unordered_map<char, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
             if (iter == this->short_args.end()) {
                 throw UnknownShortlabelException(context, shortlabel);
             }
@@ -2154,7 +2156,7 @@ failure:
             const std::string context = "Arguments::get_type(shortlabel)";
 
             // Try to find uid
-            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            std::unordered_map<char, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
             if (iter == this->short_args.end()) {
                 throw UnknownShortlabelException(context, shortlabel);
             }
@@ -2603,6 +2605,12 @@ failure:
         /* A list of all nested arguments. */
         std::vector<Argument*> args;
 
+        /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
+        virtual void _add_validated(Argument* arg) {
+            // The MultiArgument is very inclusive, and accepts everything
+            this->args.push_back(arg);
+        }
+
         /* Constructor for the MultiArgument which takes a name and an ArgumentType. */
         MultiArgument(ArgumentType arg_type, MultiArgument* root, const std::string& name) :
             Argument(arg_type, name),
@@ -2666,7 +2674,9 @@ failure:
 
             // Create a new Positional object with the index = the number of n_positionals
             Positional* p = new Positional(name, n_positionals, T::runtime());
-            this->args.push_back((Argument*) p);
+
+            // Add it using the class' virtualized _add_validated() function
+            this->_add_validated((Argument*) p);
             
             // Return it
             return *p;
@@ -2685,8 +2695,10 @@ failure:
 
             // Create a new Option object and add it
             Option* o = new Option(name, shortlabel, T::runtime());
-            this->args.push_back((Argument*) o);
 
+            // Add it using the class' virtualized _add_validated() function
+            this->_add_validated((Argument*) o);
+            
             // Return it
             return *o;
         }
@@ -2703,7 +2715,9 @@ failure:
 
             // Create a new Flag object and add it
             Flag* f = new Flag(name, shortlabel);
-            this->args.push_back((Argument*) f);
+
+            // Add it using the class' virtualized _add_validated() function
+            this->_add_validated((Argument*) f);
 
             // Return it
             return *f;
@@ -2721,7 +2735,9 @@ failure:
 
             // Create a new IncludedGroup object
             IncludedGroup* ig = new IncludedGroup(this->root, name);
-            this->args.push_back((Argument*) ig);
+
+            // Add it using the class' virtualized _add_validated() function
+            this->_add_validated((Argument*) ig);
             
             // Return it
             return *ig;
@@ -2739,7 +2755,9 @@ failure:
 
             // Create a new ExcludedGroup object
             ExcludedGroup* eg = new ExcludedGroup(this->root, name);
-            this->args.push_back((Argument*) eg);
+
+            // Add it using the class' virtualized _add_validated() function
+            this->_add_validated((Argument*) eg);
             
             // Return it
             return *eg;
@@ -2757,7 +2775,9 @@ failure:
 
             // Create a new ExcludedGroup object
             RequiredGroup* rg = new RequiredGroup(this->root, name);
-            this->args.push_back((Argument*) rg);
+
+            // Add it using the class' virtualized _add_validated() function
+            this->_add_validated((Argument*) rg);
             
             // Return it
             return *rg;
@@ -2912,10 +2932,27 @@ failure:
 
     /* The IncludedGroup class: when the user specifies one of this classes' children, he or she must specify all of them. */
     class IncludedGroup : public MultiArgument {
+    private:
+        /* Stores the atomic argument type stored in this IncludedGroup. */
+        ArgumentType group_type;
+
+        /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
+        virtual void _add_validated(Argument* arg) {
+            // The IncludedGroup only accepts Positionals with adjacent indices and Options, but not flags and not intermixed
+            if (arg->is_atomic()) {
+                
+            } else {
+                
+            }
+
+            this->args.push_back(arg);
+        }
+
     public:
         /* Constructor for the IncludedGroup class, which takes the root MultiArgument and a name. */
         IncludedGroup(MultiArgument* root, const std::string& name) :
-            MultiArgument(ArgumentType::included_group, root, name)
+            MultiArgument(ArgumentType::included_group, root, name),
+            group_type(ArgumentType::none)
         {}
 
         /* Lets this IncludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
