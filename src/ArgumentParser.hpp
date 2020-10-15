@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   14/10/2020, 16:52:49
+ *   15/10/2020, 13:09:25
  * Auto updated?
  *   Yes
  *
@@ -524,7 +524,7 @@ namespace Lut99 {
         {}
 
         /* Returns the shortlabel that was unknown. */
-        inline std::string get_shortlabel() const { return this->shortlabel; }
+        inline char get_shortlabel() const { return this->shortlabel; }
 
         /* Allows the UnknownShortlabelException to be copied polymorphically. */
         virtual UnknownShortlabelException* copy() const {
@@ -584,7 +584,7 @@ namespace Lut99 {
 
     /* Baseclass exception for when a certain argument is illegally added to a MultiGroup argument. */
     class MultiGroupTypeException: public ProgrammingException {
-    private:
+    protected:
         /* The name of the group to which we tried to add an argument. */
         std::string group_name;
         /* The type of the group to which we tried to add an argument. */
@@ -593,7 +593,12 @@ namespace Lut99 {
         std::string arg_name;
         /* The type of the argument we tried to add to the group. */
         ArgumentType arg_type;
-    
+
+        /* Returns the message of a derived class plus whatever the parent classes wants to add. */
+        static inline std::string generate_message(const std::string& context, const std::string& group_name, const ArgumentType group_type, const std::string& arg_name, const ArgumentType arg_type, const std::string& message) {
+            return ProgrammingException::generate_message(context, "Could not add " + argtype_name_map[(int) arg_type] + " '" + arg_name + "' to " + argtype_name_map[(int) group_type] + " '" + group_name + "'" + (message.empty() ? "" : ": " + message));
+        }
+
     public:
         /* Constructor for the MultiGroupTypeException, which takes a context, the name of the group, the type of the group, the name of the argument, the type of the argument and optionally a message. */
         MultiGroupTypeException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const std::string& arg_name, const ArgumentType arg_type, const std::string& message = "") :
@@ -619,7 +624,72 @@ namespace Lut99 {
         }
 
     };
-    /* TBD: Add MemberTypeMismatchException + IllegalGroupTypeException etc */
+    /* Exception for when an argument was attempted to be added to a derivative of the MultiArgument, but that group was already populated by arguments of a different type. */
+    class MemberTypeMismatchException: public MultiGroupTypeException {
+    private:
+        /* The type bound to the group we tried to add a member to. */
+        ArgumentType member_type;
+
+    public:
+        /* Constructor for the MemberTypeMismatchException class, which takes a context, the name of the group we tried to add a member to, the argument type of the group, the member type of the group, the name of the argument we tried to add and the type of the argument. */
+        MemberTypeMismatchException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const ArgumentType member_type, const std::string& arg_name, const ArgumentType arg_type) :
+            MultiGroupTypeException(context, group_name, group_type, arg_name, arg_type,
+                                    generate_message(context, group_name, group_type, arg_name, arg_type, "Members in group have incompatible type " + argtype_name_map[(int) member_type])),
+            member_type(member_type)
+        {}
+
+        /* Returns the ArgumentType of the members in the group we tried to add an argument to. */
+        inline ArgumentType get_member_type() const { return this->member_type; }
+
+        /* Allows the MemberTypeMismatchException to be copied polymorphically. */
+        virtual MemberTypeMismatchException* copy() const {
+            return new MemberTypeMismatchException(*this);
+        }
+
+    };
+    /* Exception for when an argument was attempted to be added to a derivative of the MultiArgument, but that type is always illegal for that type of relation. */
+    class IllegalGroupTypeException: public MultiGroupTypeException {
+    public:
+        /* Constructor for the IllegalGroupTypeException class, which takes a context, the name of the group we tried to add a member to, the type of the group, the name of the argument we tried to add and that argument's type. */
+        IllegalGroupTypeException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const std::string& arg_name, const ArgumentType arg_type) :
+            MultiGroupTypeException(context, group_name, group_type, arg_name, arg_type,
+                                    generate_message(context, group_name, group_type, arg_name, arg_type, argtype_name_map[(int) group_type] + " doesn't accept arguments of type " + argtype_name_map[(int) arg_type]))
+        {}
+
+        /* Allows the IllegalGroupTypeException to be copied polymorphically. */
+        virtual IllegalGroupTypeException* copy() const {
+            return new IllegalGroupTypeException(*this);
+        }
+
+    };
+    /* Exception for when a Positional was added to a MultiGroup that wasn't the direct neighbour of the last Positional in that group. */
+    class NonSequentialPositionalException: public MultiGroupTypeException {
+    private:
+        /* Index of the last Positional in the group. */
+        size_t group_index;
+        /* Index of the Positional we tried to add to the group. */
+        size_t arg_index;
+
+    public:
+        /* Constructor for the NonSequentialPositionalException class, which takes a context, the name of the group we tried to add a Positional to, that group's type, the index of the last Positional in that group, the name of the Positional we tried to add to that group and that Positional's index. */
+        NonSequentialPositionalException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const size_t group_index, const std::string& arg_name, const size_t arg_index) :
+            MultiGroupTypeException(context, group_name, group_type, arg_name, ArgumentType::positional,
+                                    generate_message(context, group_name, group_type, arg_name, ArgumentType::positional, "Given Positional (at index " + std::to_string(arg_index) + ") is not a direct neighbour of the last Positional in the group (at index " + std::to_string(group_index) + ")")),
+            group_index(group_index),
+            arg_index(arg_index)
+        {}
+
+        /* Returns the index of the last Positional in the group we tried to add a new Positional to. */
+        inline size_t get_group_index() const { return this->group_index; }
+        /* Returns the index of the Positional we tried to add to a MultiArgument. */
+        inline size_t get_arg_index() const { return this->arg_index; }
+
+        /* Allows the NonSequentialPositionalException to be copied polymorphically. */
+        virtual NonSequentialPositionalException* copy() const {
+            return new NonSequentialPositionalException(*this);
+        }
+
+    };
 
 
 
@@ -2659,6 +2729,10 @@ failure:
             member_type(ArgumentType::any)
         {}
 
+        friend class IncludedGroup;
+        friend class ExcludedGroup;
+        friend class RequiredGroup;
+
     public:
         /* Copy constructor for the MultiArgument class. */
         MultiArgument(const MultiArgument& other) :
@@ -2979,27 +3053,42 @@ failure:
     class IncludedGroup : public MultiArgument {
     private:
         /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
-        virtual void _add_validated(Argument* arg) {
+        virtual void _add_validated(const std::string& context, Argument* arg) {
             // The IncludedGroup only accepts Positionals with adjacent indices and Options, but not flags and not intermixed
             if (arg->is_atomic()) {
                 AtomicArgument* aarg = (AtomicArgument*) arg;
+
+                // Filter out specific types
                 if (aarg->get_arg_type() == ArgumentType::flag) {
                     // We never accept flags as an IncludedGroup
-                    throw IllegalArgumentTypeException(arg->get_name(), this->get_name(), arg->get_member_type());
-                } else if (aarg->get_arg_type() == ArgumentType::positional) {
-                    
+                    throw IllegalGroupTypeException(context, this->name, this->arg_type, arg->get_name(), arg->get_arg_type());
+                } else if (this->args.size() > 0 && aarg->get_arg_type() == ArgumentType::positional) {
+                    Positional* pos = (Positional*) aarg;
+
+                    // Get the maximum index from all (nested) positionals
+                    size_t max = std::numeric_limits<size_t>::min();
+                    for (Positional* pos2 : this->deepsearch<Positional>()) {
+                        if (pos2->get_index() > max) { max = pos2->get_index(); }
+                    }
+
+                    // We only accept Positionals if they are coming sequentially after the Positionals in here
+                    if (pos->get_index() > max + 1) {
+                        throw NonSequentialPositionalException(context, this->name, this->arg_type, max, pos->get_name(), pos->get_index());
+                    }
+                }
+
+                // Regardless of the specific type, make sure it matches our member type
+                if (aarg->get_arg_type() != this->member_type) {
+                    throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
                 }
             } else {
                 MultiArgument* marg = (MultiArgument*) arg;
-                if (this->member_type == ArgumentType::any) {
-                    // Set the group type to this type
-                    this->member_type = marg->get_member_type();
-                } else if (this->member_type != marg->get_member_type()) {
-                    // Doesn't match the type of this group; abort
-                    throw GroupTypeMismatchException(arg->get_name(), this->get_name(), this->member_type, marg->get_member_type());
-                }
+
+                // Always override the type of marg to our type, since we know it's empty
+                marg->member_type = this->member_type;
             }
 
+            // If we made it this far, it all makes sense, so add the argument to the group!
             this->args.push_back(arg);
         }
 
