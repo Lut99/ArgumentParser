@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   16/10/2020, 17:33:28
+ *   16/10/2020, 18:22:43
  * Auto updated?
  *   Yes
  *
@@ -39,14 +39,19 @@ namespace Lut99 {
     /******************** ENUMS ********************/
 
     enum class ArgumentType {
-        any = -1,
-        positional = 0,
-        option = 1,
-        flag = 2,
-        multi_argument = 3,
-        included_group = 4,
-        excluded_group = 5,
-        required_group = 6
+        positional = 1,
+        option = 2,
+        flag = 3,
+        multi_argument = 4,
+        included_group = 5,
+        excluded_group = 6,
+        required_group = 7
+    };
+    enum class MemberType {
+        any = 0,
+        positional = 1,
+        option = 2,
+        flag = 3
     };
     const static std::string argtype_name_map[] = {
         "Any",
@@ -624,22 +629,37 @@ namespace Lut99 {
         }
 
     };
+    /* Exception for when a custom MemberType was attempted to be given to a MultiGroup that already had a member type. */
+    class MemberTypeConflictException: public MultiGroupTypeException {
+    public:
+        /* Constructor for the MemberTypeConflictException which takes a context, the name of the parent group we tried to add a nested group to, the parent group's type, the name of the nested group we tried to add and the nested group's type. */
+        MemberTypeConflictException(const std::string& context, const std::string& parent_name, const ArgumentType parent_type, const std::string& nested_name, const ArgumentType nested_type) :
+            MultiGroupTypeException(context, parent_name, parent_type, nested_name, nested_type,
+                                    generate_message(context, parent_name, parent_type, nested_name, nested_type, "Cannot custumize the member type of a group that will be added to a parent group that already has a member type defined."))
+        {}
+
+        /* Allows the MemberTypeConflictException to be copied polymorphically. */
+        virtual MemberTypeConflictException* copy() const {
+            return new MemberTypeConflictException(*this);
+        }
+
+    };
     /* Exception for when an argument was attempted to be added to a derivative of the MultiArgument, but that group was already populated by arguments of a different type. */
     class MemberTypeMismatchException: public MultiGroupTypeException {
     private:
         /* The type bound to the group we tried to add a member to. */
-        ArgumentType member_type;
+        MemberType member_type;
 
     public:
         /* Constructor for the MemberTypeMismatchException class, which takes a context, the name of the group we tried to add a member to, the argument type of the group, the member type of the group, the name of the argument we tried to add and the type of the argument. */
-        MemberTypeMismatchException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const ArgumentType member_type, const std::string& arg_name, const ArgumentType arg_type) :
+        MemberTypeMismatchException(const std::string& context, const std::string& group_name, const ArgumentType group_type, const MemberType member_type, const std::string& arg_name, const ArgumentType arg_type) :
             MultiGroupTypeException(context, group_name, group_type, arg_name, arg_type,
                                     generate_message(context, group_name, group_type, arg_name, arg_type, "Members in group have incompatible type " + argtype_name_map[(int) member_type])),
             member_type(member_type)
         {}
 
         /* Returns the ArgumentType of the members in the group we tried to add an argument to. */
-        inline ArgumentType get_member_type() const { return this->member_type; }
+        inline MemberType get_member_type() const { return this->member_type; }
 
         /* Allows the MemberTypeMismatchException to be copied polymorphically. */
         virtual MemberTypeMismatchException* copy() const {
@@ -2714,19 +2734,19 @@ failure:
         /* A list of all nested arguments. */
         std::vector<Argument*> args;
         /* Keeps track of the type of AtomicArgument stored in this MultiArgument. */
-        ArgumentType member_type;
+        MemberType member_type;
 
         /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
-        virtual void _add_validated(Argument* arg) {
+        virtual void _add_validated(const std::string&, Argument* arg) {
             // The MultiArgument is very inclusive, and accepts everything
             this->args.push_back(arg);
         }
 
         /* Constructor for the MultiArgument which takes a name and an ArgumentType. */
-        MultiArgument(ArgumentType arg_type, MultiArgument* root, const std::string& name) :
+        MultiArgument(ArgumentType arg_type, MultiArgument* root, const std::string& name, MemberType member_type) :
             Argument(arg_type, name),
             root(root),
-            member_type(ArgumentType::any)
+            member_type(member_type)
         {}
 
         friend class IncludedGroup;
@@ -2792,7 +2812,7 @@ failure:
             Positional* p = new Positional(name, n_positionals, T::runtime());
 
             // Add it using the class' virtualized _add_validated() function
-            this->_add_validated((Argument*) p);
+            this->_add_validated(context, (Argument*) p);
             
             // Return it
             return *p;
@@ -2813,7 +2833,7 @@ failure:
             Option* o = new Option(name, shortlabel, T::runtime());
 
             // Add it using the class' virtualized _add_validated() function
-            this->_add_validated((Argument*) o);
+            this->_add_validated(context, (Argument*) o);
             
             // Return it
             return *o;
@@ -2833,13 +2853,13 @@ failure:
             Flag* f = new Flag(name, shortlabel);
 
             // Add it using the class' virtualized _add_validated() function
-            this->_add_validated((Argument*) f);
+            this->_add_validated(context, (Argument*) f);
 
             // Return it
             return *f;
         }
-        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        IncludedGroup& add_included(const std::string& name) {
+        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        IncludedGroup& add_included(const std::string& name, MemberType member_type) {
             const std::string context = "MultiArgument::add_included()";
 
             // Check if the given name exists by getting a list of all MultiArguments (nested) from the root and checking their name
@@ -2850,16 +2870,16 @@ failure:
             }
 
             // Create a new IncludedGroup object
-            IncludedGroup* ig = new IncludedGroup(this->root, name);
+            IncludedGroup* ig = new IncludedGroup(this->root, name, member_type);
 
             // Add it using the class' virtualized _add_validated() function
-            this->_add_validated((Argument*) ig);
+            this->_add_validated(context, (Argument*) ig);
             
             // Return it
             return *ig;
         }
-        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        ExcludedGroup& add_excluded(const std::string& name) {
+        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) {
             const std::string context = "MultiArgument::add_excluded()";
 
             // Check if the given name exists by getting a list of all MultiArguments (nested) from the root and checking their name
@@ -2870,16 +2890,16 @@ failure:
             }
 
             // Create a new ExcludedGroup object
-            ExcludedGroup* eg = new ExcludedGroup(this->root, name);
+            ExcludedGroup* eg = new ExcludedGroup(this->root, name, member_type);
 
             // Add it using the class' virtualized _add_validated() function
-            this->_add_validated((Argument*) eg);
+            this->_add_validated(context, (Argument*) eg);
             
             // Return it
             return *eg;
         }
-        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        RequiredGroup& add_required(const std::string& name) {
+        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        RequiredGroup& add_required(const std::string& name, MemberType member_type) {
             const std::string context = "MultiArgument::add_required()";
 
             // Check if the given name exists by getting a list of all MultiArguments (nested) from the root and checking their name
@@ -2890,10 +2910,10 @@ failure:
             }
 
             // Create a new ExcludedGroup object
-            RequiredGroup* rg = new RequiredGroup(this->root, name);
+            RequiredGroup* rg = new RequiredGroup(this->root, name, member_type);
 
             // Add it using the class' virtualized _add_validated() function
-            this->_add_validated((Argument*) rg);
+            this->_add_validated(context, (Argument*) rg);
             
             // Return it
             return *rg;
@@ -3016,25 +3036,35 @@ failure:
 
         /* Allows the nested elements to correctly describe their names. */
         virtual std::string usage() const {
-            std::stringstream sstr;
+            std::stringstream posses;
+            std::stringstream opts;
+            std::stringstream flags;
 
-            // Return our shortlabel first if we have one, otherwise do the long one
-            bool did_first = false;
+            // First, print all elements in this MultiArgument, in a per-argument_type sort of way
             for (size_t i = 0; i < this->args.size(); i++) {
-                // Write a space if we're not at the first argument
-                if (!did_first) { did_first = true; }
-                else { sstr << ' '; }
+                Argument* arg = this->args[i];
 
-                // Write the usage string of the argument
-                sstr << (this->args[i]->usage());
+                // Write the argument to the correct stringstream
+                if (arg->get_arg_type() == ArgumentType::positional || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::positional)) {
+                    posses << ' ' << (arg->usage());
+                } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
+                    opts << ' ' << (arg->usage());
+                } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
+                    // If we've already written something, prefix it with a space
+                    if (flags.tellp() != 0) { flags << ' '; }
+                    flags << (arg->usage());
+                }
             }
 
-            // Done, so return the build string
-            return sstr.str();
+            // Done, now tie all three strings together and return
+            std::string result = flags.str();
+            if (opts.tellp() != 0) { result += opts.str(); }
+            if (posses.tellp() != 0) { result += posses.str(); }
+            return result;
         }
 
         /* Returns the type of the argument stored in this MultiArgument. */
-        inline ArgumentType get_member_type() const { return this->member_type; }
+        inline MemberType get_member_type() const { return this->member_type; }
 
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual MultiArgument* copy() const { return new MultiArgument(*this); };
@@ -3078,18 +3108,9 @@ failure:
                 }
 
                 // Make sure our member_type matches
-                if (this->member_type != ArgumentType::any) {
-                    // If we still accept anything, we won't anymore from now on
-                    this->member_type = aarg->get_arg_type();
-                } else if (this->member_type != aarg->get_arg_type()) {
-                    // It didn't match
+                if (this->member_type != (MemberType) aarg->get_arg_type()) {
                     throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
                 }
-            } else {
-                MultiArgument* marg = (MultiArgument*) arg;
-
-                // Always override the type of marg to our type, since we know it's empty
-                marg->member_type = this->member_type;
             }
 
             // If we made it this far, it all makes sense, so add the argument to the group!
@@ -3098,9 +3119,39 @@ failure:
 
     public:
         /* Constructor for the IncludedGroup class, which takes the root MultiArgument and a name. */
-        IncludedGroup(MultiArgument* root, const std::string& name) :
-            MultiArgument(ArgumentType::included_group, root, name)
+        IncludedGroup(MultiArgument* root, const std::string& name, MemberType member_type) :
+            MultiArgument(ArgumentType::included_group, root, name, member_type)
         {}
+
+        /* The add_included function that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline IncludedGroup& add_included(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_included()", this->name, this->arg_type, name, ArgumentType::included_group); }
+        /* The add_excluded function that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_excluded()", this->name, this->arg_type, name, ArgumentType::excluded_group); }
+        /* The add_required function that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline RequiredGroup& add_required(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_required()", this->name, this->arg_type, name, ArgumentType::required_group); }
+        
+        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
+        inline IncludedGroup& add_included(const std::string& name) { return MultiArgument::add_included(name, this->member_type); }
+        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        inline ExcludedGroup& add_excluded(const std::string& name) { return MultiArgument::add_excluded(name, this->member_type); }
+        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
+        
+        /* Allows the nested elements to correctly describe their names. */
+        virtual std::string usage() const {
+            std::stringstream sstr;
+
+            // Return all elements wrapped in a single '[]'
+            sstr << '[';
+            for (size_t i = 0; i < this->args.size(); i++) {
+                if (i > 0) { sstr << ' '; }
+                sstr << (this->args[i]->usage());
+            }
+            sstr << ']';
+
+            // Done, so return the build string
+            return sstr.str();
+        }
 
         /* Lets this IncludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
         virtual void validate(const Arguments& parsed_args) const {
@@ -3137,18 +3188,9 @@ failure:
                 }
 
                 // Make sure our member_type matches
-                if (this->member_type != ArgumentType::any) {
-                    // If we still accept anything, we won't anymore from now on
-                    this->member_type = aarg->get_arg_type();
-                } else if (this->member_type != aarg->get_arg_type()) {
-                    // It didn't match
+                if (this->member_type != (MemberType) aarg->get_arg_type()) {
                     throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
                 }
-            } else {
-                MultiArgument* marg = (MultiArgument*) arg;
-
-                // Always override the type of marg to our type, since we know it's empty
-                marg->member_type = this->member_type;
             }
 
             // If we made it this far, it all makes sense, so add the argument to the group!
@@ -3157,9 +3199,39 @@ failure:
 
     public:
         /* Constructor for the ExcludedGroup class, which takes the root MultiArgument and a name. */
-        ExcludedGroup(MultiArgument* root, const std::string& name) :
-            MultiArgument(ArgumentType::included_group, root, name)
+        ExcludedGroup(MultiArgument* root, const std::string& name, MemberType member_type) :
+            MultiArgument(ArgumentType::included_group, root, name, member_type)
         {}
+
+        /* The add_included function that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline IncludedGroup& add_included(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_included()", this->name, this->arg_type, name, ArgumentType::included_group); }
+        /* The add_excluded function that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_excluded()", this->name, this->arg_type, name, ArgumentType::excluded_group); }
+        /* The add_required function that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline RequiredGroup& add_required(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_required()", this->name, this->arg_type, name, ArgumentType::required_group); }
+        
+        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
+        inline IncludedGroup& add_included(const std::string& name) { return MultiArgument::add_included(name, this->member_type); }
+        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        inline ExcludedGroup& add_excluded(const std::string& name) { return MultiArgument::add_excluded(name, this->member_type); }
+        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
+        
+        /* Allows the nested elements to correctly describe their names. */
+        virtual std::string usage() const {
+            std::stringstream sstr;
+
+            // Return all elements wrapped in a single '[]', but with '|' to indicate their exclusiveness
+            sstr << '[';
+            for (size_t i = 0; i < this->args.size(); i++) {
+                if (i > 0) { sstr << " | "; }
+                sstr << (this->args[i]->usage());
+            }
+            sstr << ']';
+
+            // Done, so return the build string
+            return sstr.str();
+        }
 
         /* Lets this ExcludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
         virtual void validate(const Arguments& parsed_args) const {
@@ -3198,18 +3270,9 @@ failure:
                 }
 
                 // Make sure our member_type matches
-                if (this->member_type != ArgumentType::any) {
-                    // If we still accept anything, we won't anymore from now on
-                    this->member_type = aarg->get_arg_type();
-                } else if (this->member_type != aarg->get_arg_type()) {
-                    // It didn't match
+                if (this->member_type != (MemberType) aarg->get_arg_type()) {
                     throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
                 }
-            } else {
-                MultiArgument* marg = (MultiArgument*) arg;
-
-                // Always override the type of marg to our type, since we know it's empty
-                marg->member_type = this->member_type;
             }
 
             // If we made it this far, it all makes sense, so add the argument to the group!
@@ -3218,9 +3281,40 @@ failure:
 
     public:
         /* Constructor for the RequiredGroup class, which takes the root MultiArgument and a name. */
-        RequiredGroup(MultiArgument* root, const std::string& name) :
-            MultiArgument(ArgumentType::included_group, root, name)
+        RequiredGroup(MultiArgument* root, const std::string& name, MemberType member_type) :
+            MultiArgument(ArgumentType::included_group, root, name, member_type)
         {}
+
+        /* The add_included function that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline IncludedGroup& add_included(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_included()", this->name, this->arg_type, name, ArgumentType::included_group); }
+        /* The add_excluded function that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_excluded()", this->name, this->arg_type, name, ArgumentType::excluded_group); }
+        /* The add_required function that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        inline RequiredGroup& add_required(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_required()", this->name, this->arg_type, name, ArgumentType::required_group); }
+        
+        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
+        inline IncludedGroup& add_included(const std::string& name) { return MultiArgument::add_included(name, this->member_type); }
+        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        inline ExcludedGroup& add_excluded(const std::string& name) { return MultiArgument::add_excluded(name, this->member_type); }
+        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
+        
+        /* Allows the nested elements to correctly describe their names. */
+        virtual std::string usage() const {
+            std::stringstream sstr;
+
+            // Return all elements in their own '[]', but in such a way that it indicates their requiredness
+            /* TBD */
+            sstr << '[';
+            for (size_t i = 0; i < this->args.size(); i++) {
+                if (i > 0) { sstr << " | "; }
+                sstr << (this->args[i]->usage());
+            }
+            sstr << ']';
+
+            // Done, so return the build string
+            return sstr.str();
+        }
 
         /* Lets this RequiredGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
         virtual void validate(const Arguments& parsed_args) const {
