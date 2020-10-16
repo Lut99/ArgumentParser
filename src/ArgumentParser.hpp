@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   15/10/2020, 13:09:25
+ *   16/10/2020, 17:33:28
  * Auto updated?
  *   Yes
  *
@@ -3051,7 +3051,7 @@ failure:
 
     /* The IncludedGroup class: when the user specifies one of this classes' children, he or she must specify all of them. */
     class IncludedGroup : public MultiArgument {
-    private:
+    protected:
         /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
         virtual void _add_validated(const std::string& context, Argument* arg) {
             // The IncludedGroup only accepts Positionals with adjacent indices and Options, but not flags and not intermixed
@@ -3061,7 +3061,7 @@ failure:
                 // Filter out specific types
                 if (aarg->get_arg_type() == ArgumentType::flag) {
                     // We never accept flags as an IncludedGroup
-                    throw IllegalGroupTypeException(context, this->name, this->arg_type, arg->get_name(), arg->get_arg_type());
+                    throw IllegalGroupTypeException(context, this->name, this->arg_type, aarg->get_name(), aarg->get_arg_type());
                 } else if (this->args.size() > 0 && aarg->get_arg_type() == ArgumentType::positional) {
                     Positional* pos = (Positional*) aarg;
 
@@ -3077,8 +3077,12 @@ failure:
                     }
                 }
 
-                // Regardless of the specific type, make sure it matches our member type
-                if (aarg->get_arg_type() != this->member_type) {
+                // Make sure our member_type matches
+                if (this->member_type != ArgumentType::any) {
+                    // If we still accept anything, we won't anymore from now on
+                    this->member_type = aarg->get_arg_type();
+                } else if (this->member_type != aarg->get_arg_type()) {
+                    // It didn't match
                     throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
                 }
             } else {
@@ -3119,6 +3123,38 @@ failure:
 
     /* The ExcludedGroup class: when the user specifies one of this classes' children, he or she cannot specify any other. */
     class ExcludedGroup : public MultiArgument {
+    protected:
+        /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
+        virtual void _add_validated(const std::string& context, Argument* arg) {
+            // The ExcludedGroup only accepts Options and flags, but no Positionals (as we couldn't distinguish those) and not intermixed
+            if (arg->is_atomic()) {
+                AtomicArgument* aarg = (AtomicArgument*) arg;
+
+                // Filter out specific types
+                if (aarg->get_arg_type() == ArgumentType::positional) {
+                    // We never accept flags as an IncludedGroup
+                    throw IllegalGroupTypeException(context, this->name, this->arg_type, aarg->get_name(), aarg->get_arg_type());
+                }
+
+                // Make sure our member_type matches
+                if (this->member_type != ArgumentType::any) {
+                    // If we still accept anything, we won't anymore from now on
+                    this->member_type = aarg->get_arg_type();
+                } else if (this->member_type != aarg->get_arg_type()) {
+                    // It didn't match
+                    throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
+                }
+            } else {
+                MultiArgument* marg = (MultiArgument*) arg;
+
+                // Always override the type of marg to our type, since we know it's empty
+                marg->member_type = this->member_type;
+            }
+
+            // If we made it this far, it all makes sense, so add the argument to the group!
+            this->args.push_back(arg);
+        }
+
     public:
         /* Constructor for the ExcludedGroup class, which takes the root MultiArgument and a name. */
         ExcludedGroup(MultiArgument* root, const std::string& name) :
@@ -3138,7 +3174,7 @@ failure:
                         peer = arg->get_name();
                     } else {
                         // More than one given! Throw the appropriate exception
-                        throw ExcludedDependencyException(arg->name, peer);
+                        throw ExcludedDependencyException(arg->get_name(), peer);
                     }
                 }
             }
@@ -3148,6 +3184,38 @@ failure:
 
     /* The RequiredGroup class: the user must specify the preceding argument before the following argument can be given. */
     class RequiredGroup : public MultiArgument {
+    protected:
+        /* Function that validates if a given Argument can be added based on the specific MultiArguments' rules, and then adds it. Throws errors if an illegal element is added this way. */
+        virtual void _add_validated(const std::string& context, Argument* arg) {
+            // The RequiredGroup only accepts Options and Flags, but no Positionals (as they are implicitly required already) and not intermixed
+            if (arg->is_atomic()) {
+                AtomicArgument* aarg = (AtomicArgument*) arg;
+
+                // Filter out specific types
+                if (aarg->get_arg_type() == ArgumentType::positional) {
+                    // We never accept flags as an IncludedGroup
+                    throw IllegalGroupTypeException(context, this->name, this->arg_type, aarg->get_name(), aarg->get_arg_type());
+                }
+
+                // Make sure our member_type matches
+                if (this->member_type != ArgumentType::any) {
+                    // If we still accept anything, we won't anymore from now on
+                    this->member_type = aarg->get_arg_type();
+                } else if (this->member_type != aarg->get_arg_type()) {
+                    // It didn't match
+                    throw MemberTypeMismatchException(context, this->name, this->arg_type, this->member_type, aarg->get_name(), aarg->get_arg_type());
+                }
+            } else {
+                MultiArgument* marg = (MultiArgument*) arg;
+
+                // Always override the type of marg to our type, since we know it's empty
+                marg->member_type = this->member_type;
+            }
+
+            // If we made it this far, it all makes sense, so add the argument to the group!
+            this->args.push_back(arg);
+        }
+
     public:
         /* Constructor for the RequiredGroup class, which takes the root MultiArgument and a name. */
         RequiredGroup(MultiArgument* root, const std::string& name) :
