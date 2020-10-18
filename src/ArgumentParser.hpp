@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   16/10/2020, 18:22:43
+ *   18/10/2020, 18:12:15
  * Auto updated?
  *   Yes
  *
@@ -34,7 +34,18 @@
 
 #define STR_T(STRING) decltype(STRING ## _tstr)
 
+
 namespace Lut99 {
+    /******************** CONSTANTS ********************/
+    
+    /* Determines the amount of characters that may be used to argument name printing. */
+    static constexpr size_t TERM_OFFSET = 20;
+    /* Determines the terminal width that is used in printing the automated usage() and help() strings. */
+    static constexpr size_t TERM_WIDTH = 100;
+
+
+
+
 
     /******************** ENUMS ********************/
 
@@ -63,6 +74,10 @@ namespace Lut99 {
         "ExcludedGroup",
         "RequiredGroup"  
     };
+
+
+
+
 
     /******************** HELPER FUNCTIONS ********************/
 
@@ -2341,8 +2356,8 @@ failure:
         /* Checks if this Argument listens to or contains an Argument that listens to the given shortlabel. Note that it throws if used on a Positional. */
         virtual bool has_shortlabel(char shortlabel) const = 0;
 
-        /* Allows derived classes to create the correct string for the usage string. */
-        virtual std::string usage() const = 0;
+        /* Allows derived classes to create the correct string for the usage string to the given stringstream. */
+        virtual void usage(std::stringstream& sstr) const = 0;
         
         /* Returns the type of the Argument. */
         inline ArgumentType get_arg_type() const { return this->arg_type; }
@@ -2384,6 +2399,38 @@ failure:
         std::string category;
         /* Stores the default value set for the AtomicArgument if there is one. Otherwise, will be equal to std::any(nullptr). */
         std::any default_value;
+
+        /* Function that is used to write the given name and description with a given maximum width, and indenting new description lines starting at the correct offset. */
+        void _help_common(std::stringstream& sstr, const std::string& name, const std::string& description, size_t offset, size_t width) const {
+            // First, write the name by linewrapping it
+            std::vector<std::string> lines = linewrap(name, width);
+            for (size_t i = 0; i < lines.size(); i++) {
+                sstr << lines[i];
+                if (i < lines.size() - 1) { sstr << std::endl; }
+            }
+            
+            // Next, write the offset from the name to the offset size. If the name is at > offset - 1, we start at a new line instead
+            size_t name_length = lines[lines.size() - 1].size();
+            if (name_length > offset - 1) {
+                sstr << std::endl;
+                name_length = 0;
+            }
+            for (size_t i = name_length; i < offset; i++) { sstr << ' '; }
+            
+            // Next, write the description starting at the correct offset location
+            lines = linewrap(description, width - offset);
+
+            // Write all lines
+            for (size_t i = 0; i < lines.size(); i++) {
+                if (i > 0) {
+                    // If we aren't at the start, write the empty offset
+                    for (size_t j = 0; j < offset; j++) { sstr << ' '; }
+                }
+                sstr << lines[i] << std::endl;
+            }
+            
+            // Done!
+        }
 
         /* Constructor for the AtomicArgument baseclass, which takes the name of the derived class and its (argument) type. */
         AtomicArgument(ArgumentType arg_type, const std::string& name, const char shortlabel, const RuntimeType& type) :
@@ -2473,6 +2520,9 @@ failure:
         /* Returns the category of the AtomicArgument. */
         inline std::string get_category() const { return this->category; }
 
+        /* Virtual function that allows derived classes to write a help string, possibly consisting of multiple lines. */
+        virtual void help(std::stringstream& sstr) const = 0;
+
         /* Returns whether or not this AtomicArgument has a default value set. */
         inline bool has_default() const { return this->default_value.has_value(); }
         /* Clears the default value of the AtomicArgument if it had any. Returns a reference to the AtomicArgument to allow chaining. */
@@ -2523,10 +2573,15 @@ failure:
         /* Sets the category of the Positional. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_category(const std::string& category) { return (Positional&) AtomicArgument::set_category(category); }
 
-        /* Allows derived classes to create the correct string for the usage string. */
-        virtual std::string usage() const {
+        /* Allows the Positional to write its own usage string to the given stringstream. */
+        virtual void usage(std::stringstream& sstr) const {
             // Simply return our own name
-            return this->name;
+            sstr << this->name;
+        }
+        /* Allows the Positional to write its own help string to the given stringstream. */
+        virtual void help(std::stringstream& sstr) const {
+            // In the case of a Positional, our name is simply our name, so return it immediately
+            this->_help_common(sstr, this->name, this->description, TERM_OFFSET, TERM_WIDTH);
         }
 
         /* Clears the default value of the Positional if it had any. Returns a reference to the Positional to allow chaining. */
@@ -2594,10 +2649,8 @@ failure:
         /* Sets the category of the Option. Returns a reference to the Option to allow chaining. */
         virtual Option& set_category(const std::string& category) { return (Option&) AtomicArgument::set_category(category); }
 
-        /* Allows the Positional to correctly describe its own name. */
-        virtual std::string usage() const {
-            std::stringstream sstr;
-
+        /* Allows the Option to correctly describe its own name. */
+        virtual void usage(std::stringstream& sstr) const {
             // Return our shortlabel first if we have one, otherwise do the long one
             if (this->shortlabel != '\0') {
                 sstr << '-' << this->shortlabel << ' ';
@@ -2607,9 +2660,26 @@ failure:
 
             // Then, append the placeholder (in caps)
             sstr << upperify(this->type.type_name);
+        }
+        /* Allows the Option to write its own help string to the given stringstream. */
+        virtual void help(std::stringstream& sstr) const {
+            std::stringstream name;
 
-            // Done, so return the build string
-            return sstr.str();
+            // First, print our shortlabel (if any, otherwise just indent)
+            if (this->shortlabel != '\0') {
+                name << '-' << this->shortlabel << ", ";
+            } else {
+                name << "    ";
+            }
+
+            // Then, print our longlabel / name
+            name << "--" << this->name << ' ';
+
+            // Finally, print the placeholder for the value (capitalized)
+            name << upperify(this->type.type_name);
+
+            // Use the common function to actually write all that stuff
+            this->_help_common(sstr, name.str(), this->description, TERM_OFFSET, TERM_WIDTH);
         }
 
         /* Clears the default value of the Option if it had any. Returns a reference to the Option to allow chaining. */
@@ -2680,18 +2750,30 @@ failure:
         virtual Flag& set_category(const std::string& category) { return (Flag&) AtomicArgument::set_category(category); }
 
         /* Allows the Positional to correctly describe its own name. */
-        virtual std::string usage() const {
-            std::stringstream sstr;
-
+        virtual void usage(std::stringstream& sstr) const {
             // Return our shortlabel first if we have one, otherwise do the long one
             if (this->shortlabel != '\0') {
                 sstr << '-' << this->shortlabel;
             } else {
                 sstr << "--" << this->name;
             }
+        }
+        /* Allows the Flag to write its own help string to the given stringstream. */
+        virtual void help(std::stringstream& sstr) const {
+            std::stringstream name;
 
-            // Done, so return the build string
-            return sstr.str();
+            // First, print our shortlabel (if any, otherwise just indent)
+            if (this->shortlabel != '\0') {
+                name << '-' << this->shortlabel << ", ";
+            } else {
+                name << "    ";
+            }
+
+            // Then, print our longlabel / name
+            name << "--" << this->name << ' ';
+
+            // Use the common function to actually write all that stuff
+            this->_help_common(sstr, name.str(), this->description, TERM_OFFSET, TERM_WIDTH);
         }
 
         /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
@@ -3034,33 +3116,81 @@ failure:
         /* Lets the child classes validate whether their specific dependency rule is met, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
         virtual void validate(const Arguments& parsed_args) const { /* Being only a group of arguments, we always allow! */ }
 
-        /* Allows the nested elements to correctly describe their names. */
-        virtual std::string usage() const {
+        /* Allows the MultiArgument to correct print the usage strings for all its child arguments. */
+        virtual void usage(std::stringstream& sstr) const {
             std::stringstream posses;
             std::stringstream opts;
             std::stringstream flags;
+            size_t positional_brackets = 0;
 
             // First, print all elements in this MultiArgument, in a per-argument_type sort of way
             for (size_t i = 0; i < this->args.size(); i++) {
                 Argument* arg = this->args[i];
 
-                // Write the argument to the correct stringstream
-                if (arg->get_arg_type() == ArgumentType::positional || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::positional)) {
-                    posses << ' ' << (arg->usage());
-                } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
-                    opts << ' ' << (arg->usage());
-                } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
-                    // If we've already written something, prefix it with a space
-                    if (flags.tellp() != 0) { flags << ' '; }
-                    flags << (arg->usage());
+                // Write the argument to the correct stringstream, depending on its type
+                switch(arg->get_arg_type()) {
+                    case ArgumentType::positional:
+                        Positional* parg = (Positional*) arg;
+                        // Add any starting '[' bracket if it's optional
+                        if (parg->is_optional()) {
+                            posses << '[';
+                            positional_brackets++;
+                        }
+                        // Write the Positional itself
+                        posses << ' ' << (parg->usage());
+                        break;
+
+                    case ArgumentType::option:
+                        Option* oarg = (Option*) oarg;
+                        // Add any starting '[' bracket if it's optional
+                        if (oarg->is_optional()) { sstr << '['; }
+                        // Write the Option itself
+                        opts << ' ' << (arg->usage());
+                        // Add any closing ']' bracket if it's optional
+                        if (oarg->is_optional()) { sstr << ']'; }
+                        break;
+
+                    case ArgumentType::flag:
+                        // Only add the space if not the first
+                        if (flags.tellp() != 0) { flags << ' '; }
+                        // Write the Flag itself
+                        flags << (arg->usage());
+                        break;
+                        
+                    default:
+                        // Write it as a MultiArgument, so, switch again...
+                        MultiArgument* marg = (MultiArgument*) arg;
+                        switch(marg->get_member_type()) {
+                            case MemberType::positional:
+                                // Always print a starting bracket, since we assume groups to be optional by default
+                                posses << "[ " << (marg->usage());
+                                positional_brackets++;
+                                break;
+
+                            case MemberType::option:
+                                // Always print enclosing brackets, since we assume groups to be optional by default
+                                opts << "[ " << (marg->usage()) << ']';
+                                break;
+
+                            case MemberType::flag:
+                                // Only add the space if not the first
+                                if (flags.tellp() != 0) { flags << ' '; }
+                                // Write the Flag itself
+                                flags << (marg->usage());
+                                break;
+
+                            default:
+                                // Simply skip
+                                break;
+                        }
+                        break;
                 }
             }
 
-            // Done, now tie all three strings together and return
-            std::string result = flags.str();
-            if (opts.tellp() != 0) { result += opts.str(); }
-            if (posses.tellp() != 0) { result += posses.str(); }
-            return result;
+            // Done, now tie all three strings together
+            sstr << flags.str();
+            if (opts.tellp() != 0) { sstr << opts.str(); }
+            if (posses.tellp() != 0) { sstr << posses.str(); }
         }
 
         /* Returns the type of the argument stored in this MultiArgument. */
@@ -3137,10 +3267,8 @@ failure:
         /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
         inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
         
-        /* Allows the nested elements to correctly describe their names. */
-        virtual std::string usage() const {
-            std::stringstream sstr;
-
+        /* Allows the IncludedGroup to correctly display the usage strings for all its nested arguments. */
+        virtual void usage(std::stringstream& sstr) const {
             // Return all elements wrapped in a single '[]'
             sstr << '[';
             for (size_t i = 0; i < this->args.size(); i++) {
@@ -3148,9 +3276,6 @@ failure:
                 sstr << (this->args[i]->usage());
             }
             sstr << ']';
-
-            // Done, so return the build string
-            return sstr.str();
         }
 
         /* Lets this IncludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
@@ -3217,10 +3342,8 @@ failure:
         /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
         inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
         
-        /* Allows the nested elements to correctly describe their names. */
-        virtual std::string usage() const {
-            std::stringstream sstr;
-
+        /* Allows the ExcludedGroup to return the usage strings for all its child arguments. */
+        virtual void usage(std::stringstream& sstr) const {
             // Return all elements wrapped in a single '[]', but with '|' to indicate their exclusiveness
             sstr << '[';
             for (size_t i = 0; i < this->args.size(); i++) {
@@ -3228,9 +3351,6 @@ failure:
                 sstr << (this->args[i]->usage());
             }
             sstr << ']';
-
-            // Done, so return the build string
-            return sstr.str();
         }
 
         /* Lets this ExcludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
@@ -3299,21 +3419,16 @@ failure:
         /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
         inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
         
-        /* Allows the nested elements to correctly describe their names. */
-        virtual std::string usage() const {
-            std::stringstream sstr;
-
+        /* Allows the RequiredGroup to correctly write the usage strings for all its child arguments. */
+        virtual void usage(std::stringstream& sstr) const {
             // Return all elements in their own '[]', but in such a way that it indicates their requiredness
-            /* TBD */
-            sstr << '[';
             for (size_t i = 0; i < this->args.size(); i++) {
-                if (i > 0) { sstr << " | "; }
+                sstr << '[';
+                if (i > 0) { sstr << ' '; }
                 sstr << (this->args[i]->usage());
             }
-            sstr << ']';
-
-            // Done, so return the build string
-            return sstr.str();
+            // Finally, write the closing ']' for all elements in this group
+            for (size_t i = 0; i < this->args.size(); i++) { sstr << ']'; }
         }
 
         /* Lets this RequiredGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
@@ -3517,135 +3632,8 @@ failure:
             std::stringstream sstr;
             sstr << "Usage: " << exec;
 
-            /* Phase 1: Print the flags */
-            {
-                // Step 1.1: Print the flags, as flags do not know include relationships
-                bool first = false;
-                for (Argument* a : this->args) {
-                    if (dynamic_cast<Flag*>(a) && !dynamic_cast<Option*>(a)) {
-                        if (!first) {
-                            sstr << " -";
-                            first = true;
-                        }
-                        sstr << ((Flag*) a)->get_shortlabel();
-                    }
-                }
-            }
-
-            /* Phase 2: Print the Options. */
-            {
-                // Step 2.1: Sort the Options into groups based on their include dependencies. This is done by seeing for each argument if it or it's dependencies occur in an already existing group, add them to that group if so or add them as a new group otherwise.
-                std::vector<std::vector<Argument*>> option_groups;
-                option_groups.reserve(this->n_options);
-                for (Argument* a : this->args) {
-                    // Skip all non-Options
-                    if (!dynamic_cast<Option*>(a)) { continue; }
-
-                    std::vector<Argument*> group = a->relations.at(ArgumentRelation::include);
-                    group.push_back(a);
-                    std::vector<Argument*>* target_group = nullptr;
-                    for (Argument* dependency : group) {
-                        // Try to find a group with one of the included elements in it
-                        for (std::vector<Argument*>& group : option_groups) {
-                            if (std::find(group.begin(), group.end(), dependency) != group.end()) {
-                                target_group = &group;
-                                break;
-                            }
-                        }
-                        if (target_group) { break; }
-                    }
-                    // Either add the elements in this vector to the found group or add the group itself
-                    if (target_group) {
-                        // Make sure to only add if not yet added
-                        for (Argument* dependency : group) {
-                            if (std::find(target_group->begin(), target_group->end(), dependency) == target_group->end()) {
-                                target_group->push_back(dependency);
-                            }
-                        }
-                    } else {
-                        option_groups.push_back(group);
-                    }
-                }
-
-                // Step 2.2: Print the groups nicely
-                for (std::vector<Argument*>& group : option_groups) {
-                    sstr << ' ';
-
-                    // If the first Option is optional, we can assume all of them will be.
-                    Option* first = (Option*) group.at(0);
-                    if (first->get_optional()) {
-                        sstr << '[';
-                    }
-                    for (size_t i = 0; i < group.size(); i++) {
-                        Option* o = (Option*) group.at(i);
-                        if (i > 0) { sstr << ' '; }
-                        sstr << '-' << o->get_shortlabel() << ' ';
-                        if (o->has_default_value()) { sstr << "["; }
-                        sstr << o->get_placeholder();
-                        if (o->has_default_value()) { sstr << "]"; }
-                    }
-                    if (first->get_optional()) {
-                        sstr << ']';
-                    }
-                }
-            }
-
-            /* Phase 3: Print the Positionals. */
-            {
-                // Step 3.1: Sort the Positionals into groups based on their include dependencies. This is done by seeing for each argument if it or it's dependencies occur in an already existing group, add them to that group if so or add them as a new group otherwise.
-                std::vector<std::vector<Argument*>> positional_groups;
-                positional_groups.reserve(this->n_options);
-                for (Argument* a : this->args) {
-                    // Skip all non-Positionals
-                    if (!dynamic_cast<Positional*>(a)) { continue; }
-
-                    std::vector<Argument*> group = a->relations.at(ArgumentRelation::include);
-                    group.push_back(a);
-                    std::vector<Argument*>* target_group = nullptr;
-                    for (Argument* dependency : group) {
-                        // Try to find a group with one of the included elements in it
-                        for (std::vector<Argument*>& group : positional_groups) {
-                            if (std::find(group.begin(), group.end(), dependency) != group.end()) {
-                                target_group = &group;
-                                break;
-                            }
-                        }
-                        if (target_group) { break; }
-                    }
-                    // Either add the elements in this vector to the found group or add the group itself
-                    if (target_group) {
-                        // Make sure to only add if not yet added
-                        for (Argument* dependency : group) {
-                            if (std::find(target_group->begin(), target_group->end(), dependency) == target_group->end()) {
-                                target_group->push_back(dependency);
-                            }
-                        }
-                    } else {
-                        positional_groups.push_back(group);
-                    }
-                }
-
-                // Step 3.2: Print the Positional groups
-                size_t n_optional_groups = 0;
-                for (std::vector<Argument*>& group : positional_groups) {
-                    // If the first in the group is optional, we assume all of them are
-                    Positional* first = (Positional*) group.at(0);
-                    if (first->get_optional()) {
-                        sstr << '[';
-                        ++n_optional_groups;
-                    }
-                    for (Argument* a : group) {
-                        Positional* p = (Positional*) a;
-                        sstr << " <" << p->get_name() << '>';
-                        if (p->get_any_number()) { sstr << "..."; }
-                    }
-                }
-
-                // Step 3.3: Print the closing brackets
-                for (size_t i = 0; i < n_optional_groups; i++) {
-                    sstr << ']';
-                }
-            }
+            // Simply return the usage string as dictated by our internal MultiArgument
+            this->args.usage(sstr);
 
             // Done, return
             return sstr.str();
