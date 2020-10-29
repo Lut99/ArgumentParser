@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   10/29/2020, 1:17:01 AM
+ *   29/10/2020, 12:50:04
  * Auto updated?
  *   Yes
  *
@@ -116,7 +116,7 @@ namespace Lut99 {
     }
     /* Returns whether or not a shortlabel is valid (consists of letters or numbers). */
     inline bool is_valid_shortlabel(char shortlabel) {
-        return (shortlabel > '0' && shortlabel < '9') || (shortlabel > 'a' && shortlabel < 'z') || (shortlabel > 'A' && shortlabel < 'Z') || shortlabel == '\0';
+        return (shortlabel >= '0' && shortlabel <= '9') || (shortlabel >= 'a' && shortlabel <= 'z') || (shortlabel >= 'A' && shortlabel <= 'Z') || shortlabel == '\0';
     }
 
     /* Wraps a bit of text into a vector of lines with the given maximum length. Words are tried to be wrapped whole, but they can be broken off if too long. */
@@ -799,7 +799,7 @@ namespace Lut99 {
     public:
         /* Constructor for the OptionalPositionalException class, which takes the name and the index of the Positional that was mandatory but declared after optional ones. */
         OptionalPositionalException(const std::string& name, const size_t index) :
-            ParseException(generate_message("Mandatory Positional '" + name + "' at index " + std::to_string(index) + " was declared after Optional Positionals have been declared.")),
+            ParseException(generate_message("Mandatory Positional '" + name + "' at index " + std::to_string(index) + " was declared after optional Positionals have been declared.")),
             name(name),
             index(index)
         {}
@@ -1042,7 +1042,7 @@ namespace Lut99 {
         }
         /* Generates a message by calling the parent generator and adding the name and the the shortlabel of the argument and the type. */
         static inline std::string generate_message(const std::string& type_name, const std::string& name, const char shortlabel, const std::string& message) {
-            return ParseException::generate_message("Could not parse value of '--" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" (-") += shortlabel) + ")") + " as " + type_name + (message.empty() ? "" : ": " + message));
+            return ParseException::generate_message("Could not parse value of '--" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" ('-") += shortlabel) + "')") + " as " + type_name + (message.empty() ? "" : ": " + message));
         }
 
     public:
@@ -1491,8 +1491,11 @@ namespace Lut99 {
     /* Instantiated version of the DerivedType class, containing information that is moldable at runtime instead of compile time alone. */
     struct RuntimeType {
     public:
+        /* The given type name to this type. */
         const std::string type_name;
+        /* The hash of the type, useful to identify later. */
         const size_t type_hash;
+        /* Parse function for this type. */
         std::any (* const parse_func)(Tokenizer&);
 
         /* Constructor of the RuntimeType class which takes the name & hash of the target type, the assigned parser and the number of values. */
@@ -1534,7 +1537,7 @@ namespace Lut99 {
     struct Type<T, PARSE_FUNC, tstring<TYPENAME...>> : public BaseType {
         /* References the chosen type. */
         using type = T;
-        /* The name / uid of the type. */
+        /* The given name / uid of the type. */
         static constexpr const char type_name[] = { TYPENAME..., '\0' };
         /* The parser for this type. */
         static constexpr std::any (* const parse_func)(Tokenizer&) = PARSE_FUNC;
@@ -1985,7 +1988,7 @@ failure:
         // Get the first token
         Token token;
         input >> token;
-        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<std::string>::value, 1, 0); }
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -2086,15 +2089,9 @@ failure:
             try {
                 return std::any_cast<T>(arg->values[0]);
             } catch (std::bad_any_cast& e) {
-                // Handle the special string case; allow char* to be casted as string
-                if (typeid(T) == typeid(std::string)) {
-                    if (arg->values[0].type() == typeid(char*)) { return std::string(std::any_cast<char*>(arg->values[0])); }
-                    else if (arg->values[0].type() == typeid(const char*)) { return std::string(std::any_cast<const char*>(arg->values[0])); }
-                }
-
                 // Re-throw as TypeMismatchException
-                std::string raw_name = typeid(T).name();
-                throw TypeMismatchException(context, arg->name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
+                std::string name = type_name<T>::value;
+                throw TypeMismatchException(context, arg->name, name != "???" ? name : typeid(T).name(), arg->type.type_name);
             }
         }
         /* Returns the value from the given ParsedArgument as if it was variadic. Also performs some other checks. */
@@ -2107,14 +2104,9 @@ failure:
                 try {
                     result.push_back(std::any_cast<T>(arg->values[i]));
                 } catch (std::bad_any_cast& e) {
-                    // Handle the special string case; allow char* to be casted as string
-                    if (typeid(T) == typeid(std::string) && arg->values[i].type() == typeid(char*)) { result.push_back(std::string(std::any_cast<char*>(arg->values[i]))); }
-                    else if (typeid(T) == typeid(std::string) && arg->values[i].type() == typeid(const char*)) { result.push_back(std::string(std::any_cast<const char*>(arg->values[i]))); }
-                    else {
-                        // Re-throw as TypeMismatchException
-                        std::string raw_name = typeid(T).name();
-                        throw TypeMismatchException(context, arg->name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
-                    }
+                    // Re-throw as TypeMismatchException
+                    std::string name = type_name<T>::value;
+                    throw TypeMismatchException(context, arg->name, name != "???" ? name : typeid(T).name(), arg->type.type_name);
                 }
             }
             
@@ -2337,6 +2329,53 @@ failure:
         /* Swap operator for the the Arguments class. */
         friend void swap(Arguments& a1, Arguments& a2);
     };
+
+    /* Template specialization for _get, which allows char* to be converted to a std::string as well. */
+    template<>
+    std::string Arguments::_get<std::string>(const std::string& context, ParsedArgument* arg) const {
+        // If the argument is variadic, let's error, as they must use getp
+        if (arg->repeatable) { throw SingletonMismatchException(context, arg->name); }
+
+        // Try to return the type as the given type
+        try {
+            return std::any_cast<std::string>(arg->values[0]);
+        } catch (std::bad_any_cast& e) {
+            if (arg->values[0].type() == typeid(char*)) {
+                return std::string(std::any_cast<char*>(arg->values[0]));
+            } else if (arg->values[0].type() == typeid(const char*)) {
+                return std::string(std::any_cast<const char*>(arg->values[0]));
+            }
+
+            // Re-throw as TypeMismatchException
+            throw TypeMismatchException(context, arg->name, type_name<std::string>::value, arg->type.type_name);
+        }
+    }
+    /* Template specialization for _getv, which allows char* to be converted to a std::string as well. */
+    template<>
+    std::vector<std::string> Arguments::_getv<std::string>(const std::string& context, ParsedArgument* arg) const {
+        // Try to cast each element in the vector, throwing TypeMismatchs errors if we couldn't.
+        std::vector<std::string> result;
+        result.reserve(arg->values.size());
+        for (size_t i = 0; i < arg->values.size(); i++) {
+            try {
+                result.push_back(std::any_cast<std::string>(arg->values[i]));
+            } catch (std::bad_any_cast& e) {
+                if (arg->values[0].type() == typeid(char*)) {
+                    // Continue, after manually converting the current value to string
+                    result.push_back(std::string(std::any_cast<char*>(arg->values[0])));
+                } else if (arg->values[0].type() == typeid(const char*)) {
+                    result.push_back(std::string(std::any_cast<const char*>(arg->values[0])));
+                } else {
+                    // Re-throw as TypeMismatchException
+                    throw TypeMismatchException(context, arg->name, type_name<std::string>::value, arg->type.type_name);
+                }
+            }
+        }
+        
+        // If we were successful, return the result
+        return result;
+    }
+
 
     /* Swap operator for the the Arguments class. */
     void swap(Arguments& a1, Arguments& a2) {
@@ -2629,8 +2668,10 @@ failure:
                 return std::any();
             }
 
+            // Only increment index counter if we're non-variadic; otherwise, we're the last one and want everything to keep pointing to us
+            if (!this->variadic) { ++n_positionals; }
+
             // If it is a value, however, it's for us, so try to parse it using our internal parser!
-            ++n_positionals;
             try {
                 return this->type.parse_func(input);
             } catch (TypeParseException& e) {
@@ -2765,6 +2806,7 @@ failure:
                 if (this->has_default() && e.get_given() == 0) {
                     return this->default_value;
                 }
+                e.insert(this->name, this->shortlabel);
                 throw;
             } catch (TypeParseException& e) {
                 e.insert(this->name, this->shortlabel);
@@ -2806,7 +2848,7 @@ failure:
         /* Sets the category of the Flag. Returns a reference to the Flag to allow chaining. */
         virtual Flag& set_category(const std::string& category) { return (Flag&) AtomicArgument::set_category(category); }
 
-        /* Allows the Positional to correctly describe its own name. */
+        /* Allows the Flag to correctly describe its own name. */
         virtual void usage(std::stringstream& sstr) const {
             // Always do the longlabel, since the MultiGroup's usage() will take of special flags
             sstr << "--" << this->name;
@@ -2982,7 +3024,7 @@ failure:
             // Check if either the name or the shortlabel exists
             if (this->root->has_name(name)) {
                 throw DuplicateNameException(context, name);
-            } else if (this->root->has_shortlabel(shortlabel)) {
+            } else if (shortlabel != '\0' && this->root->has_shortlabel(shortlabel)) {
                 throw DuplicateShortlabelException(context, shortlabel);
             }
 
@@ -3005,7 +3047,7 @@ failure:
             // Check if either the name or the shortlabel exists
             if (this->root->has_name(name)) {
                 throw DuplicateNameException(context, name);
-            } else if (this->root->has_shortlabel(shortlabel)) {
+            } else if (shortlabel != '\0' && this->root->has_shortlabel(shortlabel)) {
                 throw DuplicateShortlabelException(context, shortlabel);
             }
 
@@ -3185,7 +3227,7 @@ failure:
                 } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
                     Option* oarg = (Option*) arg;
                     // Add any starting '[' bracket if it's optional
-                    if (oarg->is_optional()) { opts << "[ "; }
+                    if (oarg->is_optional()) { opts << " ["; }
                     else { opts << ' '; }
                     // Write the Option itself
                     arg->usage(opts);
