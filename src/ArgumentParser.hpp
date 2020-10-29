@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   18/10/2020, 18:12:15
+ *   10/29/2020, 1:17:01 AM
  * Auto updated?
  *   Yes
  *
@@ -31,6 +31,7 @@
 #include <exception>
 #include <limits>
 #include <algorithm>
+#include <typeinfo>
 
 #define STR_T(STRING) decltype(STRING ## _tstr)
 
@@ -115,7 +116,7 @@ namespace Lut99 {
     }
     /* Returns whether or not a shortlabel is valid (consists of letters or numbers). */
     inline bool is_valid_shortlabel(char shortlabel) {
-        return (shortlabel > '0' && shortlabel < '9') || (shortlabel > 'a' && shortlabel < 'z') || (shortlabel > 'A' && shortlabel < 'Z');
+        return (shortlabel > '0' && shortlabel < '9') || (shortlabel > 'a' && shortlabel < 'z') || (shortlabel > 'A' && shortlabel < 'Z') || shortlabel == '\0';
     }
 
     /* Wraps a bit of text into a vector of lines with the given maximum length. Words are tried to be wrapped whole, but they can be broken off if too long. */
@@ -356,7 +357,7 @@ namespace Lut99 {
     public:
         /* Constructor for the TypeMismatchException class, which takes a context, the name of the conflicting argument, the name of the type we expected the argument to have and the name of the type it actually had. */
         TypeMismatchException(const std::string& context, const std::string& arg_name, const std::string& expected_type_name, const std::string& given_type_name) :
-            ProgrammingException(context, generate_message(context, "")),
+            ProgrammingException(context, generate_message(context, "Argument type (" + expected_type_name + ") does not match requested type (" + given_type_name + ").")),
             arg_name(arg_name),
             expected_name(expected_type_name),
             given_name(given_type_name)
@@ -730,6 +731,13 @@ namespace Lut99 {
 
     /* Exception which forms the base for all exceptions when something went wrong on the CLI-user's side - can be automatically handled by the ArgumentParser. */
     class ParseException : public ArgumentParserException {
+    protected:
+        /* Overwrites the generate_message of the ArgumentParserException. */
+        static inline std::string generate_message(const std::string& message) {
+            return "Error parsing command line arguments:" + (message.empty() ? "" : " " + message);
+        }
+
+
     public:
         /* Constructor for the ParseException which optionally takes a message. */
         ParseException(const std::string& message = "") :
@@ -742,6 +750,29 @@ namespace Lut99 {
         }
     };
     
+    /* Exception for when a given Argument does not match any flag or option we know. */
+    class UnknownArgumentException: public ParseException {
+    private:
+        /* The label that we didn't recognize. */
+        std::string label;
+    
+    public:
+        /* Constructor for the UnknownArgumentException class, which takes the name of the argument that we didn't recognize and the usage string that gives information on what can be given instead. */
+        UnknownArgumentException(const std::string& label, const std::string& usage) :
+            ParseException(usage + "\nRun with '--help' to see a description of each argument."),
+            label(label)
+        {}
+
+        /* Returns the label of the argument we didn't know. */
+        inline std::string get_label() const { return this->label; }
+        
+        /* Allows the UnknownArgumentException to be copied polymorphically. */
+        virtual UnknownArgumentException* copy() const {
+            return new UnknownArgumentException(*this);
+        }
+
+    };
+
     /* Exception for when no input is given to the parser. */
     class NoInputException: public ParseException {
     public:
@@ -902,8 +933,8 @@ namespace Lut99 {
         char shortlabel;
     
     public:
-        /* Constructor for the MissingMandatoryException class that takes the name of the argument that was specified more than once and its shortlabel. */
-        DuplicateArgumentException(const std::string& name, const char shortabel) :
+        /* Constructor for the DuplicateArgumentException class that takes the name of the argument that was specified more than once and its shortlabel. */
+        DuplicateArgumentException(const std::string& name, const char shortlabel) :
             ParseException(generate_message("Duplicate argument '" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" -(") += shortlabel) + ")") + ".")),
             name(name),
             shortlabel(shortlabel)
@@ -1319,54 +1350,6 @@ namespace Lut99 {
             }
         }
 
-        /* Returns and removed the first token on the stream in the given token object. If no more tokens are available, returns a Token with 'empty' TokenType. */
-        Tokenizer& operator>>(Token& result) {
-            // If there are no more tokens to get, give the token an empty value
-            if (this->input.size() == 0) {
-                result.type = TokenType::empty;
-                result.value = "";
-                return *this;
-            }
-
-            // Get the head of the vector in the Token
-            result.value = this->input.at(this->input.size() - 1);
-            this->input.pop_back();
-
-            // Analyze its type
-            if (this->executable_to_go) {
-                // It's the executable!
-                result.type = TokenType::executable;
-                executable_to_go = false;
-                return *this;
-            } else if (this->accepts_options && result.value.size() >= 2 && result.value[0] == '-') {
-                // It's a dash with at least something else; an Option
-                result.type = TokenType::label;
-                std::string label = result.value.substr(1);
-
-                // Check if it's a shortlabel or a name and, if either, if it's valid
-                if (label[0] != '-' && !is_valid_shortlabel(label[0])) {
-                    throw IllegalShortlabelCharException(label[0]);
-                } else if (label[0] == '-') {
-                    // If we just see two '--', we mark it so and return the next token instead
-                    if (label.size() == 1) {
-                        this->accepts_options = false;
-                        return *this >> result;
-                    }
-
-                    // Check if that name happens to be illegal
-                    char result = is_valid_name(label.substr(1));
-                    if (result != '\0') { throw IllegalNameCharException(result, label); }
-                }
-
-                // It's valid, so overwrite result.value with label and return
-                result.value = label;
-                return *this;
-            } else {
-                // We parse it as a normal value
-                result.type = TokenType::value;
-                return *this;
-            }
-        }
         /* Returns the first token on the stream as a new token object, but doesn't remove it from the stream. If no more tokens are available, returns a Token with 'empty' TokenType. */
         Token peek() const {
             Token result;
@@ -1379,7 +1362,20 @@ namespace Lut99 {
             }
 
             // Get the head of the vector in the Token
-            result.value = this->input.at(this->input.size() - 1);
+            result.value = this->input[this->input.size() - 1];
+
+            // If the head is '--', then skip it by updating result.value and continuing
+            if (this->accepts_options && result.value == "--") {
+                if (this->input.size() > 1) {
+                    // There is still at least one token, so continue with those
+                    result.value = this->input[this->input.size() - 2];
+                } else {
+                    // No more token other than '--', which equals empty
+                    result.type = TokenType::empty;
+                    result.value = "";
+                    return result;
+                }
+            }
 
             // Analyze its type
             if (this->executable_to_go) {
@@ -1395,14 +1391,9 @@ namespace Lut99 {
                 if (label[0] != '-' && !is_valid_shortlabel(label[0])) {
                     throw IllegalShortlabelCharException(label[0]);
                 } else if (label[0] == '-') {
-                    // If we just see two '--', we return the next token instead
-                    if (label.size() == 1) {
-                        return this->peek();
-                    }
-
                     // Check if that name happens to be illegal
                     char result = is_valid_name(label.substr(1));
-                    if (result != '\0') { throw IllegalNameCharException(result, label); }
+                    if (result != '\0' && result != '=') { throw IllegalNameCharException(result, label); }
                 }
 
                 // It's valid, so overwrite result.value with label and return
@@ -1417,10 +1408,26 @@ namespace Lut99 {
         /* Only removes the first token on the stream, does not return it. Simply does nothing if no more tokens are available on the stream. */
         void pop() {
             if (this->input.size() > 0) {
+                // Mark the executable if relevant
+                if (this->executable_to_go) { this->executable_to_go = false; }
+
+                // Also, be sure to mark if we remove the disable-options mark
+                if (this->input[this->input.size() - 1] == "--") { this->accepts_options = false; }
+
+                // Then, pop
                 this->input.pop_back();
             }
         }
 
+        /* Returns and removed the first token on the stream in the given token object. If no more tokens are available, returns a Token with 'empty' TokenType. */
+        Tokenizer& operator>>(Token& result) {
+            // Get the head token & remove it
+            result = this->peek();
+            this->pop();
+
+            // Done
+            return *this;
+        }
         /* Puts a given token back on the stream. */
         Tokenizer& operator<<(const Token& to_return) {
             const std::string context = "Tokenizer::operator<<(Token)";
@@ -1486,10 +1493,10 @@ namespace Lut99 {
     public:
         const std::string type_name;
         const size_t type_hash;
-        const std::any (*parse_func)(Tokenizer&);
+        std::any (* const parse_func)(Tokenizer&);
 
         /* Constructor of the RuntimeType class which takes the name & hash of the target type, the assigned parser and the number of values. */
-        RuntimeType(const char* type_name, const size_t type_hash, const std::any (*parse_func)(Tokenizer&)) :
+        RuntimeType(const char* type_name, const size_t type_hash, std::any (* const parse_func)(Tokenizer&)) :
             type_name(type_name),
             type_hash(type_hash),
             parse_func(parse_func)
@@ -1501,19 +1508,19 @@ namespace Lut99 {
         inline bool operator!=(const RuntimeType& other) const { return this->type_name != other.type_name || this->type_hash != other.type_hash || this->parse_func != other.parse_func; }
 
         /* Returns true if this and the given typeid point to the same type. */
-        inline bool operator==(const type_info& rhs) const { return this->type_hash == rhs.hash_code(); }
+        inline bool operator==(const std::type_info& rhs) const { return this->type_hash == rhs.hash_code(); }
         /* Returns true if this and the given typeid point to the same type. */
-        friend inline bool operator==(const type_info& lhs, const RuntimeType& rhs);
+        friend inline bool operator==(const std::type_info& lhs, const RuntimeType& rhs);
         /* Returns true if this and the given typeid point to a different type. */
-        inline bool operator!=(const type_info& rhs) const { return this->type_hash != rhs.hash_code(); }
+        inline bool operator!=(const std::type_info& rhs) const { return this->type_hash != rhs.hash_code(); }
         /* Returns true if this and the given typeid point to a different type. */
-        friend inline bool operator!=(const type_info& lhs, const RuntimeType& rhs);
+        friend inline bool operator!=(const std::type_info& lhs, const RuntimeType& rhs);
 
     };
     /* Returns true if this and the given typeid point to the same type. */
-    inline bool operator==(const type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
+    inline bool operator==(const std::type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
     /* Returns true if this and the given typeid point to a different type. */
-    inline bool operator!=(const type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
+    inline bool operator!=(const std::type_info& lhs, const RuntimeType& rhs) { return rhs == lhs; }
 
     /* Type marks the base of all ArgumentParser-supported types. */
     struct BaseType { };
@@ -1530,11 +1537,11 @@ namespace Lut99 {
         /* The name / uid of the type. */
         static constexpr const char type_name[] = { TYPENAME..., '\0' };
         /* The parser for this type. */
-        static constexpr const std::any (*parse_func)(Tokenizer&) = PARSE_FUNC;
+        static constexpr std::any (* const parse_func)(Tokenizer&) = PARSE_FUNC;
 
         /* Generates a RuntimeType from this specific DerivedType. */
         static RuntimeType runtime() {
-            return RuntimeType(this->type_name, typeid(this->type).hash_code(), this->parse_func);
+            return RuntimeType(type_name, typeid(type).hash_code(), parse_func);
         }
     };
 
@@ -2071,33 +2078,44 @@ failure:
 
         /* Returns the value from the given ParsedArgument, making sure it's non-variadic and performing some other checks. */
         template <class T>
-        T _get(const std::string& context, ParsedArgument* arg) {
+        T _get(const std::string& context, ParsedArgument* arg) const {
             // If the argument is variadic, let's error, as they must use getp
-            if (arg->repeatable) { throw SingletonMismatchException(context, name); }
+            if (arg->repeatable) { throw SingletonMismatchException(context, arg->name); }
 
             // Try to return the type as the given type
             try {
                 return std::any_cast<T>(arg->values[0]);
             } catch (std::bad_any_cast& e) {
+                // Handle the special string case; allow char* to be casted as string
+                if (typeid(T) == typeid(std::string)) {
+                    if (arg->values[0].type() == typeid(char*)) { return std::string(std::any_cast<char*>(arg->values[0])); }
+                    else if (arg->values[0].type() == typeid(const char*)) { return std::string(std::any_cast<const char*>(arg->values[0])); }
+                }
+
                 // Re-throw as TypeMismatchException
                 std::string raw_name = typeid(T).name();
-                throw TypeMismatchException(context, name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
+                throw TypeMismatchException(context, arg->name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
             }
         }
         /* Returns the value from the given ParsedArgument as if it was variadic. Also performs some other checks. */
         template <class T>
-        std::vector<T> _getv(const std::string& context, ParsedArgument* arg) {
+        std::vector<T> _getv(const std::string& context, ParsedArgument* arg) const {
             // Try to cast each element in the vector, throwing TypeMismatchs errors if we couldn't.
             std::vector<T> result;
             result.reserve(arg->values.size());
-            try {
-                for (size_t i = 0; i < arg->values.size(); i++) {
+            for (size_t i = 0; i < arg->values.size(); i++) {
+                try {
                     result.push_back(std::any_cast<T>(arg->values[i]));
+                } catch (std::bad_any_cast& e) {
+                    // Handle the special string case; allow char* to be casted as string
+                    if (typeid(T) == typeid(std::string) && arg->values[i].type() == typeid(char*)) { result.push_back(std::string(std::any_cast<char*>(arg->values[i]))); }
+                    else if (typeid(T) == typeid(std::string) && arg->values[i].type() == typeid(const char*)) { result.push_back(std::string(std::any_cast<const char*>(arg->values[i]))); }
+                    else {
+                        // Re-throw as TypeMismatchException
+                        std::string raw_name = typeid(T).name();
+                        throw TypeMismatchException(context, arg->name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
+                    }
                 }
-            } catch (std::bad_any_cast& e) {
-                // Re-throw as TypeMismatchException
-                std::string raw_name = typeid(T).name();
-                throw TypeMismatchException(context, name, raw_name != "???" ? type_name<T>::value : raw_name, arg->type.type_name);
             }
             
             // If we were successful, return the result
@@ -2188,7 +2206,7 @@ failure:
             if (iter == this->args.end()) { throw UnknownNameException(context, name); }
 
             // Return using the internal extraction method
-            return this->_get(context, (*iter).second);
+            return this->_get<T>(context, (*iter).second);
         }
         /* Returns the argument with given shortlabel as the given type. Will throw an TypeMismatchException if the type entered here does not match the type entered when registring the argument. */
         template<class T>
@@ -2201,7 +2219,7 @@ failure:
             if (iter == this->short_args.end()) { throw UnknownShortlabelException(context, shortlabel); }
 
             // Return using the internal extraction method
-            return this->_get(context, (*iter).second);
+            return this->_get<T>(context, (*iter).second);
         }
         /* Returns the argument with given name as the given type, but assumes that the argument that we request can be given more than once / can accept more than one value. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
         template <class T>
@@ -2214,7 +2232,7 @@ failure:
             if (iter == this->args.end()) { throw UnknownNameException(context, name); }
 
             // Return using the internal extraction method
-            return this->_getv(context, (*iter).second);
+            return this->_getv<T>(context, (*iter).second);
         }
         /* Returns the argument with given shortlabel as the given type, but assumes that the argument that we request can be given more than once / can accept more than one value. The value is therefore repeated as a vector of given type, where each element is one of the times it was specified (in order). */
         template <class T>
@@ -2223,11 +2241,11 @@ failure:
             const std::string context = "Arguments::getv<" + std::string(type_name<T>::value) + ">(shortlabel) const";
 
             // Try to find the argument with that name
-            std::unordered_map<std::string, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
+            std::unordered_map<char, ParsedArgument*>::const_iterator iter = this->short_args.find(shortlabel);
             if (iter == this->short_args.end()) { throw UnknownShortlabelException(context, shortlabel); }
 
             // Return using the internal extraction method
-            return this->_getv(context, (*iter).second);
+            return this->_getv<T>(context, (*iter).second);
         }
 
         /* Returns the shortlabel of given argument if it has one. Returns '\0' if it doesn't. */
@@ -2337,12 +2355,10 @@ failure:
     protected:
         /* The name of the Argument. Is used to identify the argument both behind the screens as on the CLI. */
         std::string name;
-        /* The type of the Argument. */
-        ArgumentType arg_type;
 
         /* Constructor for the Argument baseclass, which takes a type of the derived, calling Argument. */
-        Argument(ArgumentType arg_type, const std::string& name) :
-            arg_type(arg_type)
+        Argument(const std::string& name) :
+            name(name)
         {}
     
     public:
@@ -2360,9 +2376,9 @@ failure:
         virtual void usage(std::stringstream& sstr) const = 0;
         
         /* Returns the type of the Argument. */
-        inline ArgumentType get_arg_type() const { return this->arg_type; }
+        virtual ArgumentType get_arg_type() const = 0;
         /* Returns if this Argument is actually an Atomic argument. */
-        inline bool is_atomic() const { return this->arg_type >= ArgumentType::multi_argument; };
+        virtual bool is_atomic() const = 0;
 
         /* Swap operator for the Argument class. */
         friend void swap(Argument& a1, Argument& a2);
@@ -2376,7 +2392,6 @@ failure:
         using std::swap;
 
         swap(a1.name, a2.name);
-        swap(a1.arg_type, a2.arg_type);
     }
 
 
@@ -2433,15 +2448,14 @@ failure:
         }
 
         /* Constructor for the AtomicArgument baseclass, which takes the name of the derived class and its (argument) type. */
-        AtomicArgument(ArgumentType arg_type, const std::string& name, const char shortlabel, const RuntimeType& type) :
-            Argument(arg_type, name),
+        AtomicArgument(const std::string& name, const char shortlabel, const RuntimeType& type) :
+            Argument(name),
             shortlabel(shortlabel),
             type(type),
             optional(false),
             variadic(false),
             description(""),
-            category("Miscellaneous"),
-            default_value(false)
+            category("Miscellaneous")
         {
             const std::string context = "AtomicArgument()";
 
@@ -2455,14 +2469,13 @@ failure:
 
         /* Constructor for the AtomicArgument baseclass which only takes the name of the derived class. Only used by Flags. */
         AtomicArgument(const std::string& name, const char shortlabel) :
-            Argument(ArgumentType::flag, name),
+            Argument(name),
             shortlabel(shortlabel),
             type(Bool::runtime()),
             optional(true),
             variadic(false),
             description(""),
-            category("Miscellaneous"),
-            default_value(false)
+            category("Miscellaneous")
         {
             const std::string context = "AtomicArgument(name, shortlabel)";
 
@@ -2487,6 +2500,9 @@ failure:
         inline char get_shortlabel() const { return this->shortlabel; };
         /* Returns the name of the type associated with this AtomicArgument. */
         inline RuntimeType get_type() const { return this->type; }
+
+        /* Returns if this Argument is actually an Atomic argument. */
+        virtual bool is_atomic() const { return true; };
 
         /* Sets whether or not the AtomicArgument is optional, i.e., can be omitted by the user. Returns a reference to the AtomicArgument to allow chaining. */
         virtual AtomicArgument& set_optional(bool optional) {
@@ -2554,7 +2570,7 @@ failure:
 
         /* Constructor for a Positional, which takes the name, the index for it and its type as RuntimeType. */
         Positional(const std::string& name, size_t index, const RuntimeType& type) :
-            AtomicArgument(ArgumentType::positional, name, '\0', type),
+            AtomicArgument(name, '\0', type),
             index(index)
         {}
 
@@ -2564,6 +2580,12 @@ failure:
         friend class MultiArgument;
     
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::positional;
+
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
+
         /* Sets whether or not the Positional is optional, i.e., can be omitted by the user. Returns a reference to the Positional to allow chaining. */
         virtual Positional& set_optional(bool optional) { return (Positional&) AtomicArgument::set_optional(optional); }
         /* Sets whether or not a single Positional can have any number of values following it (separated by spaces). Do not that only the last Positional can have this feature enabled. */
@@ -2630,9 +2652,12 @@ failure:
 
         /* Constructor for the Option class, which takes the name, the shortlabel for it and its type as RuntimeType. */
         Option(const std::string& name, char shortlabel, const RuntimeType& type) :
-            AtomicArgument(ArgumentType::option, name, shortlabel, type),
+            AtomicArgument(name, shortlabel, type),
             repeatable(false)
-        {}
+        {
+            // Initialize with default optional
+            this->optional = true;
+        }
 
         /* Declare the ArgumentParser as friend so it can call the constructor. */
         friend class ArgumentParser;
@@ -2640,6 +2665,12 @@ failure:
         friend class MultiArgument;
     
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::option;
+
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
+
         /* Sets whether or not the Option is optional, i.e., can be omitted by the user. Returns a reference to the Option to allow chaining. */
         virtual Option& set_optional(bool optional) { return (Option&) AtomicArgument::set_optional(optional); }
         /* Sets whether or not a single Option can have any number of values following it (separated by spaces). */
@@ -2658,8 +2689,10 @@ failure:
                 sstr << "--" << this->name << ' ';
             }
 
-            // Then, append the placeholder (in caps)
+            // Then, append the placeholder (in caps), possible wrapped in '[]' if we had a default value
+            if (this->has_default()) { sstr << '['; }
             sstr << upperify(this->type.type_name);
+            if (this->has_default()) { sstr << ']'; }
         }
         /* Allows the Option to write its own help string to the given stringstream. */
         virtual void help(std::stringstream& sstr) const {
@@ -2705,16 +2738,34 @@ failure:
             }
 
             // Then, check if the label belongs to us
-            if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
-                  (token.value.size() > 1 && token.value != "-" + this->name)) {
+            if (token.value.substr(0, this->name.size() + 1) != "-" + this->name && token.value[0] != this->shortlabel) {
                 // Not for us, so return the empty any
                 return std::any();
             }
 
-            // Otherwise, remove the label from the stream and try to parse the rest as values using our internal parser
+            // Since it's for us for sure, remove the label from the Tokenizer
             input.pop();
+
+            // Possibly split the label and value into separate tokens
+            if (token.value[0] != '-' && token.value.size() > 1) {
+                input << Token({ TokenType::value, token.value.substr(1) });
+            } else {
+                // Otherwise, try to split value on first '=' if there is one
+                size_t equals_pos = token.value.find_first_of('=');
+                if (equals_pos != std::string::npos) {
+                    input << Token({ TokenType::value, token.value.substr(equals_pos + 1) });
+                }
+            }
+
+            // Try to parse the rest as values using our internal parser
             try {
                 return this->type.parse_func(input);
+            } catch (NotEnoughValuesException& e) {
+                // If no values were given but we had a default value, return the default value instead; this causes the option to still be marked as given
+                if (this->has_default() && e.get_given() == 0) {
+                    return this->default_value;
+                }
+                throw;
             } catch (TypeParseException& e) {
                 e.insert(this->name, this->shortlabel);
                 throw;
@@ -2740,6 +2791,12 @@ failure:
         friend class MultiArgument;
     
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::flag;
+
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
+
         /* This function is disabled for Flags, since they're always optional. Throws a ValueTypeMismatchException when called. */
         virtual Flag& set_optional(bool) { throw ValueTypeMismatchException("Flag::set_optional()", this->name); }
         /* This function is disabled for Flags, since flags don't have any value. Throws a ValueTypeMismatchException when called. */
@@ -2751,12 +2808,8 @@ failure:
 
         /* Allows the Positional to correctly describe its own name. */
         virtual void usage(std::stringstream& sstr) const {
-            // Return our shortlabel first if we have one, otherwise do the long one
-            if (this->shortlabel != '\0') {
-                sstr << '-' << this->shortlabel;
-            } else {
-                sstr << "--" << this->name;
-            }
+            // Always do the longlabel, since the MultiGroup's usage() will take of special flags
+            sstr << "--" << this->name;
         }
         /* Allows the Flag to write its own help string to the given stringstream. */
         virtual void help(std::stringstream& sstr) const {
@@ -2791,10 +2844,17 @@ failure:
             }
 
             // Then, check if the label belongs to us
-            if (  (token.value.size() == 1 && token.value[0] != this->shortlabel) || 
-                  (token.value.size() > 1 && token.value != "-" + this->name)) {
+            if (token.value != "-" + this->name && token.value[0] != this->shortlabel) {
                 // Not for us, so return the empty any
                 return std::any();
+            }
+
+            // Since it's for us for sure, remove the label from the Tokenizer
+            input.pop();
+
+            // If it's single-character mode but there are more than one characters, split them off so other labels may be given as well
+            if (token.value[0] != '-' && token.value.size() > 1) {
+                input << Token({ TokenType::label, token.value.substr(1) });
             }
 
             // Otherwise, we did find it!
@@ -2824,22 +2884,32 @@ failure:
             this->args.push_back(arg);
         }
 
+        /* Default constructor for the MultiArgument used in the ArgumentParser itself. */
+        MultiArgument() :
+            Argument("ArgumentParser"),
+            root(this),
+            member_type(MemberType::any)
+        {}
         /* Constructor for the MultiArgument which takes a name and an ArgumentType. */
-        MultiArgument(ArgumentType arg_type, MultiArgument* root, const std::string& name, MemberType member_type) :
-            Argument(arg_type, name),
+        MultiArgument(MultiArgument* root, const std::string& name, MemberType member_type) :
+            Argument(name),
             root(root),
             member_type(member_type)
         {}
 
+        friend class ArgumentParser;
         friend class IncludedGroup;
         friend class ExcludedGroup;
         friend class RequiredGroup;
 
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::multi_argument;
+
         /* Copy constructor for the MultiArgument class. */
         MultiArgument(const MultiArgument& other) :
             Argument(other),
-            root(root)
+            root(other.root)
         {
             for (size_t i = 0; i < other.args.size(); i++) {
                 this->args.push_back(other.args.at(i)->copy());
@@ -2848,7 +2918,7 @@ failure:
         /* Move constructor for the MultiArgument class. */
         MultiArgument(MultiArgument&& other) :
             Argument(other),
-            root(root),
+            root(other.root),
             args(other.args)
         {
             for (size_t i = 0; i < other.args.size(); i++) {
@@ -2861,6 +2931,11 @@ failure:
                 if (this->args.at(i) != nullptr) { delete this->args.at(i); }
             }
         }
+
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
+        /* Returns if this Argument is actually an Atomic argument. */
+        virtual bool is_atomic() const { return false; };
 
         /* Returns if this argument contains an argument with the given name. Only used for AtomicArguments, so does not return true on any MultiArgument names. */
         virtual bool has_name(const std::string& name) const {
@@ -2899,7 +2974,7 @@ failure:
             // Return it
             return *p;
         }
-        /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. A reference to the new parameter is returned to change its properties. */
+        /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. Sets it with an easy-to-remember shortlabel. A reference to the new parameter is returned to change its properties. */
         template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
         Option& add_option(char shortlabel, const std::string& name) {
             const std::string context = "MultiArgument::add_option()";
@@ -2920,7 +2995,10 @@ failure:
             // Return it
             return *o;
         }
-        /* Adds a new flag argument to the parser (an argument with a label, but no value). A reference to the new parameter is returned to change its properties. */
+        /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. A reference to the new parameter is returned to change its properties. */
+        template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
+        inline Option& add_option(const std::string& name) { return this->add_option<T>('\0', name); }
+        /* Adds a new flag argument to the parser (an argument with a label, but no value). Sets it with an easy-to-remember shortlabel. A reference to the new parameter is returned to change its properties. */
         Flag& add_flag(char shortlabel, const std::string& name) {
             const std::string context = "MultiArgument::add_flag()";
 
@@ -2940,9 +3018,12 @@ failure:
             // Return it
             return *f;
         }
-        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        IncludedGroup& add_included(const std::string& name, MemberType member_type) {
-            const std::string context = "MultiArgument::add_included()";
+        /* Adds a new flag argument to the parser (an argument with a label, but no value). A reference to the new parameter is returned to change its properties. */
+        inline Flag& add_flag(const std::string& name) { return this->add_flag('\0', name); }
+        /* Adds a new relational group to the parser. The given name must be unique among all groups, but can be a duplicate of atomic arguments. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        T& add_relational(const std::string& name, MemberType member_type) {
+            const std::string context = "MultiArgument::add_relational<" + argtype_name_map[(int) T::arg_type] + ">()";
 
             // Check if the given name exists by getting a list of all MultiArguments (nested) from the root and checking their name
             for (MultiArgument* marg : this->root->deepsearch<MultiArgument>()) {
@@ -2951,53 +3032,13 @@ failure:
                 }
             }
 
-            // Create a new IncludedGroup object
-            IncludedGroup* ig = new IncludedGroup(this->root, name, member_type);
-
-            // Add it using the class' virtualized _add_validated() function
-            this->_add_validated(context, (Argument*) ig);
-            
-            // Return it
-            return *ig;
-        }
-        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) {
-            const std::string context = "MultiArgument::add_excluded()";
-
-            // Check if the given name exists by getting a list of all MultiArguments (nested) from the root and checking their name
-            for (MultiArgument* marg : this->root->deepsearch<MultiArgument>()) {
-                if (marg->get_name() == name) {
-                    throw DuplicateNameException(context, name);
-                }
-            }
-
-            // Create a new ExcludedGroup object
-            ExcludedGroup* eg = new ExcludedGroup(this->root, name, member_type);
-
-            // Add it using the class' virtualized _add_validated() function
-            this->_add_validated(context, (Argument*) eg);
-            
-            // Return it
-            return *eg;
-        }
-        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        RequiredGroup& add_required(const std::string& name, MemberType member_type) {
-            const std::string context = "MultiArgument::add_required()";
-
-            // Check if the given name exists by getting a list of all MultiArguments (nested) from the root and checking their name
-            for (MultiArgument* marg : this->root->deepsearch<MultiArgument>()) {
-                if (marg->get_name() == name) {
-                    throw DuplicateNameException(context, name);
-                }
-            }
-
-            // Create a new ExcludedGroup object
-            RequiredGroup* rg = new RequiredGroup(this->root, name, member_type);
+            // Create a new object of the group
+            T* rg = new T(this->root, name, member_type);
 
             // Add it using the class' virtualized _add_validated() function
             this->_add_validated(context, (Argument*) rg);
-            
-            // Return it
+
+            // Return a reference to it
             return *rg;
         }
 
@@ -3112,14 +3153,16 @@ failure:
                     if (((MultiArgument*) arg)->is_given(parsed_args)) { return true; }
                 }
             }
+            return false;
         }
         /* Lets the child classes validate whether their specific dependency rule is met, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
-        virtual void validate(const Arguments& parsed_args) const { /* Being only a group of arguments, we always allow! */ }
+        virtual void validate(const Arguments&) const { /* Being only a group of arguments, we always allow! */ }
 
         /* Allows the MultiArgument to correct print the usage strings for all its child arguments. */
         virtual void usage(std::stringstream& sstr) const {
             std::stringstream posses;
             std::stringstream opts;
+            std::stringstream short_flags;
             std::stringstream flags;
             size_t positional_brackets = 0;
 
@@ -3128,67 +3171,47 @@ failure:
                 Argument* arg = this->args[i];
 
                 // Write the argument to the correct stringstream, depending on its type
-                switch(arg->get_arg_type()) {
-                    case ArgumentType::positional:
-                        Positional* parg = (Positional*) arg;
-                        // Add any starting '[' bracket if it's optional
-                        if (parg->is_optional()) {
-                            posses << '[';
-                            positional_brackets++;
-                        }
-                        // Write the Positional itself
-                        posses << ' ' << (parg->usage());
-                        break;
-
-                    case ArgumentType::option:
-                        Option* oarg = (Option*) oarg;
-                        // Add any starting '[' bracket if it's optional
-                        if (oarg->is_optional()) { sstr << '['; }
-                        // Write the Option itself
-                        opts << ' ' << (arg->usage());
-                        // Add any closing ']' bracket if it's optional
-                        if (oarg->is_optional()) { sstr << ']'; }
-                        break;
-
-                    case ArgumentType::flag:
-                        // Only add the space if not the first
-                        if (flags.tellp() != 0) { flags << ' '; }
-                        // Write the Flag itself
-                        flags << (arg->usage());
-                        break;
-                        
-                    default:
-                        // Write it as a MultiArgument, so, switch again...
-                        MultiArgument* marg = (MultiArgument*) arg;
-                        switch(marg->get_member_type()) {
-                            case MemberType::positional:
-                                // Always print a starting bracket, since we assume groups to be optional by default
-                                posses << "[ " << (marg->usage());
-                                positional_brackets++;
-                                break;
-
-                            case MemberType::option:
-                                // Always print enclosing brackets, since we assume groups to be optional by default
-                                opts << "[ " << (marg->usage()) << ']';
-                                break;
-
-                            case MemberType::flag:
-                                // Only add the space if not the first
-                                if (flags.tellp() != 0) { flags << ' '; }
-                                // Write the Flag itself
-                                flags << (marg->usage());
-                                break;
-
-                            default:
-                                // Simply skip
-                                break;
-                        }
-                        break;
+                if (arg->get_arg_type() == ArgumentType::positional || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::positional)) {
+                    Positional* parg = (Positional*) arg;
+                    // Add any starting '[' bracket if it's optional
+                    if (parg->is_optional()) {
+                        posses << "[ ";
+                        positional_brackets++;
+                    } else {
+                        posses << ' ';
+                    }
+                    // Write the Positional itself
+                    parg->usage(posses);
+                } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
+                    Option* oarg = (Option*) arg;
+                    // Add any starting '[' bracket if it's optional
+                    if (oarg->is_optional()) { opts << "[ "; }
+                    else { opts << ' '; }
+                    // Write the Option itself
+                    arg->usage(opts);
+                    // Add any closing ']' bracket if it's optional
+                    if (oarg->is_optional()) { opts << ']'; }
+                } else if (arg->get_arg_type() == ArgumentType::flag) {
+                    Flag* farg = (Flag*) arg;
+                    if (farg->get_shortlabel() != '\0') {
+                        // Write in short form, possibly adding the first " -"
+                        if (short_flags.tellp() == 0) { short_flags << " -"; }
+                        short_flags << farg->get_shortlabel();
+                    } else {
+                        // Write as longlabel with preceding space
+                        flags << ' ';
+                        arg->usage(flags);
+                    }
+                } else if (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::flag) {
+                    // Write the Flag with preceding space
+                    flags << ' ';
+                    arg->usage(flags);
                 }
             }
 
             // Done, now tie all three strings together
-            sstr << flags.str();
+            sstr << short_flags.str();
+            if (flags.tellp() != 0) { sstr << flags.str(); }
             if (opts.tellp() != 0) { sstr << opts.str(); }
             if (posses.tellp() != 0) { sstr << posses.str(); }
         }
@@ -3248,34 +3271,31 @@ failure:
         }
 
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::included_group;
+
         /* Constructor for the IncludedGroup class, which takes the root MultiArgument and a name. */
         IncludedGroup(MultiArgument* root, const std::string& name, MemberType member_type) :
-            MultiArgument(ArgumentType::included_group, root, name, member_type)
+            MultiArgument(root, name, member_type)
         {}
+        
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
 
-        /* The add_included function that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline IncludedGroup& add_included(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_included()", this->name, this->arg_type, name, ArgumentType::included_group); }
-        /* The add_excluded function that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_excluded()", this->name, this->arg_type, name, ArgumentType::excluded_group); }
-        /* The add_required function that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline RequiredGroup& add_required(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_required()", this->name, this->arg_type, name, ArgumentType::required_group); }
-        
-        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        inline IncludedGroup& add_included(const std::string& name) { return MultiArgument::add_included(name, this->member_type); }
-        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        inline ExcludedGroup& add_excluded(const std::string& name) { return MultiArgument::add_excluded(name, this->member_type); }
-        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
-        
+        /* The add_relational relational group that allows one to specify a custom member_type cannot be used in the IncludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        inline T& add_relational(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("IncludedGroup::add_relational()", this->name, this->arg_type, name, T::arg_type); }
+        /* Adds a new relational group to the parser. The given name must be unique among all groups, but can be a duplicate of atomic arguments. A reference to the new group is returned to change its properties and add children. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        inline T& add_relational(const std::string& name) { return MultiArgument::add_relational<T>(name, this->member_type); }
+
         /* Allows the IncludedGroup to correctly display the usage strings for all its nested arguments. */
         virtual void usage(std::stringstream& sstr) const {
-            // Return all elements wrapped in a single '[]'
-            sstr << '[';
+            // Return all elements, separated by spaces
             for (size_t i = 0; i < this->args.size(); i++) {
                 if (i > 0) { sstr << ' '; }
-                sstr << (this->args[i]->usage());
+                this->args[i]->usage(sstr);
             }
-            sstr << ']';
         }
 
         /* Lets this IncludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
@@ -3323,34 +3343,31 @@ failure:
         }
 
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::excluded_group;
+
         /* Constructor for the ExcludedGroup class, which takes the root MultiArgument and a name. */
         ExcludedGroup(MultiArgument* root, const std::string& name, MemberType member_type) :
-            MultiArgument(ArgumentType::included_group, root, name, member_type)
+            MultiArgument(root, name, member_type)
         {}
 
-        /* The add_included function that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline IncludedGroup& add_included(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_included()", this->name, this->arg_type, name, ArgumentType::included_group); }
-        /* The add_excluded function that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_excluded()", this->name, this->arg_type, name, ArgumentType::excluded_group); }
-        /* The add_required function that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline RequiredGroup& add_required(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_required()", this->name, this->arg_type, name, ArgumentType::required_group); }
-        
-        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        inline IncludedGroup& add_included(const std::string& name) { return MultiArgument::add_included(name, this->member_type); }
-        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        inline ExcludedGroup& add_excluded(const std::string& name) { return MultiArgument::add_excluded(name, this->member_type); }
-        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
-        
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
+
+        /* The add_relational relational group that allows one to specify a custom member_type cannot be used in the ExcludedGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        inline T& add_relational(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("ExcludedGroup::add_relational()", this->name, this->arg_type, name, T::arg_type); }
+        /* Adds a new relational group to the parser. The given name must be unique among all groups, but can be a duplicate of atomic arguments. A reference to the new group is returned to change its properties and add children. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        inline T& add_relational(const std::string& name) { return MultiArgument::add_relational<T>(name, this->member_type); }
+
         /* Allows the ExcludedGroup to return the usage strings for all its child arguments. */
         virtual void usage(std::stringstream& sstr) const {
-            // Return all elements wrapped in a single '[]', but with '|' to indicate their exclusiveness
-            sstr << '[';
+            // Return all elements, but separated by '|' to indicate their exclusiveness
             for (size_t i = 0; i < this->args.size(); i++) {
                 if (i > 0) { sstr << " | "; }
-                sstr << (this->args[i]->usage());
+                this->args[i]->usage(sstr);
             }
-            sstr << ']';
         }
 
         /* Lets this ExcludedGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
@@ -3400,35 +3417,33 @@ failure:
         }
 
     public:
+        /* Static type of this Argument. */
+        const static ArgumentType arg_type = ArgumentType::required_group;
+
         /* Constructor for the RequiredGroup class, which takes the root MultiArgument and a name. */
         RequiredGroup(MultiArgument* root, const std::string& name, MemberType member_type) :
-            MultiArgument(ArgumentType::included_group, root, name, member_type)
+            MultiArgument(root, name, member_type)
         {}
 
-        /* The add_included function that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline IncludedGroup& add_included(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_included()", this->name, this->arg_type, name, ArgumentType::included_group); }
-        /* The add_excluded function that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline ExcludedGroup& add_excluded(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_excluded()", this->name, this->arg_type, name, ArgumentType::excluded_group); }
-        /* The add_required function that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
-        inline RequiredGroup& add_required(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_required()", this->name, this->arg_type, name, ArgumentType::required_group); }
-        
-        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        inline IncludedGroup& add_included(const std::string& name) { return MultiArgument::add_included(name, this->member_type); }
-        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        inline ExcludedGroup& add_excluded(const std::string& name) { return MultiArgument::add_excluded(name, this->member_type); }
-        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
-        inline RequiredGroup& add_required(const std::string& name) { return MultiArgument::add_required(name, this->member_type); }
-        
+        /* Returns the type of the Argument polymorphically. */
+        virtual ArgumentType get_arg_type() const { return this->arg_type; };
+
+        /* The add_relational relational group that allows one to specify a custom member_type cannot be used in the RequiredGroup, as any nested MultiGroups must have the same member type as the parent group. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        inline T& add_relational(const std::string& name, MemberType member_type) { throw MemberTypeConflictException("RequiredGroup::add_relational()", this->name, this->arg_type, name, T::arg_type); }
+        /* Adds a new relational group to the parser. The given name must be unique among all groups, but can be a duplicate of atomic arguments. A reference to the new group is returned to change its properties and add children. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        inline T& add_relational(const std::string& name) { return MultiArgument::add_relational<T>(name, this->member_type); }
+
         /* Allows the RequiredGroup to correctly write the usage strings for all its child arguments. */
         virtual void usage(std::stringstream& sstr) const {
             // Return all elements in their own '[]', but in such a way that it indicates their requiredness
             for (size_t i = 0; i < this->args.size(); i++) {
-                sstr << '[';
-                if (i > 0) { sstr << ' '; }
-                sstr << (this->args[i]->usage());
+                if (i > 0) { sstr << "[ "; }
+                this->args[i]->usage(sstr);
             }
-            // Finally, write the closing ']' for all elements in this group
-            for (size_t i = 0; i < this->args.size(); i++) { sstr << ']'; }
+            // Finally, write the closing ']' for all elements in this group (except the outermost wrap)
+            for (size_t i = 0; i < this->args.size() - 1; i++) { sstr << ']'; }
         }
 
         /* Lets this RequiredGroup validate whether all of their arguments are given, based on the given resulting Arguments dict. If the validation failed, and appropriate exception is thrown. */
@@ -3446,7 +3461,7 @@ failure:
                         peer = arg->get_name();
                     } else {
                         // Not on track! Throw the appropriate exception
-                        throw RequiredDependencyException(arg->name, peer);
+                        throw RequiredDependencyException(arg->get_name(), peer);
                     }
                 }
                 last_arg = arg->get_name();
@@ -3464,65 +3479,40 @@ failure:
     /* The ArgumentParser class, which can be used to parse arguments in a high-level, easy-to-use way. */
     class ArgumentParser {
     private:
-        /* Returns whether given string is an option or not. */
-        inline static bool is_option(const char* text) {
-            return (text[0] == '-' && text[1] == '-' && text[2] != '\0') || (text[0] == '-' && text[1] != '\0');
-        }
-
-        /* Registers a parsed Argument. Based on it's type, it is either registered with value or without. Also note that this resolves dependencies, and so may throw dependency-related exceptions. */
-        template <typename T>
-        static void register_arg(Arguments& args, std::vector<Argument*>& mandatory, std::vector<Argument*>& excluded, T* arg, const std::any& value) {
-            // First, check if it is allowed to occur
-            if (std::find(excluded.begin(), excluded.end(), (Argument*) arg) != excluded.end()) {
-                throw ExcludedArgumentException(arg->get_name(), ((Flag*) arg)->get_shortlabel());
-            }
-
-            // Add the value
-            args.add_arg(*arg, value, true);
-
-            // Then, process include relationships
-            for (Argument* a : arg->relations.at(ArgumentRelation::include)) {
-                // If the argument doesn't occur in args yet and not in mandatory, add it in mandatory
-                if (!args.contains(a->get_name()) && std::find(mandatory.begin(), mandatory.end(), a) == mandatory.end()) {
-                    mandatory.push_back(a);
-                }
-            }
-
-            // Process exclude relationships
-            for (Argument* a : arg->relations.at(ArgumentRelation::exclude)) {
-                // If the argument doesn't occur in args yet and not in mandatory, add it in mandatory
-                if (!args.contains(a->get_name()) && std::find(excluded.begin(), excluded.end(), a) == excluded.end()) {
-                    excluded.push_back(a);
-                }
-            }
-
-            // Finally, process require relationships
-            /* TBD */
-
-            // Done
-        }
-
         /* Stores all Positionals in the parser. */
         MultiArgument args;
-
-    public:
         /* Stores whether or not to automatically handle help. */
         bool auto_help;
+
+    public:
+        /* Constructor for the ArgumentParser, which takes an optional boolean indicating whether to automatically handle help or not. */
+        ArgumentParser(bool auto_help = true) :
+            auto_help(auto_help)
+        {
+            // Add the help argument if told to do so
+            if (auto_help) {
+                this->add_option<String>('h', "help")
+                    .set_description("Shows this help menu. Optionally specify the name of a command to see only a description about that command, or leave empty to see all commands.")
+                    .set_default(std::any(""));
+            }
+        }
 
         /* Adds a new positional argument to the parser of Type T. Note that the order of defining the Positionals determines the order of parsing them. A reference to the new parameter is returned to change its properties. */
         template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
         inline Positional& add_positional(const std::string& name) { return args.add_positional<T>(name); }
-        /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. A reference to the new parameter is returned to change its properties. */
+        /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. Sets it with an easy-to-remember shortlabel. A reference to the new parameter is returned to change its properties. */
         template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
         inline Option& add_option(char shortlabel, const std::string& name) { return args.add_option<T>(shortlabel, name); }
-        /* Adds a new flag argument to the parser (an argument with a label, but no value). A reference to the new parameter is returned to change its properties. */
+        /* Adds a new optional argument to the parser (an argument with a label and a value) of DerivedType T. A reference to the new parameter is returned to change its properties. */
+        template <typename T, typename = std::enable_if_t<std::is_base_of<BaseType, T>::value> >
+        inline Option& add_option(const std::string& name) { return this->add_option<T>('\0', name); }
+        /* Adds a new flag argument to the parser (an argument with a label, but no value). Sets it with an easy-to-remember shortlabel. A reference to the new parameter is returned to change its properties. */
         inline Flag& add_flag(char shortlabel, const std::string& name) { return args.add_flag(shortlabel, name); }
-        /* Adds a new IncludedGroup to the parser (a collection of arguments for which holds that if one appears, all of them must appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        inline IncludedGroup& add_included(const std::string& name) { return args.add_included(name); }
-        /* Adds a new ExcludedGroup to the parser (a collection of arguments for which holds that if one appears, none other can appear). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        inline ExcludedGroup& add_excluded(const std::string& name) { return args.add_excluded(name); }
-        /* Adds a new RequiredGroup to the parser (a collection of arguments for which holds that an argument can only appear if the previous appears). The given name must be unique among all groups, but can be a duplicate of an AtomicArgument. A reference to the new group is returned to change its properties and add children. */
-        inline RequiredGroup& add_required(const std::string& name) { return args.add_required(name); }
+        /* Adds a new flag argument to the parser (an argument with a label, but no value). A reference to the new parameter is returned to change its properties. */
+        inline Flag& add_flag(const std::string& name) { return this->add_flag('\0', name); }
+        /* Adds a new relational group to the parser. The given name must be unique among all groups, but can be a duplicate of atomic arguments. The given member_type is the type that is allowed in the group's list of members and must be one of the three AtomicArgument types. A reference to the new group is returned to change its properties and add children. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<MultiArgument, T>::value> >
+        T& add_relational(const std::string& name, MemberType member_type) { return this->args.add_relational<T>(name, member_type); }
 
         /* Returns a reference to an AtomicArgument with the given name. The return type can optionally be specified to make working with this a little easier. Throws an UnknownNameException if no such argument exists, and a TypeMismatchException if the given type does not match that of the found argument. */
         template <class T = AtomicArgument, typename = std::enable_if_t<std::is_base_of<AtomicArgument, T>::value> >
@@ -3577,10 +3567,12 @@ failure:
             /* STEP 3: Loop through the AtomicArguments and find if they want to parse this. */
             Arguments args;
             size_t positional_index = 0;
+            std::string unknown_arg;
             while (!input.eof()) {
+                bool found = false;
                 for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
                     std::any result = aarg->parse(positional_index, input);
-                    if (!result.has_value()) {
+                    if (result.has_value()) {
                         // Parsed as such! Register the argument with this value and then start again
                         bool is_repeatable = (dynamic_cast<Positional*>(aarg) && ((Positional*) aarg)->is_variadic()) ||
                                              (dynamic_cast<Option*>(aarg) && (((Option*) aarg)->is_variadic() || ((Option*) aarg)->is_repeatable()));
@@ -3592,20 +3584,36 @@ failure:
                             result,
                             true
                         ));
+                        found = true;
                         break;
                     }
                 }
+
+                // Check if we found anything
+                if (!found) {
+                    if (input.peek().type == TokenType::label) {
+                        unknown_arg = input.peek().value;
+                    }
+                    // Otherwise, we just ignore since we've passed all Positionals
+                    input.pop();
+                }
             }
 
-            /* STEP 4: Check if all MultiArguments were given correctly. */
-            for (MultiArgument* marg : this->args.deepsearch<MultiArgument*>()) {
+            /* STEP 4: Check if we should call a help function. */
+            if (this->auto_help && args.contains('h')) {
+                throw HelpHandledException(this->generate_usage(executable.value) + "\n\n\n" + this->generate_help(args.get<std::string>('h')) + "\n");
+            }
+
+            /* STEP 5: Check if all MultiArguments were given correctly. */
+            if (!unknown_arg.empty()) { throw UnknownArgumentException(unknown_arg, this->generate_usage(executable.value)); }
+            for (MultiArgument* marg : this->args.deepsearch<MultiArgument>()) {
                 // Just call validate. It will throw appropriate exceptions if needed
                 marg->validate(args);
             }
 
-            /* STEP 5: Check if all mandatory objects were present and give default values otherwise. */
+            /* STEP 6: Check if all mandatory objects were present and give default values otherwise. */
             for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
-                if (!args.contains(aarg)) {
+                if (!args.contains(aarg->get_name())) {
                     if (!aarg->is_optional()) { throw MissingMandatoryException(aarg->get_name()); }
                     else if (aarg->has_default()) {
                         // Add it as a default value
@@ -3623,12 +3631,12 @@ failure:
                 }
             }
 
-            /* STEP 6: Done! Return the arguments dict. */
+            /* STEP 7: Done! Return the arguments dict. */
             return args;
         }
 
         /* Generates a usage message based on all given arguments. The given argument is the executable that was used to run the parser. */
-        std::string generate_usage(const char* exec) const {
+        std::string generate_usage(const std::string& exec) const {
             std::stringstream sstr;
             sstr << "Usage: " << exec;
 
@@ -3639,154 +3647,64 @@ failure:
             return sstr.str();
         }
         /* Generates the help message based on all given arguments. Only displays arguments with a defined description. */
-        std::string generate_help() const {
-            std::vector<std::string> categories;
-            std::unordered_map<std::string, std::vector<Argument*>> args;
+        std::string generate_help(const std::string& command = "") const {
+            // Define a shortcut for the long map we're using
+            using categories = std::unordered_map<std::string, std::vector<AtomicArgument*>>;
 
-            // First, sort by category
-            for (Argument* a : this->args) {
-                // Be sure to skip all values without description
-                if (a->get_description().empty()) { continue; }
+            // Display by category
+            std::vector<std::string> cats_order;
+            categories cats;
+            for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
+                // Skip everything without description
+                if (aarg->get_description().empty()) { continue; }
 
-                std::string cat = a->get_category();
-                categories.push_back(cat);
-                args[cat].push_back(a);
-            }
-            
-            // Then, extract the unique categories from the categories list
-            size_t n_unique = 0;
-            for (size_t i = 0; i < categories.size(); i++) {
-                std::string& elem = categories[i];
+                // If we're searching for a specific command, ignore all others as well
+                if (!command.empty() && aarg->get_name() != command) { continue; }
 
-                // Search the unique values (at the start of the vector) to see if the new one is unique
-                bool found = false;
-                for (size_t j = 0; j < n_unique; j++) {
-                    if (elem == categories[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-
-                // If it is unique, add it to the end of the unique list
-                if (!found) {
-                    categories[n_unique++] = elem;
+                // Otherwise, append it to the correct category string
+                categories::iterator iter = cats.find(aarg->get_category());
+                if (iter == cats.end()) {
+                    // Didn't see this category before
+                    cats.insert(std::make_pair<std::string, std::vector<AtomicArgument*>>(aarg->get_category(), std::vector<AtomicArgument*>({ aarg })));
+                    cats_order.push_back(aarg->get_category());
+                } else {
+                    // Append to existing vector
+                    (*iter).second.push_back(aarg);
                 }
             }
 
-            // Print each category, in the order of flags - options - positionals
+            // Print each category, in the order that the arguments were specified
             std::stringstream sstr;
-            for (size_t i = 0; i < n_unique; i++) {
-                std::vector<Argument*>& cat_args = args[categories[i]];
-                sstr << categories[i] << std::endl;
+            for (size_t i = 0; i < cats_order.size(); i++) {
+                // Optionally insert another newline
+                if (i > 0) { sstr << std::endl; }
 
-                // First pass: print all flags
+                // Print the category name
+                sstr << cats_order[i] << ":" << std::endl;
+
+                // Print the arguments
+                const std::vector<AtomicArgument*>& cat_args = cats[cats_order[i]];
                 for (size_t j = 0; j < cat_args.size(); j++) {
-                    Argument* arg = cat_args[j];
-
-                    if (dynamic_cast<Flag*>(arg) && !dynamic_cast<Option*>(arg)) {
-                        Flag* flg = (Flag*) arg;
-
-                        // Write the human-recognisable name
-                        sstr << "   -" << flg->get_shortlabel() << ", --" << flg->get_name();
-
-                        // Either pad with zeroes or hit 'em with enter
-                        if (flg->get_name().size() < 16) {
-                            for (size_t k = 0; k < 16 - flg->get_name().size(); k++) { sstr << ' '; }
-                        } else {
-                            sstr << std::endl;
-                            for (size_t k = 0; k < 25; k++) { sstr << ' '; }
-                        }
-
-                        // Next, print the description - with linewraps
-                        std::vector<std::string> lines = linewrap(flg->get_description(), 55);
-                        for (size_t k = 0; k < lines.size(); k++) {
-                            if (k > 0) {
-                                for (size_t l = 0; l < 25; l++) { sstr << ' '; }
-                            }
-                            sstr << lines[k] << std::endl;
-                        }
-                    }
+                    cat_args[j]->help(sstr);
                 }
-
-                // Second pass: print all options
-                for (size_t j = 0; j < cat_args.size(); j++) {
-                    Argument* arg = cat_args[j];
-
-                    if (dynamic_cast<Option*>(arg)) {
-                        Option* opt = (Option*) arg;
-
-                        // Write the human-recognisable name
-                        std::string name = "   " + (std::string("-") += opt->get_shortlabel()) + " ";
-                        if (opt->has_default_value()) { name += "["; }
-                        name += opt->get_placeholder();
-                        if (opt->has_default_value()) { name += "]"; }
-                        name += ", --" + opt->get_name() + " ";
-                        if (opt->has_default_value()) { name += "["; }
-                        name += opt->get_placeholder();
-                        if (opt->has_default_value()) { name += "]"; }
-                        sstr << name;
-
-                        // Either pad with zeroes or hit 'em with enter
-                        if (name.size() < 25) {
-                            for (size_t k = 0; k < 25 - name.size(); k++) { sstr << ' '; }
-                        } else {
-                            sstr << std::endl;
-                            for (size_t k = 0; k < 25; k++) { sstr << ' '; }
-                        }
-
-                        // Next, print the description - with linewraps
-                        std::vector<std::string> lines = linewrap(opt->get_description(), 55);
-                        for (size_t k = 0; k < lines.size(); k++) {
-                            if (k > 0) {
-                                for (size_t l = 0; l < 25; l++) { sstr << ' '; }
-                            }
-                            sstr << lines[k] << std::endl;
-                        }
-                    }
-                }
-
-                // Third pass: print all positionals
-                for (size_t j = 0; j < cat_args.size(); j++)  {
-                    Argument* arg = cat_args[j];
-
-                    if (dynamic_cast<Positional*>(arg)) {
-                        Positional* pos = (Positional*) arg;
-
-                        // Write the human-readable name
-                        std::string name = pos->get_name();
-                        if (pos->optional) {
-                            name = "   [<" + name + ">" + (pos->get_any_number() ? "..." : "") + "]";
-                        } else {
-                            name = "   <" + name + ">" + (pos->get_any_number() ? "..." : "");
-                        }
-                        sstr << name;
-
-                        // Either pad with zeroes or hit 'em with enter
-                        if (name.size() < 25) {
-                            for (size_t k = 0; k < 25 - name.size(); k++) {
-                                sstr << ' ';
-                            }
-                        } else {
-                            sstr << std::endl;
-                            for (size_t k = 0; k < 25; k++) { sstr << ' '; }
-                        }
-
-                        // Next, print the description - with linewraps
-                        std::vector<std::string> lines = linewrap(pos->get_description(), 55);
-                        for (size_t k = 0; k < lines.size(); k++) {
-                            if (k > 0) {
-                                for (size_t l = 0; l < 25; l++) { sstr << ' '; }
-                            }
-                            sstr << lines[k] << std::endl;
-                        }
-                    }
-                }
-
-                // Use a final newline for this category
-                sstr << std::endl;
             }
+
+            // If it was empty, print a message
+            if (sstr.tellp() == 0) {
+                // Show the message based on whether we showed all or a specific command
+                if (command.empty()) {
+                    sstr << "<no descriptions found>" << std::endl;
+                } else {
+                    sstr << "<no description found for command '" << command << "'>" << std::endl;
+                }
+            }
+
+            // Done, return
             return sstr.str();
         }
+    
+        /* Returns whether or not automatic help was enabled or not. */
+        inline bool get_auto_help() const { return this->auto_help; }
     };
 }
 
