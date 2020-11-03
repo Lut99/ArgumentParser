@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   29/10/2020, 12:50:04
+ *   03/11/2020, 18:05:41
  * Auto updated?
  *   Yes
  *
@@ -787,6 +787,33 @@ namespace Lut99 {
         }
 
     };
+    /* Exception for when there aren't enough tokens on the stream to return. */
+    class NotEnoughTokensException: public ParseException {
+    private:
+        /* Number of tokens the stream was expected to have. */
+        size_t expected;
+        /* Number of tokens the stream actually had left. */
+        size_t given;
+
+    public:
+        /* Constructor for the NotEnoughTokensException which takes the number of tokens we expected and the number of tokens we got. */
+        NotEnoughTokensException(const size_t expected_n_tokens, const size_t given_n_tokens) :
+            ParseException(generate_message("Not enough tokens left on the input - expected " + std::to_string(expected_n_tokens) + ", got " + std::to_string(given_n_tokens) + " tokens.")),
+            expected(expected_n_tokens),
+            given(given_n_tokens)
+        {}
+
+        /* Returns the number of tokens that we expected the stream to have. */
+        inline size_t get_expected() const { return this->expected; }
+        /* Returns the number of tokens that were actually left on the stream. */
+        inline size_t get_given() const { return this->given; }
+
+        /* Allows the NotEnoughTokensException to be copied polymorphically. */
+        virtual NotEnoughTokensException* copy() const {
+            return new NotEnoughTokensException(*this);
+        }
+
+    };
 
     /* Exception for when a non-optional Positional was defined after optional Positionals. */
     class OptionalPositionalException: public ParseException {
@@ -935,7 +962,7 @@ namespace Lut99 {
     public:
         /* Constructor for the DuplicateArgumentException class that takes the name of the argument that was specified more than once and its shortlabel. */
         DuplicateArgumentException(const std::string& name, const char shortlabel) :
-            ParseException(generate_message("Duplicate argument '" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" -(") += shortlabel) + ")") + ".")),
+            ParseException(generate_message("Duplicate argument '" + name + "'" + (shortlabel == '\0' ? "" : (std::string(" ('-") += shortlabel) + "')") + ".")),
             name(name),
             shortlabel(shortlabel)
         {}
@@ -1405,6 +1432,11 @@ namespace Lut99 {
                 return result;
             }
         }
+        /* Checks if there are at least N tokens available, and returns those as a tuple of Token objects. Throws a NotEnoughTokensException exception if there aren't enough tokens, but leaves the stream untouched. Otherwise, removes the first N tokens from the stream as well. */
+        template<int N>
+        std::tuple<Token> peekv() const {
+            
+        }
         /* Only removes the first token on the stream, does not return it. Simply does nothing if no more tokens are available on the stream. */
         void pop() {
             if (this->input.size() > 0) {
@@ -1558,9 +1590,9 @@ namespace Lut99 {
     template <class T, typename = std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value> >
     std::any parse_int(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
+        Token token = input.peek();
         if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<T>::value, 1, 0); }
+        input.pop();
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -1635,9 +1667,9 @@ namespace Lut99 {
     template <class T, typename = std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value> >
     std::any parse_uint(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
+        Token token = input.peek();
         if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<T>::value, 1, 0); }
+        input.pop();
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -1691,9 +1723,9 @@ namespace Lut99 {
     /* Parser for single-precision floating-point types. */
     std::any parse_float(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
+        Token token = input.peek();
         if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<float>::value, 1, 0); }
+        input.pop();
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -1745,9 +1777,9 @@ namespace Lut99 {
     /* Parser for double-precision floating-point types. */
     std::any parse_double(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
+        Token token = input.peek();
         if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
+        input.pop();
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -1799,9 +1831,9 @@ namespace Lut99 {
     /* Parser for booleans (they can be either: "true", "1", "yes", "y" for true or "false", "0", "no", "n" for false (capitalization-independent)) */
     std::any parse_bool(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
-        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
+        Token token = input.peek();
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<bool>::value, 1, 0); }
+        input.pop();
 
         const char* text = token.value.c_str();
         int i = 0;
@@ -1969,9 +2001,9 @@ failure:
     /* Parser for single characters. Only errors if no character is given. */
     std::any parse_char(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
-        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<double>::value, 1, 0); }
+        Token token = input.peek();
+        if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<char>::value, 1, 0); }
+        input.pop();
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -1986,9 +2018,9 @@ failure:
     /* Parser for multiple characters. Only errors if no character is given. */
     std::any parse_string(Tokenizer& input) {
         // Get the first token
-        Token token;
-        input >> token;
+        Token token = input.peek();
         if (token.type != TokenType::value) { throw NotEnoughValuesException(type_name<std::string>::value, 1, 0); }
+        input.pop();
 
         // Get an easy-to-use reference to the parsed string
         std::string& text = token.value;
@@ -2141,8 +2173,11 @@ failure:
             }
         }
 
-        /* Declare the ArgumentParser as friend. */
+        /* Declare the ArgumentParser plus the three AtomicArguments as friends. */
         friend class ArgumentParser;
+        friend class Positional;
+        friend class Option;
+        friend class Flag;
 
     public:
         /* Default constructor for the Arguments class. Only available from the ArgumentParser. */
@@ -2593,8 +2628,8 @@ failure:
         /* Gets the default value of this AtomicArgument. Note that the returned any object may be unitialized if AtomicArgument::has_default() return false. */
         inline std::any get_default() const { return this->default_value; }
 
-        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
-        virtual std::any parse(size_t& n_positionals, Tokenizer& input) const = 0;
+        /* Allows the ArgumentParser to delegate parsing to the correct AtomicArgument. Automatically registers the parsed values correctly under Arguments, as a given argument. Returns whether or not this AtomicArgument was matched to the head of the stream. If the parsing failed somehow, throws appropriate ParseExceptions. */
+        virtual bool parse(Arguments& args, Tokenizer& input, size_t& n_positionals) const = 0;
 
         /* Allows derived classes of the AtomicArgument to copy themselves. */
         virtual AtomicArgument* copy() const = 0;
@@ -2653,31 +2688,37 @@ failure:
         /* Gets the CLI-relevant index of the Positional. */
         inline size_t get_index() const { return this->index; }
 
-        /* Allows the ArgumentParser to delegate parsing to this Positional. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
-        virtual std::any parse(size_t& n_positionals, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Positional. Automatically registers the parsed values correctly under Arguments, as a given argument. Returns whether or not this AtomicArgument was matched to the head of the stream. If the parsing failed somehow, throws appropriate ParseExceptions. */
+        virtual bool parse(Arguments& args, Tokenizer& input, size_t& n_positionals) const {
             // First, check if we could be looking at a Positional
             Token token = input.peek();
-            if (token.type != TokenType::value) {
-                // Not for us, so return the empty any
-                return std::any();
+            if (token.type != TokenType::value || n_positionals != this->index) {
+                // Not for us, so return without doing anything
+                return false;
             }
 
-            // Otherwise, check if it's our turn as a Positional
-            if (n_positionals != this->index) {
-                // Not for us, so return the empty any
-                return std::any();
-            }
-
-            // Only increment index counter if we're non-variadic; otherwise, we're the last one and want everything to keep pointing to us
+            // Only increment index counter if we're non-variadic, since if we are, we want to keep parsing any remaining Positionals
             if (!this->variadic) { ++n_positionals; }
 
-            // If it is a value, however, it's for us, so try to parse it using our internal parser!
+            // Simply only parse this value and append it to the arguments dict, since our n_positionals makes sure we parse all relevant ones
+            std::any result;
             try {
-                return this->type.parse_func(input);
+                result = this->type.parse_func(input);
             } catch (TypeParseException& e) {
                 e.insert(this->name);
                 throw;
             }
+
+            // Add it to the args, and we're done!
+            args.add_arg(Arguments::ParsedArgument(
+                this->name,
+                this->shortlabel,
+                this->type,
+                this->variadic,
+                result,
+                true
+            ));
+            return true;
         }
 
         /* Allows the Positional to copy itself polymorphically. */
@@ -2688,13 +2729,9 @@ failure:
     /* The Option class: an argument with a label and a value. */
     class Option : public AtomicArgument {
     private:
-        /* Determines whether or not the same Option can be specified multiple times. Output resembles is_variadic, and if used in conjunction then one big (in-order) vector of values is returned. */
-        bool repeatable;
-
         /* Constructor for the Option class, which takes the name, the shortlabel for it and its type as RuntimeType. */
         Option(const std::string& name, char shortlabel, const RuntimeType& type) :
-            AtomicArgument(name, shortlabel, type),
-            repeatable(false)
+            AtomicArgument(name, shortlabel, type)
         {
             // Initialize with default optional
             this->optional = true;
@@ -2761,33 +2798,25 @@ failure:
         /* Sets the default value of this Option. Returns a reference to the Option to allow chaining. */
         virtual Option& set_default(const std::any& default_value) { return (Option&) AtomicArgument::set_default(default_value); }
 
-        /* Sets whether or not the Option can be specified multiple times. */
-        virtual Option& set_repeatable(bool is_repeatable) {
-            this->repeatable = is_repeatable;
-            return *this;
-        }
-        /* Gets whether or not the Option can be specified multiple times. */
-        inline bool is_repeatable() const { return this->repeatable; }
-
-        /* Allows the ArgumentParser to delegate parsing to this Option. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
-        virtual std::any parse(size_t&, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Option. Automatically registers the parsed values correctly under Arguments, as a given argument. Returns whether or not this AtomicArgument was matched to the head of the stream. If the parsing failed somehow, throws appropriate ParseExceptions. */
+        virtual bool parse(Arguments& args, Tokenizer& input, size_t&) const {
             // First, check if we could be looking at an Option
             Token token = input.peek();
             if (token.type != TokenType::label) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so we're done already
+                return false;
             }
 
             // Then, check if the label belongs to us
             if (token.value.substr(0, this->name.size() + 1) != "-" + this->name && token.value[0] != this->shortlabel) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us, so we're done already
+                return false;
             }
 
             // Since it's for us for sure, remove the label from the Tokenizer
             input.pop();
 
-            // Possibly split the label and value into separate tokens
+            // Possibly split the label and value into separate tokens, which are put back on the stream for the parse functions
             if (token.value[0] != '-' && token.value.size() > 1) {
                 input << Token({ TokenType::value, token.value.substr(1) });
             } else {
@@ -2798,20 +2827,38 @@ failure:
                 }
             }
 
-            // Try to parse the rest as values using our internal parser
-            try {
-                return this->type.parse_func(input);
-            } catch (NotEnoughValuesException& e) {
-                // If no values were given but we had a default value, return the default value instead; this causes the option to still be marked as given
-                if (this->has_default() && e.get_given() == 0) {
-                    return this->default_value;
+            // Now parse at least once and do more than that only if we're variadic and if there are values left
+            do {
+                try {
+                    std::any result = this->type.parse_func(input);
+                    args.add_arg(Arguments::ParsedArgument(
+                        this->name,
+                        this->shortlabel,
+                        this->type,
+                        this->variadic,
+                        result,
+                        true
+                    ));
+                } catch (NotEnoughValuesException& e) {
+                    // For easiness, we'll already inject the argument names
+                    e.insert(this->name, this->shortlabel);
+
+                    // If no values at all were given, and we're variadic, we simply stop instead of throwing errors
+                    if (this->variadic && e.get_given() == 0) {
+                        break;
+                    }
+
+                    // Otherwise, throw the error
+                    throw;
+                } catch (TypeParseException& e) {
+                    // Also treat other errors
+                    e.insert(this->name, this->shortlabel);
+                    throw;
                 }
-                e.insert(this->name, this->shortlabel);
-                throw;
-            } catch (TypeParseException& e) {
-                e.insert(this->name, this->shortlabel);
-                throw;
-            }
+            } while(this->variadic);
+
+            // We made it, done!
+            return true;
         }
 
         /* Allows the Option to copy itself polymorphically. */
@@ -2876,19 +2923,19 @@ failure:
         /* This function is disabled for Flags, since Flag's default value must always be set to true. Throws a ValueTypeMismatchException when called. */
         virtual Flag& set_default(const std::any&) { throw ValueTypeMismatchException("Flag::set_default()", this->name); }
 
-        /* Allows the ArgumentParser to delegate parsing to this Flag. Returns the value parsed for this AtomicArgument or, if the value wasn't for us, returns an empty std::any object. Suitable ParseExceptions may be thrown if the value was invalid somehow. */
-        virtual std::any parse(size_t&, Tokenizer& input) const {
+        /* Allows the ArgumentParser to delegate parsing to this Flag. Automatically registers the parsed values correctly under Arguments, as a given argument. Returns whether or not this AtomicArgument was matched to the head of the stream. If the parsing failed somehow, throws appropriate ParseExceptions. */
+        virtual bool parse(Arguments& args, Tokenizer& input, size_t&) const {
             // First, check if we could be looking at a Flag
             Token token = input.peek();
             if (token.type != TokenType::label) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us
+                return false;
             }
 
             // Then, check if the label belongs to us
             if (token.value != "-" + this->name && token.value[0] != this->shortlabel) {
-                // Not for us, so return the empty any
-                return std::any();
+                // Not for us
+                return false;
             }
 
             // Since it's for us for sure, remove the label from the Tokenizer
@@ -2899,8 +2946,16 @@ failure:
                 input << Token({ TokenType::label, token.value.substr(1) });
             }
 
-            // Otherwise, we did find it!
-            return std::any(true);
+            // Otherwise, we did find it, so add and return
+            args.add_arg(Arguments::ParsedArgument(
+                this->name,
+                this->shortlabel,
+                Bool::runtime(),
+                false,
+                std::any(true),
+                true
+            ));
+            return true;
         }
 
         /* Allows the Flag to copy itself polymorphically. */
@@ -3613,19 +3668,9 @@ failure:
             while (!input.eof()) {
                 bool found = false;
                 for (AtomicArgument* aarg : this->args.deepsearch<AtomicArgument>()) {
-                    std::any result = aarg->parse(positional_index, input);
-                    if (result.has_value()) {
-                        // Parsed as such! Register the argument with this value and then start again
-                        bool is_repeatable = (dynamic_cast<Positional*>(aarg) && ((Positional*) aarg)->is_variadic()) ||
-                                             (dynamic_cast<Option*>(aarg) && (((Option*) aarg)->is_variadic() || ((Option*) aarg)->is_repeatable()));
-                        args.add_arg(Arguments::ParsedArgument(
-                            aarg->get_name(),
-                            aarg->get_shortlabel(),
-                            aarg->get_type(),
-                            is_repeatable,
-                            result,
-                            true
-                        ));
+                    bool parsed = aarg->parse(args, input, positional_index);
+                    if (parsed) {
+                        // Parsed as such! The argument is already registered, so just start again
                         found = true;
                         break;
                     }
@@ -3658,14 +3703,12 @@ failure:
                 if (!args.contains(aarg->get_name())) {
                     if (!aarg->is_optional()) { throw MissingMandatoryException(aarg->get_name()); }
                     else if (aarg->has_default()) {
-                        // Add it as a default value
-                        bool is_repeatable = (dynamic_cast<Positional*>(aarg) && ((Positional*) aarg)->is_variadic()) ||
-                                             (dynamic_cast<Option*>(aarg) && (((Option*) aarg)->is_variadic() || ((Option*) aarg)->is_repeatable()));
+                        // Add it with its default value
                         args.add_arg(Arguments::ParsedArgument(
                             aarg->get_name(),
                             aarg->get_shortlabel(),
                             aarg->get_type(),
-                            is_repeatable,
+                            aarg->is_variadic(),
                             aarg->get_default(),
                             false
                         ));

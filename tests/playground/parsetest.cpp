@@ -4,7 +4,7 @@
  * Created:
  *   24/07/2020, 15:28:42
  * Last edited:
- *   29/10/2020, 12:43:27
+ *   03/11/2020, 17:53:18
  * Auto updated?
  *   Yes
  *
@@ -55,6 +55,10 @@ int main(int argc, const char** argv) {
         .set_description("Favourite numbers of the user. Can be given more than once to indicate more numbers.")
         .set_optional(true)
         .set_variadic(true);
+    parser.add_option<String>('f', "favourite_movies")
+        .set_category("Favourites")
+        .set_description("Favourite movies of the author. Can be given multiple times to give more preferences.")
+        .set_variadic(true);
 
     parser.add_option<String>('t', "test")
         .set_category("Test")
@@ -82,7 +86,7 @@ int main(int argc, const char** argv) {
     }
 
     // Get the test arguments and display them
-    cout << "Hello, world! (" << args.get<std::string>("test") << ")" << std::endl;
+    if (args.contains("test")) { cout << "Hello, world! (" << args.get<std::string>("test") << ")" << std::endl; }
     if (args.is_given('1')) { cout << "First flag specified." << std::endl; }
     if (args.is_given('2')) { cout << "Second flag specified." << std::endl; }
     cout << std::endl;
@@ -94,6 +98,8 @@ int main(int argc, const char** argv) {
     if (args.contains("gender")) {
         cout << "You are a " << (args.get<char>("gender") == 'm' ? "male" : "female") << "." << std::endl;
     }
+    cout << std::endl;
+
     if (args.contains("favourite_numbers")) {
         std::vector<int> numbers = args.getv<int>("favourite_numbers");
         cout << "Your favourite number" << (numbers.size() > 1 ? "s are: " : " is: ");
@@ -103,6 +109,18 @@ int main(int argc, const char** argv) {
                 else { cout << ", "; }
             }
             cout << numbers[i];
+        }
+        cout << std::endl;
+    }
+    if (args.contains("favourite_movies")) {
+        std::vector<std::string> movies = args.getv<std::string>("favourite_movies");
+        cout << "Your favourite movie" << (movies.size() > 1 ? "s are: " : " is: ");
+        for (size_t i = 0; i < movies.size(); i++) {
+            if (i > 0) {
+                if (i == movies.size() - 1) { cout << " and "; }
+                else { cout << ", "; }
+            }
+            cout << movies[i];
         }
         cout << std::endl;
     }
