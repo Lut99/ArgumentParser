@@ -4,7 +4,7 @@
  * Created:
  *   24/07/2020, 15:28:42
  * Last edited:
- *   03/11/2020, 17:53:18
+ *   04/11/2020, 17:38:09
  * Auto updated?
  *   Yes
  *
@@ -21,6 +21,11 @@ using namespace Lut99;
 
 
 std::any custom_parser(Tokenizer& input) {
+    // Check if there are enough values
+    if (input.peek(0).type != TokenType::value || input.peek(1).type != TokenType::value) {
+        throw NotEnoughValuesException("name", 2, input.peek(0).type == TokenType::value);
+    }
+
     // First, parse the normal name
     std::string name = std::any_cast<std::string>(parse_string(input));
     // Then, the last name
@@ -58,6 +63,10 @@ int main(int argc, const char** argv) {
     parser.add_option<String>('f', "favourite_movies")
         .set_category("Favourites")
         .set_description("Favourite movies of the author. Can be given multiple times to give more preferences.")
+        .set_variadic(true);
+    parser.add_option<FirstLast>('n', "fav_name")
+        .set_category("Favourites")
+        .set_description("Fovourite people.")
         .set_variadic(true);
 
     parser.add_option<String>('t', "test")
@@ -115,6 +124,18 @@ int main(int argc, const char** argv) {
     if (args.contains("favourite_movies")) {
         std::vector<std::string> movies = args.getv<std::string>("favourite_movies");
         cout << "Your favourite movie" << (movies.size() > 1 ? "s are: " : " is: ");
+        for (size_t i = 0; i < movies.size(); i++) {
+            if (i > 0) {
+                if (i == movies.size() - 1) { cout << " and "; }
+                else { cout << ", "; }
+            }
+            cout << movies[i];
+        }
+        cout << std::endl;
+    }
+    if (args.contains("fav_name")) {
+        std::vector<std::string> movies = args.getv<std::string>("fav_name");
+        cout << "Your favourite person" << (movies.size() > 1 ? "s are: " : " is: ");
         for (size_t i = 0; i < movies.size(); i++) {
             if (i > 0) {
                 if (i == movies.size() - 1) { cout << " and "; }

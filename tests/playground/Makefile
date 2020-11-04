@@ -2,10 +2,10 @@
 #   by Tim Müller
 
 ### PHONY RULES ###
-.PHONY: argparsetype parsetest dependencytest default all clean dirs
+.PHONY: argparsetype parsetest dependencytest default all clean dirs templatetest
 default: all
 
-all: argparsetype parsetest dependencytest
+all: argparsetype parsetest dependencytest templatetest
 
 clean:
 	rm -rf bin/*.out
@@ -29,3 +29,8 @@ parsetest: bin/parsetest.out
 bin/dependencytest.out: dependencytest.cpp | dirs
 	g++ -g -std=c++17 -O2 -Wall -Wextra -o $@ $^
 dependencytest: bin/dependencytest.out
+
+### TEMPLATETEST ###
+bin/templatetest.out: templatetest.cpp | dirs
+	g++ -g -std=c++17 -O2 -Wall -Wextra -o $@ $^
+templatetest: bin/templatetest.out

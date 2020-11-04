@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   03/11/2020, 18:05:41
+ *   04/11/2020, 17:34:05
  * Auto updated?
  *   Yes
  *
@@ -1377,25 +1377,25 @@ namespace Lut99 {
             }
         }
 
-        /* Returns the first token on the stream as a new token object, but doesn't remove it from the stream. If no more tokens are available, returns a Token with 'empty' TokenType. */
-        Token peek() const {
+        /* Returns the token at the given index left in the stream, but does not remove it. If there is no such token, returns an empty Token. */
+        Token peek(size_t index = 0) const {
             Token result;
 
-            // If there are no more tokens to get, give the token an empty value
-            if (this->input.size() == 0) {
+            // If there is no token at that index, returns an empty token
+            if (this->input.size() <= index) {
                 result.type = TokenType::empty;
                 result.value = "";
                 return result;
             }
 
             // Get the head of the vector in the Token
-            result.value = this->input[this->input.size() - 1];
+            result.value = this->input[this->input.size() - (index + 1)];
 
             // If the head is '--', then skip it by updating result.value and continuing
             if (this->accepts_options && result.value == "--") {
                 if (this->input.size() > 1) {
                     // There is still at least one token, so continue with those
-                    result.value = this->input[this->input.size() - 2];
+                    result.value = this->input[this->input.size() - (index + 2)];
                 } else {
                     // No more token other than '--', which equals empty
                     result.type = TokenType::empty;
@@ -1431,11 +1431,6 @@ namespace Lut99 {
                 result.type = TokenType::value;
                 return result;
             }
-        }
-        /* Checks if there are at least N tokens available, and returns those as a tuple of Token objects. Throws a NotEnoughTokensException exception if there aren't enough tokens, but leaves the stream untouched. Otherwise, removes the first N tokens from the stream as well. */
-        template<int N>
-        std::tuple<Token> peekv() const {
-            
         }
         /* Only removes the first token on the stream, does not return it. Simply does nothing if no more tokens are available on the stream. */
         void pop() {
