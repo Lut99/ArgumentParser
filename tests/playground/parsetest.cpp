@@ -4,7 +4,7 @@
  * Created:
  *   24/07/2020, 15:28:42
  * Last edited:
- *   04/11/2020, 17:38:09
+ *   04/11/2020, 22:58:43
  * Auto updated?
  *   Yes
  *
@@ -82,6 +82,14 @@ int main(int argc, const char** argv) {
         .set_category("Test")
         .set_description("The third in a series of test flags.");
     
+    ExcludedGroup& excl = parser.add_relational<ExcludedGroup>("test_group", MemberType::flag);
+    excl.add_flag('a', "one") 
+        .set_category("Relations")
+        .set_description("Tests an excluded relation, with flag 'other'.");
+    excl.add_flag('b', "other")
+        .set_category("Relations")
+        .set_description("Tests an excluded relation, with flag 'one'.");
+    
     // Parse the lot
     Arguments args;
     try {
@@ -144,6 +152,14 @@ int main(int argc, const char** argv) {
             cout << movies[i];
         }
         cout << std::endl;
+    }
+    cout << endl;
+
+    if (args.contains("one")) {
+        cout << "The one is given." << endl;
+    }
+    if (args.contains("other")) {
+        cout << "The other is given." << endl;
     }
 
     return EXIT_SUCCESS;

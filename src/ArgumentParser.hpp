@@ -4,7 +4,7 @@
  * Created:
  *   6/4/2020, 12:51:55 PM
  * Last edited:
- *   04/11/2020, 17:34:05
+ *   04/11/2020, 23:00:44
  * Auto updated?
  *   Yes
  *
@@ -43,6 +43,8 @@ namespace Lut99 {
     static constexpr size_t TERM_OFFSET = 20;
     /* Determines the terminal width that is used in printing the automated usage() and help() strings. */
     static constexpr size_t TERM_WIDTH = 100;
+    /* Determines the tab size before argument names are printed. */
+    static constexpr size_t TERM_TAB = 2;
 
 
 
@@ -1011,7 +1013,7 @@ namespace Lut99 {
     public:
         /* Constructor for the IncludedDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
         IncludedDependencyException(const std::string& name, const std::string& peer_name) :
-            DependencyException(name, generate_message("Missing argument '" + name + "' since argument '" + peer_name + "' is given."))
+            DependencyException(name, peer_name, generate_message("Missing argument '" + name + "' since argument '" + peer_name + "' is given."))
         {}
         
         /* Allows the IncludedDependencyException to be copied polymorphically. */
@@ -1025,7 +1027,7 @@ namespace Lut99 {
     public:
         /* Constructor for the ExcludedDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
         ExcludedDependencyException(const std::string& name, const std::string& peer_name) :
-            DependencyException(name, generate_message("Argument '" + name + "' specified while conflicting argument '" + peer_name + "' was already given."))
+            DependencyException(name, peer_name, generate_message("Argument '" + name + "' specified while conflicting argument '" + peer_name + "' was already given."))
         {}
         
         /* Allows the ExcludedDependencyException to be copied polymorphically. */
@@ -1039,7 +1041,7 @@ namespace Lut99 {
     public:
         /* Constructor for the RequiredDependencyException class that takes the name of the violating arguments and one of its peer arguments. */
         RequiredDependencyException(const std::string& name, const std::string& peer_name) :
-            DependencyException(name, generate_message("Argument '" + name + "' specified without specifying required argument '" + peer_name + "'."))
+            DependencyException(name, peer_name, generate_message("Argument '" + name + "' specified without specifying required argument '" + peer_name + "'."))
         {}
         
         /* Allows the RequiredDependencyException to be copied polymorphically. */
@@ -2487,14 +2489,15 @@ failure:
         /* Function that is used to write the given name and description with a given maximum width, and indenting new description lines starting at the correct offset. */
         void _help_common(std::stringstream& sstr, const std::string& name, const std::string& description, size_t offset, size_t width) const {
             // First, write the name by linewrapping it
-            std::vector<std::string> lines = linewrap(name, width);
+            std::vector<std::string> lines = linewrap(name, width - TERM_TAB);
             for (size_t i = 0; i < lines.size(); i++) {
+                for (size_t j = 0; j < TERM_TAB; j++) { sstr << ' '; }
                 sstr << lines[i];
                 if (i < lines.size() - 1) { sstr << std::endl; }
             }
             
             // Next, write the offset from the name to the offset size. If the name is at > offset - 1, we start at a new line instead
-            size_t name_length = lines[lines.size() - 1].size();
+            size_t name_length = lines[lines.size() - 1].size() - 1 + TERM_TAB;
             if (name_length > offset - 1) {
                 sstr << std::endl;
                 name_length = 0;
@@ -2666,8 +2669,9 @@ failure:
 
         /* Allows the Positional to write its own usage string to the given stringstream. */
         virtual void usage(std::stringstream& sstr) const {
-            // Simply return our own name
+            // Simply return our own name, except that we may append ... if we're variadic
             sstr << this->name;
+            if (this->variadic) { sstr << "..."; }
         }
         /* Allows the Positional to write its own help string to the given stringstream. */
         virtual void help(std::stringstream& sstr) const {
@@ -2765,6 +2769,8 @@ failure:
             // Then, append the placeholder (in caps), possible wrapped in '[]' if we had a default value
             if (this->has_default()) { sstr << '['; }
             sstr << upperify(this->type.type_name);
+            // Possibly append the mysterious '...' if we're variadic
+            if (this->variadic) { sstr << "..."; }
             if (this->has_default()) { sstr << ']'; }
         }
         /* Allows the Option to write its own help string to the given stringstream. */
@@ -2823,6 +2829,7 @@ failure:
             }
 
             // Now parse at least once and do more than that only if we're variadic and if there are values left
+            bool did_first = false;
             do {
                 try {
                     std::any result = this->type.parse_func(input);
@@ -2838,9 +2845,23 @@ failure:
                     // For easiness, we'll already inject the argument names
                     e.insert(this->name, this->shortlabel);
 
-                    // If no values at all were given, and we're variadic, we simply stop instead of throwing errors
-                    if (this->variadic && e.get_given() == 0) {
-                        break;
+                    // If no values at all were given, then we might have to do specific things
+                    if (e.get_given() == 0) {
+                        if (!did_first && this->has_default()) {
+                            // If we didn't add anything yet and we have a default value, register it as such and exit cleanly
+                            args.add_arg(Arguments::ParsedArgument(
+                                this->name,
+                                this->shortlabel,
+                                this->type,
+                                this->variadic,
+                                this->get_default(),
+                                true 
+                            ));
+                            break;
+                        } else if (did_first && this->variadic) {
+                            // Otherwise, if we already did the first thing, we're only allowed to exist cleanly if we're variadic
+                            break;
+                        }
                     }
 
                     // Otherwise, throw the error
@@ -2850,6 +2871,7 @@ failure:
                     e.insert(this->name, this->shortlabel);
                     throw;
                 }
+                did_first = true;
             } while(this->variadic);
 
             // We made it, done!
@@ -3261,45 +3283,90 @@ failure:
             // First, print all elements in this MultiArgument, in a per-argument_type sort of way
             for (size_t i = 0; i < this->args.size(); i++) {
                 Argument* arg = this->args[i];
+                Positional* parg = (Positional*) arg;
+                Option* oarg = (Option*) arg;
+                Flag* farg = (Flag*) arg;
 
                 // Write the argument to the correct stringstream, depending on its type
-                if (arg->get_arg_type() == ArgumentType::positional || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::positional)) {
-                    Positional* parg = (Positional*) arg;
-                    // Add any starting '[' bracket if it's optional
-                    if (parg->is_optional()) {
-                        posses << "[ ";
-                        positional_brackets++;
-                    } else {
-                        posses << ' ';
-                    }
-                    // Write the Positional itself
-                    parg->usage(posses);
-                } else if (arg->get_arg_type() == ArgumentType::option || (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::option)) {
-                    Option* oarg = (Option*) arg;
-                    // Add any starting '[' bracket if it's optional
-                    if (oarg->is_optional()) { opts << " ["; }
-                    else { opts << ' '; }
-                    // Write the Option itself
-                    arg->usage(opts);
-                    // Add any closing ']' bracket if it's optional
-                    if (oarg->is_optional()) { opts << ']'; }
-                } else if (arg->get_arg_type() == ArgumentType::flag) {
-                    Flag* farg = (Flag*) arg;
-                    if (farg->get_shortlabel() != '\0') {
-                        // Write in short form, possibly adding the first " -"
-                        if (short_flags.tellp() == 0) { short_flags << " -"; }
-                        short_flags << farg->get_shortlabel();
-                    } else {
-                        // Write as longlabel with preceding space
-                        flags << ' ';
-                        arg->usage(flags);
-                    }
-                } else if (!arg->is_atomic() && ((MultiArgument*) arg)->get_member_type() == MemberType::flag) {
-                    // Write the Flag with preceding space
-                    flags << ' ';
-                    arg->usage(flags);
+                switch(arg->get_arg_type()) {
+                    case ArgumentType::positional:
+                        // Add any starting '[' bracket if it's optional
+                        if (parg->is_optional()) {
+                            posses << " [";
+                            positional_brackets++;
+                        } else {
+                            posses << ' ';
+                        }
+
+                        // Write the Positional itself
+                        parg->usage(posses);
+
+                        break;
+
+                    case ArgumentType::option:
+                        // Add any starting '[' bracket if it's optional
+                        if (oarg->is_optional()) { opts << " ["; }
+                        else { opts << ' '; }
+
+                        // Write the Option itself
+                        oarg->usage(opts);
+
+                        // Add any closing ']' bracket if it's optional
+                        if (oarg->is_optional()) { opts << ']'; }
+                        
+                        break;
+
+                    case ArgumentType::flag:
+                        // Decide to write in either short or long form
+                        if (farg->get_shortlabel() != '\0') {
+                            // Write in short form, possibly adding the first " -"
+                            if (short_flags.tellp() == 0) { short_flags << " -"; }
+                            short_flags << farg->get_shortlabel();
+                        } else {
+                            // Write as longlabel with preceding space
+                            flags << ' ';
+                            farg->usage(flags);
+                        }
+                        
+                        break;
+
+                    default:
+                        // Switch again for the member type
+                        MultiArgument* marg = (MultiArgument*) arg;
+                        switch(marg->get_member_type()) {
+                            case MemberType::positional:
+                                // Very similar to Positionals, except that we are always writing brackets
+                                posses << " [";
+                                positional_brackets++;
+                                marg->usage(posses);
+
+                                break;
+
+                            case MemberType::option:
+                                // Very similar to Options, except that we are always writing brackets
+                                opts << " [";
+                                marg->usage(opts);
+                                opts << ']';
+
+                                break;
+
+                            case MemberType::flag:
+                                // Very similar to Flags, except that we are always writing brackets
+                                opts << " [";
+                                marg->usage(opts);
+                                opts << ']';
+
+                                break;
+
+                            default:
+                                // Simply ignore
+                                break;
+                        }
                 }
             }
+
+            // Write any closing positional brackets
+            for (size_t i = 0; i < positional_brackets; i++) { posses << ']'; }
 
             // Done, now tie all three strings together
             sstr << short_flags.str();
@@ -3759,8 +3826,8 @@ failure:
                 // Optionally insert another newline
                 if (i > 0) { sstr << std::endl; }
 
-                // Print the category name
-                sstr << cats_order[i] << ":" << std::endl;
+                // Print the category name - but only if there's more than one category
+                if (cats_order.size() > 1) { sstr << cats_order[i] << ":" << std::endl; }
 
                 // Print the arguments
                 const std::vector<AtomicArgument*>& cat_args = cats[cats_order[i]];
