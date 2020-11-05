@@ -1,0 +1,45 @@
+/* TEST.adl
+ *   by Lut99
+ *
+ * A test file for me to try and create the Argument Definition Language in,
+ * which the redesigned ArgumentParser can compile to a hard-coded, super-
+ * efficient (or so we hope) parser.
+ */
+
+<int> {
+    name "integer";
+    pattern <int>;
+}
+
+positional1 int {
+    /* Common stuff */
+
+    // Sets the category for the help string
+    category = "Miscellaneous";
+
+    // Sets the description for the help string
+    description = "A new argumentparser,
+                 especially for you and me";
+    
+    // Sets the default value - will be parsed at compile time
+    default = "1";
+
+
+
+    /* Positional-specific stuff */
+
+    // Overrides the index derived from the order that the Positional is given
+    index = 1;
+}
+
+variadic_positional int... {
+    
+}
+
+--option1 -o int {
+    
+}
+
+[--optional_option] int {
+
+}
