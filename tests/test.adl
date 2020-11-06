@@ -32,7 +32,7 @@ positional1 int {
     index = 1;
 }
 
-variadic_positional int... {
+variadic_positional <int>... {
     
 }
 

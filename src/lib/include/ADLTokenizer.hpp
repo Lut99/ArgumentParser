@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   05/11/2020, 21:48:26
+ *   06/11/2020, 16:53:57
  * Auto updated?
  *   Yes
  *
@@ -56,16 +56,16 @@ namespace ArgumentParser {
 
         };
 
-        /* Exception for when the file that the Tokenizer should tokenize could not be opened. */
+        /* Baseclass exception for all file related exceptions. */
         class IOException : public TokenizerException {
         protected:
             /* Error number that occurred. */
             int err_no;
 
         public:
-            /* Constructor for the IOException class, which takes the name of the file that we tried to open and the errno that occured. */
-            IOException(const std::string& name, const int err_no) :
-                TokenizerException(name, generate_message(name, "Could not open file: " + std::string(std::strerror(err_no)))),
+            /* Constructor for the IOException class, which takes the name of the file that we tried to open, the errno that occured and optionally a message. */
+            IOException(const std::string& name, const int err_no, const std::string& message = "") :
+                TokenizerException(name, message),
                 err_no(err_no)
             {}
 
@@ -74,6 +74,30 @@ namespace ArgumentParser {
 
             /* Allows the IOException to be copied polymorphically. */
             virtual IOException* copy() const { return new IOException(*this); }
+
+        };
+        /* Exception for when a file could not be opened. */
+        class FileOpenException : public IOException {
+        public:
+            /* Constructor for the FileOpenException class, which takes the name of the file that we tried to open and the errno that occured. */
+            FileOpenException(const std::string& name, const int err_no) :
+                IOException(name, err_no, generate_message(name, "Could not open file: " + std::string(std::strerror(err_no))))
+            {}
+
+            /* Allows the FileOpenException to be copied polymorphically. */
+            virtual FileOpenException* copy() const { return new FileOpenException(*this); }
+
+        };
+        /* Exception for when a read error occurred. */
+        class FileReadException : public IOException {
+        public:
+            /* Constructor for the FileReadException class, which takes the name of the file that we tried to open and the errno that occured. */
+            FileReadException(const std::string& name, const int err_no) :
+                IOException(name, err_no, generate_message(name, "Could not read from file: " + std::string(std::strerror(err_no))))
+            {}
+
+            /* Allows the FileReadException to be copied polymorphically. */
+            virtual FileReadException* copy() const { return new FileReadException(*this); }
 
         };
 
@@ -113,10 +137,12 @@ namespace ArgumentParser {
     /* The Tokenizer class can be used to open a file and read it token-by-token. Might throw any of the abovely-defined exceptions if syntax errors occur. */
     class Tokenizer {
     private:
-        // The file from which we will read the tokens
+        /* Path to the file which we will read the tokens from. */
+        std::string path;
+        /* The file from which we will read the tokens. */
         FILE* file;
 
-        // Used to temporarily store tokens that were put back
+        /* Used to temporarily store tokens that were put back. */
         std::vector<Token*> temp;
 
         /* Used internally to read the first token off the stream. */

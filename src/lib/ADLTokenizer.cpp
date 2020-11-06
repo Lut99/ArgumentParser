@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   05/11/2020, 21:52:47
+ *   06/11/2020, 17:00:51
  * Auto updated?
  *   Yes
  *
@@ -22,12 +22,21 @@ using namespace ArgumentParser;
 
 
 
+/* Shortcut for fetching the head character of the internal stream. */
+#define GET_HEAD(C) \
+    C = fgetc(this->file); \
+    if (C == EOF && ferror(this->file)) { throw Exceptions::FileReadException(this->path, errno); }
+
+
+
 /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
-Tokenizer::Tokenizer(const std::string& path) {
+Tokenizer::Tokenizer(const std::string& path) :
+    path(path)
+{
     // Try to open the file
     this->file = fopen(path.c_str(), "r");
     if (this->file == NULL) {
-        throw Exceptions::IOException(path, errno);   
+        throw Exceptions::FileOpenException(path, errno);   
     }
 
     // Reserve space for at least one token on the stream
@@ -36,6 +45,7 @@ Tokenizer::Tokenizer(const std::string& path) {
 
 /* Move constructor for the Tokenizer class. */
 Tokenizer::Tokenizer(Tokenizer&& other) :
+    path(std::move(other.path)),
     file(std::move(other.file)),
     temp(std::move(other.temp))
 {
@@ -58,7 +68,31 @@ Tokenizer::~Tokenizer() {
 
 /* Used internally to read the first token off the stream. */
 Token Tokenizer::_read_head() {
-    
+    char c;
+
+start:
+    // Get the head character on the stream
+    GET_HEAD(c);
+
+    // Choose the correct path forward
+    if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
+
+    } else if (c == '-') {
+        
+    } else if (c == '{') {
+
+    } else if (c == '}') {
+
+    } else if (c == '[') {
+
+    } else if (c == ']') {
+
+    } else if (c == '<') {
+
+    } else if (c == '>') {
+
+    } 
+
 }
 
 
@@ -90,6 +124,7 @@ Tokenizer& Tokenizer::operator=(Tokenizer&& other) {
 void ArgumentParser::swap(Tokenizer& t1, Tokenizer& t2) {
     using std::swap;
 
+    swap(t1.path, t2.path);
     swap(t1.file, t2.file);
     swap(t1.temp, t2.temp);
 }
