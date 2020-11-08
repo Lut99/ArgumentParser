@@ -11,7 +11,7 @@
     pattern <int>;
 }
 
-positional1 int {
+positional1 <int> {
     /* Common stuff */
 
     // Sets the category for the help string
@@ -36,10 +36,10 @@ variadic_positional <int>... {
     
 }
 
---option1 -o int {
+--option1 -o <int> {
     
 }
 
-[--optional_option] int {
+[--optional_option] <int> {
 
 }
