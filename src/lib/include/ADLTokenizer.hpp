@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   06/11/2020, 16:53:57
+ *   08/11/2020, 18:14:03
  * Auto updated?
  *   Yes
  *
@@ -101,34 +101,116 @@ namespace ArgumentParser {
 
         };
 
+        /* Baseclass exception for all syntax errors. */
+        class SyntaxError: public TokenizerException {
+        protected:
+            /* Line number where the syntax error occurred. */
+            size_t line;
+            /* Column number where the syntax error occurred. */
+            size_t col;
+
+            /* Used to let derived classes add their own part of the message through the tree. */
+            std::string generate_message(const std::string& filename, const size_t line, const size_t col, const std::string& message) {
+                return "Syntax error in '" + filename + "' at line " + std::to_string(line) + ", col " + std::to_string(col) + (message.empty() ? "." : ": " + message);
+            }
+
+        public:
+            /* Constructor for the SyntaxError class, which takes the file where the syntax error occurred, the line number of the occurence, the column number and optionally a message. */
+            SyntaxError(const std::string& filename, const size_t line, const size_t col, const std::string& message = "") :
+                TokenizerException(filename, message),
+                line(line),
+                col(col)
+            {}
+
+            /* Returns the line number of where the syntax error occurred. */
+            inline size_t get_line() const { return this->line; }
+            /* Returns the column number of where the syntax error occurred. */
+            inline size_t get_col() const { return this->col; }
+            
+            /* Allows the SyntaxError to be copied polymorphically. */
+            virtual SyntaxError* copy() const { return new SyntaxError(*this); }
+
+        };
+        /* Exception for when an illegal character occurred. */
+        class IllegalCharException : public SyntaxError {
+        private:
+            /* The character that was illegal. */
+            char c;
+
+        public:
+            /* Constructor for the IllegalCharException, which takes the file where the illegal character occurred, the line number of its occurrence, the column number and the illegal character itself. */
+            IllegalCharException(const std::string& filename, const size_t line, const size_t col, const char c) :
+                SyntaxError(filename, line, col, generate_message(
+                                filename, col, line, (std::string("Encountered illegal character '") += c) + "'."
+                            )),
+                c(c)
+            {}
+            
+            /* Returns the illegal character that we encountered. */
+            inline char get_c() const { return this->c; }
+
+            /* Allows the IllegalCharException to be copied polymorphically. */
+            virtual IllegalCharException* copy() const { return new IllegalCharException(*this); }
+
+        };
+        /* Exception for when too many characters have been read for a single value. */
+        class ValueOverflowException : public SyntaxError {
+        private:
+            /* The maximum number of characters allowed (excl. null-terminator). */
+            size_t max;
+        
+        public:
+            /* Constructor for the ValueOverflowException, which takes the file where the overflow occurred, the line number of its occurrence, the column number and the maximum number of characters allowed. */
+            ValueOverflowException(const std::string& filename, const size_t line, const size_t col, const size_t max_chars) :
+                SyntaxError(filename, line, col, generate_message(
+                    filename, line, col, "Too many consecutive characters encountered (maximum: " + std::to_string(max_chars) + ")."
+                )),
+                max(max_chars)
+            {}
+
+            /* Returns the maximum number of characters allowed. */
+            inline size_t get_max_chars() const { return this->max; }
+
+            /* Allows the ValueOverflowException to be copied polymorphically. */
+            virtual ValueOverflowException* copy() const { return new ValueOverflowException(*this); }
+
+        };
+
     }
 
 
 
     /* Enum for the Tokens, which is used to identify each separate token. */
     enum class TokenType {
-
+        identifier = 0,
+        shortlabel = 1,
+        longlabel = 2,
+        type = 3,
+        string = 4,
+        number = 5,
+        decimal = 6,
+        l_square = 7,
+        r_square = 8,
+        l_curly = 9,
+        r_curly = 10,
+        semicolon = 11
     };
 
 
 
-    /* The Token baseclass, which is used to convey information to the higher-level parser. */
-    class Token {
-    protected:
-        /* Constructor for the Token class, which takes its type, the line number where it was found and the column number. */
-        Token(TokenType type, size_t line, size_t col) :
-            type(type),
-            line(line),
-            col(col)
-        {}
+    /* The Token struct, which is used to convey information to the higher-level parser. */
+    struct Token {
+        /* The maximum number of characters allowed in a Token value. */
+        static constexpr size_t max_size = 2048;
 
-    public:
         /* The type of this Token. */
         TokenType type;
         /* The line number where this token started. */
         size_t line;
         /* The column number where this token started. */
         size_t col;
+        /* The raw value of this token, if applicable. */
+        char value[max_size];
 
     };
 
@@ -141,9 +223,13 @@ namespace ArgumentParser {
         std::string path;
         /* The file from which we will read the tokens. */
         FILE* file;
+        /* Counter used internally over the line numbers. */
+        size_t line;
+        /* Counter used internall over the column numbers. */
+        size_t col;
 
         /* Used to temporarily store tokens that were put back. */
-        std::vector<Token*> temp;
+        std::vector<Token> temp;
 
         /* Used internally to read the first token off the stream. */
         Token _read_head();
