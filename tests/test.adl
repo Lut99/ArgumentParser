@@ -13,7 +13,7 @@
 
 positional1 <int> {
     /* Common stuff */
-
+    
     // Sets the category for the help string
     category = "Miscellaneous";
 
