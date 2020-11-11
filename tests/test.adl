@@ -6,33 +6,49 @@
  * efficient (or so we hope) parser.
  */
 
-// <int> {
-//    name "integer";
-//    pattern <int>;
+// <date> {
+//     name "Date";
+//     pattern <uint> "-" <uint> "-" <uint>;
+// }
+//
+// <hello_world> {
+//     name "Hello, world!";
+//     code 1 {
+//         std::cout << "Hello, world!" << std::endl;
+//         std::cout << "We will parse: " << raw[0] << std::endl;
+//     }
+// }
+//
+// <hello_world_2> {
+//     name "Hello, world! (2)";
+//     includes "hello_world.cpp";
+//     code 1 {
+//         hello_world(raw[0]);
+//     }
 // }
 
 positional1 <int> {
     /* Common stuff */
     
     // Sets the category for the help string
-    category = "Miscellaneous";
+    category "Miscellaneous";
 
     // Sets the description for the help string
-    description = "A new argumentparser,
-                 especially for you and me";
+    description "A new argumentparser,
+especially for you and me";
     
     // Sets the default value - will be parsed at compile time
-    default = "1";
+    default "1";
 
 
 
     /* Positional-specific stuff */
 
     // Overrides the index derived from the order that the Positional is given
-    index = 1;
+    index 1;
 }
 
-variadic_positional <int> {
+variadic_positional <int>... {
     
 }
 
