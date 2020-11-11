@@ -6,10 +6,10 @@
  * efficient (or so we hope) parser.
  */
 
-<int> {
-    name "integer";
-    pattern <int>;
-}
+// <int> {
+//    name "integer";
+//    pattern <int>;
+// }
 
 positional1 <int> {
     /* Common stuff */
@@ -32,7 +32,7 @@ positional1 <int> {
     index = 1;
 }
 
-variadic_positional <int>... {
+variadic_positional <int> {
     
 }
 

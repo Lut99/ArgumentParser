@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   10/11/2020, 17:58:29
+ *   11/11/2020, 15:52:07
  * Auto updated?
  *   Yes
  *
@@ -16,11 +16,13 @@
 #ifndef ADL_TOKENIZER_HPP
 #define ADL_TOKENIZER_HPP
 
+#include <ostream>
 #include <string>
 #include <vector>
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <unordered_map>
 
 namespace ArgumentParser {
     namespace Exceptions {
@@ -278,7 +280,7 @@ namespace ArgumentParser {
             /* Allows the IllegalEscapeException to be copied polymorphically. */
             virtual IllegalEscapeException* copy() const { return new IllegalEscapeException(*this); }
 
-        }
+        };
 
     }
 
@@ -286,22 +288,39 @@ namespace ArgumentParser {
 
     /* Enum for the Tokens, which is used to identify each separate token. */
     enum class TokenType {
-        identifier,
-        shortlabel,
-        longlabel,
-        type,
-        string,
-        number,
-        decimal,
-        l_square,
-        r_square,
-        l_curly,
-        r_curly,
-        semicolon,
-        empty
+        identifier = 0,
+        shortlabel = 1,
+        longlabel = 2,
+        type = 3,
+        string = 4,
+        number = 5,
+        decimal = 6,
+        l_square = 7,
+        r_square = 8,
+        l_curly = 9,
+        r_curly = 10,
+        equals = 11,
+        semicolon = 12,
+        empty = 13
     };
 
-
+    /* Dictionary that maps a tokentype to a capitalized string. */
+    const static std::string tokentype_names[] = {
+        "Identifier",
+        "Shortlabel",
+        "Longlabel",
+        "Type",
+        "String",
+        "Number",
+        "Decimal",
+        "LSquare",
+        "RSquare",
+        "LCurly",
+        "RCurly",
+        "Equals",
+        "Semicolon",
+        "Empty"
+    };
 
     /* The Token struct, which is used to convey information to the higher-level parser. */
     struct Token {
@@ -314,7 +333,13 @@ namespace ArgumentParser {
         /* The raw value of this token, if applicable. */
         std::string value;
 
+        /* Allows a token to be written to an outstream. */
+        friend std::ostream& operator<<(std::ostream& os, const Token& token);
+
     };
+    /* Allows a token to be written to an outstream. */
+    std::ostream& operator<<(std::ostream& os, const Token& token);
+
 
 
 
@@ -352,6 +377,9 @@ namespace ArgumentParser {
         Token pop();
         /* Puts a token back on the stream. Note that it will not be parsed again, so may retrieving it will be much faster than the first time. */
         void push(const Token& token);
+
+        /* Returns true if an end-of-file has been reached. */
+        inline bool eof() const { return feof(this->file); }
 
         /* There is no copy assignment operator for the Tokenizer class, as it makes no sense to copy a stream (which the Tokenizer pretends to be). */
         Tokenizer& operator=(const Tokenizer& other) = delete;

@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   11/11/2020, 15:04:55
+ *   11/11/2020, 15:56:01
  * Auto updated?
  *   Yes
  *
@@ -37,12 +37,27 @@ using namespace ArgumentParser;
 
 
 
+/***** TOKEN STRUCT *****/
+
+/* Allows a token to be written to an outstream. */
+std::ostream& ArgumentParser::operator<<(std::ostream& os, const Token& token) {
+    os << tokentype_names[(int) token.type];
+    if (!token.value.empty()) {
+        os << "(" << token.value << ")";
+    }
+    return os;
+}
+
+
+
+
+
 /***** TOKENIZER CLASS *****/
 
 /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
 Tokenizer::Tokenizer(const std::string& path) :
     path(path),
-    line(0),
+    line(1),
     col(0)
 {
     // Try to open the file
@@ -75,7 +90,6 @@ Token Tokenizer::_read_head() {
     // Otherwise, parse from the stream
     char c;
     Token result;
-    size_t result_index = 0;
 
 start:
     {
@@ -84,7 +98,7 @@ start:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
             // Mark the Token as a general identifier and move to parsing the rest of it
             result.type = TokenType::identifier;
             result.line = this->line;
@@ -96,10 +110,12 @@ start:
             result.col = this->col;
             goto dash_start;
         } else if (c == '<') {
+            result.type = TokenType::type;
             result.line = this->line;
             result.col = this->col;
             goto type_start;
         } else if (c == '\"') {
+            result.type = TokenType::string;
             result.line = this->line;
             result.col = this->col;
             goto string_start;
@@ -107,7 +123,7 @@ start:
             result.line = this->line;
             result.col = this->col;
             result.value.push_back(c);
-            goto number_start;
+            goto number_contd;
         } else if (c == '/') {
             // Possible comment
             goto comment_start;
@@ -125,13 +141,19 @@ start:
             return result;
         } else if (c == '{') {
             // Simply return the appropriate token
-            result.type = TokenType::l_square;
+            result.type = TokenType::l_curly;
             result.line = this->line;
             result.col = this->col;
             return result;
         } else if (c == '}') {
             // Simply return the appropriate token
             result.type = TokenType::r_curly;
+            result.line = this->line;
+            result.col = this->col;
+            return result;
+        } else if (c == '=') {
+            // Simply return the appropriate token
+            result.type = TokenType::equals;
             result.line = this->line;
             result.col = this->col;
             return result;
@@ -168,10 +190,10 @@ id_start:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (    c >= 'a' && c <= 'z' ||
-                c >= 'A' && c <= 'Z' ||
-                c >= '0' && c <= '9' ||
-                c == '_' || c == '-') {
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
             // Remember the value and try to parse more
             result.value.push_back(c);
             goto id_start;
@@ -190,10 +212,10 @@ dash_start:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (    c >= 'a' && c <= 'z' ||
-                c >= 'A' && c <= 'Z' ||
-                c >= '0' && c <= '9' ||
-                c == '?') {
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '?') {
             // Done, it was a shortlabel
             result.type = TokenType::shortlabel;
             result.value.push_back(c);
@@ -218,10 +240,10 @@ dash_dash:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (    c >= 'a' && c <= 'z' ||
-                c >= 'A' && c <= 'Z' ||
-                c >= '0' && c <= '9' ||
-                c == '_' || c == '-') {
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
             // Parse it as a longlabel
             result.type = TokenType::longlabel;
             result.value.push_back(c);
@@ -247,10 +269,10 @@ dash_dash_longlabel:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (    c >= 'a' && c <= 'z' ||
-                c >= 'A' && c <= 'Z' ||
-                c >= '0' && c <= '9' ||
-                c == '_' || c == '-') {
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
             // Keep on parsing
             result.value.push_back(c);
             goto dash_dash_longlabel;
@@ -269,13 +291,13 @@ type_start:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (    c >= 'a' && c <= 'z' ||
-                c >= 'A' && c <= 'Z' ||
-                c >= '0' && c <= '9' ||
-                c == '_' || c == '-') {
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
             // Remember the value and continue to the rest of the type
             result.value.push_back(c);
-            goto id_start;
+            goto type_contd;
         } else if (!is_whitespace(c) && c != '>') {
             // Let the user know we encountered an illegal character
             throw Exceptions::IllegalTypeException(this->path, result.line, result.col, c);
@@ -293,13 +315,13 @@ type_contd:
         GET_HEAD(c);
 
         // Choose the correct path forward
-        if (    c >= 'a' && c <= 'z' ||
-                c >= 'A' && c <= 'Z' ||
-                c >= '0' && c <= '9' ||
-                c == '_' || c == '-') {
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
             // Remember the value and try to parse more
             result.value.push_back(c);
-            goto id_start;
+            goto type_contd;
         } else {
             // We parsed what we could, we are done
             if (c != '>') { ungetc(c, this->file); }

@@ -68,6 +68,7 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - right square bracket (```/\]/g```)
 - left curly bracket (```/{/g```)
 - right curly bracket (```/}/g```)
+- equals sign (```/=/g```)
 - semicolon (```/;/g```)
 
 ### Comments
