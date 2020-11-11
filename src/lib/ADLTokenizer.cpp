@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   10/11/2020, 18:01:15
+ *   11/11/2020, 15:04:55
  * Auto updated?
  *   Yes
  *
@@ -108,6 +108,9 @@ start:
             result.col = this->col;
             result.value.push_back(c);
             goto number_start;
+        } else if (c == '/') {
+            // Possible comment
+            goto comment_start;
         } else if (c == '[') {
             // Simply return the appropriate token
             result.type = TokenType::l_square;
@@ -318,6 +321,12 @@ string_start:
         } else if (c == '"') {
             // Done!
             return result;
+        } else if (c == '\n') {
+            // Add the value, plus update the line count
+            this->col = 0;
+            this->line++;
+            result.value.push_back(c);
+            goto string_start;
         } else {
             // Simply add the value and continue parsing
             result.value.push_back(c);
@@ -416,6 +425,87 @@ decimal_contd:
             // Done, return
             ungetc(c, this->file);
             return result;
+        }
+    }
+
+
+
+comment_start:
+    {
+        // Get the head character on the stream
+        GET_HEAD(c);
+
+        // Choose the correct path forward
+        if (c == '/') {
+            // Single comment
+            goto singleline_start;
+        } else if (c == '*') {
+            // Multi-line comment
+            goto multiline_start;
+        } else {
+            // Otherwise, it doesn't make a lot of sense, so error
+            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, c);
+        }
+    }
+
+
+
+singleline_start:
+    {
+        // Get the head character on the stream
+        GET_HEAD(c);
+
+        // Choose the correct path forward
+        if (c == '\n') {
+            // We're done; put it back on the stream and go back to start
+            ungetc(c, this->file);
+            goto start;
+        } else {
+            // Simply keep discarding all tokens
+            goto singleline_start;
+        }
+    }
+
+
+
+multiline_start:
+    {
+        // Get the head character on the stream
+        GET_HEAD(c);
+
+        // Choose the correct path forward
+        if (c == '*') {
+            // Might need to stop, let's examine
+            goto multiline_star;
+        } else if (c == '\n') {
+            // Skip, but do update the line counters
+            this->col = 0;
+            this->line++;
+            goto multiline_start;
+        } else {
+            // Simply skip this item
+            goto multiline_start;
+        }
+    }
+
+
+
+multiline_star:
+    {
+        // Get the head character on the stream
+        GET_HEAD(c);
+
+        // Choose the correct path forward
+        if (c == '/') {
+            // We're done; continue parsing normally
+            goto start;
+        } else if (c == '*') {
+            // Continue parsing these stars
+            goto multiline_star;
+        } else {
+            // We see any non-star, so go back to the multiline_start (but do put it back on the stream for newlines)
+            ungetc(c, this->file);
+            goto multiline_start;
         }
     }
 }
