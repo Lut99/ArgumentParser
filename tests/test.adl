@@ -6,26 +6,15 @@
  * efficient (or so we hope) parser.
  */
 
-// <date> {
-//     name "Date";
-//     pattern <uint> "-" <uint> "-" <uint>;
-// }
-//
-// <hello_world> {
-//     name "Hello, world!";
-//     code 1 {
-//         std::cout << "Hello, world!" << std::endl;
-//         std::cout << "We will parse: " << raw[0] << std::endl;
-//     }
-// }
-//
-// <hello_world_2> {
-//     name "Hello, world! (2)";
-//     includes "hello_world.cpp";
-//     code 1 {
-//         hello_world(raw[0]);
-//     }
-// }
+<date> {
+    name "Date";
+    pattern <uint> "-" <uint> "-" <uint>;
+}
+
+<hello_world> {
+    name "Hello, world!";
+    includes "hello_world.cpp";
+}
 
 positional1 <int> {
     /* Common stuff */

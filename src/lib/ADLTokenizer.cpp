@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   11/11/2020, 15:56:01
+ *   11/12/2020, 5:29:28 PM
  * Auto updated?
  *   Yes
  *
@@ -124,6 +124,11 @@ start:
             result.col = this->col;
             result.value.push_back(c);
             goto number_contd;
+        } else if (c == '.') {
+            result.type = TokenType::triple_dot;
+            result.line = this->line;
+            result.col = this->col;
+            goto dot_start;
         } else if (c == '/') {
             // Possible comment
             goto comment_start;
@@ -447,6 +452,40 @@ decimal_contd:
             // Done, return
             ungetc(c, this->file);
             return result;
+        }
+    }
+
+
+
+dot_start:
+    {
+        // Get the head character on the stream
+        GET_HEAD(c);
+
+        // Choose the correct path forward
+        if (c == '.') {
+            // So far so good, move to next state
+            goto dot_dot;
+        } else {
+            // Unexpected!
+            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, c);
+        }
+    }
+
+
+
+dot_dot:
+    {
+        // Get the head character on the stream
+        GET_HEAD(c);
+
+        // Choose the correct path forward
+        if (c == '.') {
+            // It's confirmed a triple-dot token; done
+            return result;
+        } else {
+            // Unexpected!
+            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, c);
         }
     }
 

@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   11/11/2020, 15:41:55
+ *   11/12/2020, 5:16:55 PM
  * Auto updated?
  *   Yes
  *
@@ -25,22 +25,20 @@ int main() {
     // Open the test.adl file
     Tokenizer tokenizer("tests/test.adl");
 
-    bool first = false;
     size_t last_line = 0;
     while (!tokenizer.eof()) {
-        // Print preceding space
-        if (!first) { first = true; }
-        else { cout << " "; }
-
-        // Get & write a token
+        // Get the token
         Token t = tokenizer.pop();
-        cout << t;
 
         // If the line changed, then go to a newline
         if (last_line != t.line) {
             last_line = t.line;
             cout << endl;
-            first = false;
+        } else {
+            cout << " ";
         }
+
+        // Write it
+        cout << t;
     }
 }

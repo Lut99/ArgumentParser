@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   11/11/2020, 15:52:07
+ *   11/12/2020, 5:27:18 PM
  * Auto updated?
  *   Yes
  *
@@ -301,7 +301,8 @@ namespace ArgumentParser {
         r_curly = 10,
         equals = 11,
         semicolon = 12,
-        empty = 13
+        triple_dot = 13,
+        empty = 14
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -319,6 +320,7 @@ namespace ArgumentParser {
         "RCurly",
         "Equals",
         "Semicolon",
+        "TripleDot",
         "Empty"
     };
 

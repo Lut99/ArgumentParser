@@ -71,6 +71,8 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - equals sign (```/=/g```)
 - semicolon (```/;/g```)
 
+Aside from those structural characters, there is also the triple-dot token (```/\.\.\./g```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times).
+
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
 
