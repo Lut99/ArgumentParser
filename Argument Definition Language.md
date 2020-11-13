@@ -7,7 +7,6 @@ NOTE: If you are not looking to implement a parser for the ADL yourself but inst
 
 In this file, we first list the type of tokens that can be written in an ADL- file, after which we define the grammar rules that are used to parse it.
 
--------
 ## 2. Tokens
 In ADL, we define a couple of tokens that are both used to parse the file and that are used to make up the grammar rules. From a usage perspective, the tokens are interesting to know as they define the basic syntax blocks that make up the language itself.
 
@@ -79,7 +78,6 @@ Multi-line comments are slightly more complicated. They start at the occurence o
 ```
 Credits to [this blog](http://blogs.perl.org/users/ben_bullock/2017/08/c-comments-and-regular-expressions.html) for the regex expression for multi-line comments.
 
--------
 ## 3. Grammar
 The grammar in the ADL defines how the tokens can be used, and what semantic meaning that particular sentence should have. In this section, we will describe the grammar of the ADL in terms of the Token described in section 2.
 
@@ -142,6 +140,5 @@ To support defining arguments, the ADL also allows users to define their own typ
 type = TYPE LCURLY config RCURLY
 ```
 
--------
 ## 4. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file. For more information on using the ADL as a user in the context of the ArgumentParser, please refer to the online [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
