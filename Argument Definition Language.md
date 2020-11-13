@@ -53,7 +53,7 @@ Finally, floating-point numbers (```DECIMAL```) are virtually identical to integ
 DECIMAL = /(---)?[0-9]+\.[0-9]*/g
 ```
 
-### Special characters
+### Special tokens
 Aside from identifiers and values, ADL also features a couple of special tokens that are used to derive structure from the text. There are the following:
 - left square bracket (```LSQUARE = /\[/g```)
 - right square bracket (```RSQUARE = /\]/g```)
@@ -62,7 +62,7 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - equals sign (```EQUALS = /=/g```)
 - semicolon (```SEMICOLON = /;/g```)
 
-Aside from those structural characters, there is also the triple-dot token (```TDOT = /\.\.\./g```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times).
+Aside from those structural characters, there is also the triple-dot token (```TDOT = /\.\.\./g```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times). Additionally, we also define a special include-token (```INCLUDE = /\.include/g```), which can be specified outside of any argument or type to use the arguments defined in another file.
 
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
@@ -80,6 +80,19 @@ Credits to [this blog](http://blogs.perl.org/users/ben_bullock/2017/08/c-comment
 
 ## 3. Grammar
 The grammar in the ADL defines how the tokens can be used, and what semantic meaning that particular sentence should have. In this section, we will describe the grammar of the ADL in terms of the Token described in section 2.
+
+The top-level grammar rule is defined as follows:
+```
+root = top_level root
+     = top_level
+```
+where the ```top_level```-rule is defined as:
+```
+top_level = positional
+          = option
+          = type
+          = include
+```
 
 ### Common grammar rules
 Some of the grammar rules are used throughout the ADL, and so we first define them here.
@@ -139,6 +152,15 @@ To support defining arguments, the ADL also allows users to define their own typ
 ```
 type = TYPE LCURLY config RCURLY
 ```
+
+### Miscellaneous rules
+Apart from argumenst and types, there is one more 'top-level' rule that ADL supports: includes. This can be used to tell the parser to parse another file as well, and make the arguments in that file available in this file as well. Note that this does not happen in the C-fashion by copying the file; instead, the parser parses both files separately and then merges the two resulting trees of arguments.
+
+The include rule is defined by the following grammar rule:
+```
+include = INCLUDE STRING
+```
+where the string describes the file to include.
 
 ## 4. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file. For more information on using the ADL as a user in the context of the ArgumentParser, please refer to the online [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
