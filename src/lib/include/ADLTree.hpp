@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:42:12 PM
  * Last edited:
- *   11/12/2020, 5:47:45 PM
+ *   13/11/2020, 15:12:47
  * Auto updated?
  *   Yes
  *
@@ -20,10 +20,16 @@ namespace ArgumentParser{
 
     }
 
-    /* The root node of any ADLTree. */
-    class File {
+    /* The root node of any ADLTree, which even spans multiple files. */
+    class ADLTree {
 
     };
+    /* Baseclass for all non-root nodes for the tree. */
+    class ADLNode {
+
+    };
+    
+    
     
 }
 
