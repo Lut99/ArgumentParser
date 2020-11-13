@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   13/11/2020, 15:37:15
+ *   13/11/2020, 18:01:20
  * Auto updated?
  *   Yes
  *
@@ -40,6 +40,19 @@ void parse(ADLTree* root, std::vector<std::string> filenames) {
     // Parse as a shift-reduce parser - in every iteration, fetch a token and attempt to reduce the stack of tokens to a tree of nodes
     SymbolStack stack;
     while (!in.eof()) {
+        // Shift - get a new token on the stack
+        try {
+            Token t = in.pop();
+            if (t.type == TokenType::empty) { break; }
+            stack.add_terminal(t);
+        } catch (Exceptions::IOException& e) {
+            // Simply throw
+            throw;
+        } catch (Exceptions::TokenizerException& e) {
+            // Re-throw as a SyntaxException, with prettier error message
+        }
+
+        // Reduce - try to match a grammar rule to the stack, and replace the value in it
         
     }
 
