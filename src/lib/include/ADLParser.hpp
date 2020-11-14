@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   13/11/2020, 14:46:54
+ *   14/11/2020, 17:20:16
  * Auto updated?
  *   Yes
  *
@@ -20,52 +20,116 @@
 
 #include <vector>
 #include <string>
-#include <exception>
 
+#include "ADLExceptions.hpp"
 #include "ADLTree.hpp"
 
 namespace ArgumentParser {
     namespace Exceptions {
-        /* Baseclass exception for all Parser-related exceptions. */
-        class ParseException : public std::exception {
+        /* Baseclass exception for all Parser-related errors. */
+        class ParseError : public ADLError {
         protected:
-            /* The trail of filenames we are parsing. */
-            std::vector<std::string> filenames;
-            /* The line number where the exception occurred in the current file. */
-            size_t line;
-            /* The column number where the exception occurred in the current file. */
-            size_t col;
-            /* The actual, raw line where the exception occurred. */
+            /* The actual line, as string, where the error occurred - used for pretty printing. */
             std::string raw_line;
-            /* The message that any derived class wants us to print. */
-            std::string message;
 
         public:
-            /* Constructor for the ParseException class, which takes a list of files we tried to parse (breadcrumb-style), the line number where the error occurred, the column number, the actual, raw line where the error happened and optionally a message. */
-            ParseException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
-                filenames(filenames),
-                line(line),
-                col(col),
+            /* The line number where the exception occurred in the current file. */
+            const size_t line;
+            /* The column number where the exception occurred in the current file. */
+            const size_t col;
+
+            /* Constructor for the ParseError class, which takes a list of files we tried to parse (breadcrumb-style), the line number where the error occurred, the column number, the actual, optionally a message and optionally a pretty message. */
+            ParseError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+                ADLError(filenames, message),
                 raw_line(raw_line),
-                message(message)
+                line(line),
+                col(col)
             {}
 
-            /* Returns the file where the exception occurred. */
-            inline std::string get_filename() const { return this->filenames.size() > 0 ? this->filenames[0] : "<none>"; }
-            /* Returns the breadcrumb of files where the exception occurred. */
-            inline std::vector<std::string> get_filenames() const { return this->filenames; }
-            /* Returns the line number where the exception occurred. */
-            inline size_t get_line() const { return this->line; }
-            /* Returns the column number where the exception occurred. */
-            inline size_t get_col() const { return this->col; }
-            /* Returns the raw line where the exception occurred. */
-            inline std::string get_raw_line() const { return this->get_raw_line(); }
-            /* Returns the internal message. */
-            inline std::string get_message() const { return this->message; }
+            /* Pretty-prints this Exception as warning. */
+            virtual std::ostream& write(std::ostream& os) const {
+                // First, print the include breadcrumbs
+                for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+                    os << "\033[1m" << this->filenames[i] << ":\033[0m" << std::endl << "--> ";
+                }
 
-            /* Allows the ParseException to be copied polymorphically. */
-            virtual ParseException* copy() const {
-                return new ParseException(*this);
+                // Then, print the location & the message
+                os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << this->line << ":" << this->col << ": \033[31merror:\033[0m " << this->message << std::endl;
+
+                // Print the raw line
+                std::string strline = std::to_string(this->line);
+                for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
+                os << strline << " | " << this->raw_line;
+
+                // Determine the coloured part (it's an error, so red and bold)
+                size_t w_start = this->raw_line.find_first_of("\033[31;1m") + 1;
+                size_t w_size = this->raw_line.find_first_of("\033[0m") + 1 - w_start + 1;
+
+                // Write empty lines until we reach w_start
+                os << "      | ";
+                for (size_t i = 1; i < w_start; i++) { os << ' '; }
+
+                // Then, write '~' with the exception of col
+                os << "\033[31;1m";
+                for (size_t i = 0; i < w_size; i++) {
+                    if (w_start + i == col) { os << '^'; }
+                    else { os << '~'; }
+                }
+                return os << "\033[0m" << std::endl;
+            }
+
+        };
+
+        /* Baseclass exception for all Parser-related warnings. */
+        class ParseWarning : public ADLWarning {
+        protected:
+            /* The actual line, as string, where the error occurred - used for pretty printing. */
+            std::string raw_line;
+
+        public:
+            /* The line number where the exception occurred in the current file. */
+            const size_t line;
+            /* The column number where the exception occurred in the current file. */
+            const size_t col;
+
+            /* Constructor for the ParseError class, which takes a list of files we tried to parse (breadcrumb-style), the line number where the error occurred, the column number, the actual, optionally a message and optionally a pretty message. */
+            ParseWarning(const std::string& type, const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+                ADLWarning("parse-" + type, filenames, message),
+                raw_line(raw_line),
+                line(line),
+                col(col)
+            {}
+
+            /* Pretty-prints this Exception as warning. */
+            virtual std::ostream& write(std::ostream& os) const {
+                // First, print the include breadcrumbs
+                for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+                    os << "\033[1m" << this->filenames[i] << ":\033[0m" << std::endl << "--> ";
+                }
+
+                // Then, print the location & the message
+                os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << this->line << ":" << this->col << ": \033[35warning:\033[0m " << this->message << " [\033[35;1m-W" << this->type << "\033[0m]" << std::endl;
+
+                // Print the raw line
+                std::string strline = std::to_string(this->line);
+                for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
+                os << strline << " | " << this->raw_line;
+
+                // Determine the coloured part (it's a warning, so purple and bold)
+                size_t w_start = this->raw_line.find_first_of("\033[35;1m") + 1;
+                size_t w_size = this->raw_line.find_first_of("\033[0m") + 1 - w_start + 1;
+
+                // Write empty lines until we reach w_start
+                os << "      | ";
+                for (size_t i = 1; i < w_start; i++) { os << ' '; }
+
+                // Then, write '~' with the exception of col
+                os << "\033[35;1m";
+                for (size_t i = 0; i < w_size; i++) {
+                    if (w_start + i == col) { os << '^'; }
+                    else { os << '~'; }
+                }
+                return os << "\033[0m" << std::endl;
             }
 
         };

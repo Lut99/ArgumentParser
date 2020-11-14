@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:42
  * Last edited:
- *   13/11/2020, 15:55:07
+ *   14/11/2020, 14:35:25
  * Auto updated?
  *   Yes
  *
@@ -39,7 +39,7 @@ namespace ArgumentParser::Parser {
     class Terminal : public Symbol {
     private:
         /* The internal token for this Terminal. */
-        Token token;
+        Token _token;
 
     public:
         /* The type of the internal token. */
@@ -48,21 +48,21 @@ namespace ArgumentParser::Parser {
         /* Constructor for a Terminal symbol, which takes an unparsed Token from the Tokenizer. */
         Terminal(const Token& token) :
             Symbol(true),
-            token(token),
+            _token(token),
             type(token.type)
         {}
 
         /* Returns a reference to the internal token. */
-        inline Token& token() { return this->token; }
+        inline Token& token() { return this->_token; }
         /* Returns a constant reference to the internal token. */
-        inline const Token& token() const { return this->token; }
+        inline const Token& token() const { return this->_token; }
 
     };
     /* Used for non-terminal symbols, which are linked to ADLNodes. */
     class NonTerminal : public Symbol {
     private:
         /* Internal reference to a ADLNode. Note that this is heap-allocated, but not managed by this NonTerminal as we work bottom-up. */
-        ADLNode* node;
+        ADLNode* _node;
 
     public:
         /* Type of the internal node. */
@@ -71,12 +71,12 @@ namespace ArgumentParser::Parser {
         /* Constructor for the NonTerminal, which takes a reference to a node. */
         NonTerminal(ADLNode* node) :
             Symbol(false),
-            node(node),
+            _node(node),
             type(node->type)
         {}
 
         /* Returns the internal pointer. */
-        inline ADLNode* node() const { return this->node; }
+        inline ADLNode* node() const { return this->_node; }
 
     };
 

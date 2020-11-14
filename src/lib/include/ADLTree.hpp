@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:42:12 PM
  * Last edited:
- *   13/11/2020, 15:12:47
+ *   14/11/2020, 14:35:13
  * Auto updated?
  *   Yes
  *
@@ -20,12 +20,20 @@ namespace ArgumentParser{
 
     }
 
+    /* Lists all node types. */
+    enum class NodeType {
+
+    };
+
     /* The root node of any ADLTree, which even spans multiple files. */
     class ADLTree {
 
     };
     /* Baseclass for all non-root nodes for the tree. */
     class ADLNode {
+    public:
+        /* Type of this node. */
+        const NodeType type;
 
     };
     

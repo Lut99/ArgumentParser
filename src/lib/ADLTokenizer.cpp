@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   14/11/2020, 15:47:53
+ *   14/11/2020, 18:20:16
  * Auto updated?
  *   Yes
  *
@@ -31,7 +31,7 @@ using namespace ArgumentParser;
 /* Shortcut for fetching the head character of the internal stream. */
 #define PEEK(C) \
     (C) = fgetc(this->file); \
-    if ((C) == EOF && ferror(this->file)) { throw Exceptions::FileReadException(this->path, errno); }
+    if ((C) == EOF && ferror(this->file)) { throw Exceptions::FileReadError(this->filenames, errno); }
 
 /* Shortcut for accepting a token and storing it. */
 #define STORE(C) \
@@ -68,16 +68,17 @@ std::ostream& ArgumentParser::operator<<(std::ostream& os, const Token& token) {
 /***** TOKENIZER CLASS *****/
 
 /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
-Tokenizer::Tokenizer(const std::string& path) :
+Tokenizer::Tokenizer(const std::vector<std::string>& filenames) :
+    filenames(filenames),
     line(1),
     col(1),
     last_newline(0),
-    path(path)
+    path(filenames[filenames.size() - 1])
 {
     // Try to open the file
-    this->file = fopen(path.c_str(), "r");
+    this->file = fopen(this->path.c_str(), "r");
     if (this->file == NULL) {
-        throw Exceptions::FileOpenException(path, errno);   
+        throw Exceptions::FileOpenError(this->filenames, errno);   
     }
 
     // Reserve space for at least one token on the stream
@@ -87,6 +88,7 @@ Tokenizer::Tokenizer(const std::string& path) :
 
 /* Move constructor for the Tokenizer class. */
 Tokenizer::Tokenizer(Tokenizer&& other) :
+    filenames(other.filenames),
     file(other.file),
     line(other.line),
     col(other.col),
@@ -121,7 +123,6 @@ Token Tokenizer::read_head() {
 
 start:
     {
-        result.value = "";
         // Get the head character on the stream
         PEEK(c);
 
@@ -223,7 +224,7 @@ start:
             result.col = this->col;
             return result;
         } else {
-            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -271,10 +272,10 @@ dash_start:
             goto dash_dash;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalShortlabelException(this->path, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalShortlabelException(this->filenames, this->line, this->col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyShortlabelException(this->path, result.line, result.col, this->get_line());
+            throw Exceptions::EmptyShortlabelException(this->filenames, this->line, this->col - 1, this->get_line());
         }
     }
 
@@ -300,10 +301,10 @@ dash_dash:
             goto number_start;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalLonglabelException(this->path, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalLonglabelException(this->filenames, this->line, this->col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyLonglabelException(this->path, result.line, result.col, this->get_line());
+            throw Exceptions::EmptyLonglabelException(this->filenames, this->line, this->col - 2, this->get_line());
         }
     }
 
@@ -346,10 +347,10 @@ type_start:
             goto type_contd;
         } else if (c != '>') {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalTypeException(this->path, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalTypeException(this->filenames, result.line, result.col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyTypeException(this->path, result.line, result.col, this->get_line());
+            throw Exceptions::EmptyTypeException(this->filenames, result.line, result.col, this->get_line());
         }
     }
 
@@ -374,7 +375,7 @@ type_contd:
             return result;
         } else {
             // Illegal character
-            throw Exceptions::IllegalTypeException(this->path, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalTypeException(this->filenames, result.line, result.col, this->get_line(), c);
         }
     }
 
@@ -434,7 +435,7 @@ string_escape:
             goto string_start;
         } else {
             // We cannot escape this character
-            throw Exceptions::IllegalEscapeException(this->path, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalEscapeException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -452,10 +453,10 @@ number_start:
             goto number_contd;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalNegativeException(this->path, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalNegativeException(this->filenames, result.line, result.col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyNegativeException(this->path, result.line, result.col, this->get_line());
+            throw Exceptions::EmptyNegativeException(this->filenames, result.line, result.col, this->get_line());
         }
     }
 
@@ -526,7 +527,7 @@ dot_start:
             goto dot_dot;
         } else {
             // Unexpected!
-            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -543,7 +544,7 @@ dot_dot:
             return result;
         } else {
             // Unexpected!
-            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -587,7 +588,7 @@ comment_start:
             goto multiline_start;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(this->path, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 

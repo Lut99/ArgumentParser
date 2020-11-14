@@ -6,6 +6,8 @@
  * efficient (or so we hope) parser.
  */
 
+.include "more_types.adl"
+
 <date> {
     name "Date";
     pattern <uint> "-" <uint> "-" <uint>;
@@ -41,7 +43,7 @@ variadic_positional <int>... {
     
 }
 
---option1 -o <int> {
+-- <int> {
     
 }
 

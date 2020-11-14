@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 14:30:28
  * Last edited:
- *   14/11/2020, 14:39:29
+ *   14/11/2020, 18:03:38
  * Auto updated?
  *   Yes
  *
@@ -15,6 +15,7 @@
 #include <iostream>
 
 #include "ADLParser.hpp"
+#include "ADLExceptions.hpp"
 
 using namespace std;
 using namespace ArgumentParser;
@@ -25,8 +26,8 @@ int main() {
     try {
         ADLTree* root = Parser::parse("tests/test.adl");
         delete root;
-    } catch (Exceptions::ParseException& e) {
-        cerr << e.get_pretty_message();
+    } catch (Exceptions::ADLError& e) {
+        Exceptions::print_error(cerr, e);
         exit(EXIT_FAILURE);
     }
 }
