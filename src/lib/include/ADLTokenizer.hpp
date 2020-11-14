@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   11/12/2020, 5:27:18 PM
+ *   14/11/2020, 15:29:44
  * Auto updated?
  *   Yes
  *
@@ -110,24 +110,29 @@ namespace ArgumentParser {
             size_t line;
             /* Column number where the syntax error occurred. */
             size_t col;
+            /* Raw line where the error occurred. */
+            std::string raw_line;
 
             /* Used to let derived classes add their own part of the message through the tree. */
             std::string generate_message(const std::string& filename, const size_t line, const size_t col, const std::string& message) {
-                return "Syntax error in '" + filename + "' at line " + std::to_string(line) + ", col " + std::to_string(col) + (message.empty() ? "." : ": " + message);
+                return "Syntax error in file \"" + filename + "\" at line " + std::to_string(line) + ", col " + std::to_string(col) + (message.empty() ? "." : ": " + message);
             }
 
         public:
-            /* Constructor for the SyntaxError class, which takes the file where the syntax error occurred, the line number of the occurence, the column number and optionally a message. */
-            SyntaxError(const std::string& filename, const size_t line, const size_t col, const std::string& message = "") :
+            /* Constructor for the SyntaxError class, which takes the file where the syntax error occurred, the line number of the occurence, the column number, the actualy line where the error occurred and optionally a message. */
+            SyntaxError(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
                 TokenizerException(filename, message),
                 line(line),
-                col(col)
+                col(col),
+                raw_line(raw_line)
             {}
 
             /* Returns the line number of where the syntax error occurred. */
             inline size_t get_line() const { return this->line; }
             /* Returns the column number of where the syntax error occurred. */
             inline size_t get_col() const { return this->col; }
+            /* Returns the raw line where the error occurred. */
+            inline std::string get_raw_line() const { return this->raw_line; }
             
             /* Allows the SyntaxError to be copied polymorphically. */
             virtual SyntaxError* copy() const { return new SyntaxError(*this); }
@@ -140,11 +145,9 @@ namespace ArgumentParser {
             char c;
 
         public:
-            /* Constructor for the UnexpectedCharException, which takes the file where the illegal character occurred, the line number of its occurrence, the column number and the illegal character itself. */
-            UnexpectedCharException(const std::string& filename, const size_t line, const size_t col, const char c) :
-                SyntaxError(filename, line, col, generate_message(
-                                filename, col, line, (std::string("Unexpected character '") += c) + "'."
-                            )),
+            /* Constructor for the UnexpectedCharException, which takes the file where the illegal character occurred, the line number of its occurrence, the column number, the actual line where the error occurred and the illegal character itself. */
+            UnexpectedCharException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filename, line, col, raw_line, (std::string("Unexpected character '") += c) + "'."),
                 c(c)
             {}
             
@@ -158,11 +161,9 @@ namespace ArgumentParser {
         /* Exception for when a single dash isn't followed by an expected character. */
         class EmptyShortlabelException: public SyntaxError {
         public:
-            /* Constructor for the EmptyShortlabelException class, which takes the name of the file where the empty dash occurred, the line number where it did and the column number. */
-            EmptyShortlabelException(const std::string& filename, const size_t line, const size_t col) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, "Encountered empty shortlabel."
-                ))
+            /* Constructor for the EmptyShortlabelException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
+            EmptyShortlabelException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line) :
+                SyntaxError(filename, line, col, raw_line, "Encountered empty shortlabel.")
             {}
 
             /* Allows the EmptyShortlabelException to be copied polymorphically. */
@@ -172,11 +173,9 @@ namespace ArgumentParser {
         /* Exception for when a dash isn't empty, but isn't followed by an expected character either. */
         class IllegalShortlabelException: public SyntaxError {
         public:
-            /* Constructor for the IllegalShortlabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number and the illegal character itself. */
-            IllegalShortlabelException(const std::string& filename, const size_t line, const size_t col, const char c) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, (std::string("Encountered illegal character '") += c) + "' for shortlabel."
-                ))
+            /* Constructor for the IllegalShortlabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
+            IllegalShortlabelException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filename, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for shortlabel.")
             {}
 
             /* Allows the IllegalShortlabelException to be copied polymorphically. */
@@ -186,11 +185,9 @@ namespace ArgumentParser {
         /* Exception for when a double dash isn't followed by an expected character. */
         class EmptyLonglabelException: public SyntaxError {
         public:
-            /* Constructor for the EmptyLonglabelException class, which takes the name of the file where the empty dash occurred, the line number where it did and the column number. */
-            EmptyLonglabelException(const std::string& filename, const size_t line, const size_t col) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, "Encountered empty longlabel."
-                ))
+            /* Constructor for the EmptyLonglabelException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
+            EmptyLonglabelException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line) :
+                SyntaxError(filename, line, col, raw_line, "Encountered empty longlabel.")
             {}
 
             /* Allows the EmptyLonglabelException to be copied polymorphically. */
@@ -200,11 +197,9 @@ namespace ArgumentParser {
         /* Exception for when a dash isn't empty, but isn't followed by an expected character either. */
         class IllegalLonglabelException: public SyntaxError {
         public:
-            /* Constructor for the IllegalLonglabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number and the illegal character itself. */
-            IllegalLonglabelException(const std::string& filename, const size_t line, const size_t col, const char c) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, (std::string("Encountered illegal character '") += c) + "' for longlabel."
-                ))
+            /* Constructor for the IllegalLonglabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
+            IllegalLonglabelException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filename, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for longlabel.")
             {}
 
             /* Allows the IllegalLonglabelException to be copied polymorphically. */
@@ -214,11 +209,9 @@ namespace ArgumentParser {
         /* Exception for when a triple dash isn't followed by an expected character. */
         class EmptyNegativeException: public SyntaxError {
         public:
-            /* Constructor for the EmptyNegativeException class, which takes the name of the file where the empty dash occurred, the line number where it did and the column number. */
-            EmptyNegativeException(const std::string& filename, const size_t line, const size_t col) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, "Encountered negative minus without value."
-                ))
+            /* Constructor for the EmptyNegativeException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
+            EmptyNegativeException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line) :
+                SyntaxError(filename, line, col, raw_line, "Encountered negative minus without value.")
             {}
 
             /* Allows the EmptyNegativeException to be copied polymorphically. */
@@ -228,11 +221,9 @@ namespace ArgumentParser {
         /* Exception for when a dash isn't empty, but isn't followed by an expected character either. */
         class IllegalNegativeException: public SyntaxError {
         public:
-            /* Constructor for the IllegalNegativeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number and the illegal character itself. */
-            IllegalNegativeException(const std::string& filename, const size_t line, const size_t col, const char c) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, (std::string("Encountered non-numerical character '") += c) + "' after the start of negative number."
-                ))
+            /* Constructor for the IllegalNegativeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
+            IllegalNegativeException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filename, line, col, raw_line, (std::string("Encountered non-numerical character '") += c) + "' after the start of negative number.")
             {}
 
             /* Allows the IllegalNegativeException to be copied polymorphically. */
@@ -242,11 +233,9 @@ namespace ArgumentParser {
         /* Exception for when a triple dash isn't followed by an expected character. */
         class EmptyTypeException: public SyntaxError {
         public:
-            /* Constructor for the EmptyTypeException class, which takes the name of the file where the empty dash occurred, the line number where it did and the column number. */
-            EmptyTypeException(const std::string& filename, const size_t line, const size_t col) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, "Encountered empty type identifier."
-                ))
+            /* Constructor for the EmptyTypeException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
+            EmptyTypeException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line) :
+                SyntaxError(filename, line, col, raw_line, "Encountered empty type identifier.")
             {}
 
             /* Allows the EmptyTypeException to be copied polymorphically. */
@@ -256,11 +245,9 @@ namespace ArgumentParser {
         /* Exception for when a type contains illegal characters. */
         class IllegalTypeException: public SyntaxError {
         public:
-            /* Constructor for the IllegalTypeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number and the illegal character itself. */
-            IllegalTypeException(const std::string& filename, const size_t line, const size_t col, const char c) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, (std::string("Encountered illegal character '") += c) + "' for a type ID."
-                ))
+            /* Constructor for the IllegalTypeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the illegal character itself and the actual line where the error occurred. */
+            IllegalTypeException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filename, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for a type ID.")
             {}
 
             /* Allows the IllegalTypeException to be copied polymorphically. */
@@ -270,11 +257,9 @@ namespace ArgumentParser {
         /* Exception for when an illegal character is escaped. */
         class IllegalEscapeException: public SyntaxError {
         public:
-            /* Constructor for the IllegalEscapeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number and the illegal character itself. */
-            IllegalEscapeException(const std::string& filename, const size_t line, const size_t col, const char c) :
-                SyntaxError(filename, line, col, generate_message(
-                    filename, line, col, (std::string("Cannot escape character '") += c) + "'."
-                ))
+            /* Constructor for the IllegalEscapeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
+            IllegalEscapeException(const std::string& filename, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filename, line, col, raw_line, (std::string("Cannot escape character '") += c) + "'.")
             {}
 
             /* Allows the IllegalEscapeException to be copied polymorphically. */
@@ -302,7 +287,8 @@ namespace ArgumentParser {
         equals = 11,
         semicolon = 12,
         triple_dot = 13,
-        empty = 14
+        directive = 14,
+        empty = 15
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -321,6 +307,7 @@ namespace ArgumentParser {
         "Equals",
         "Semicolon",
         "TripleDot",
+        "Directive",
         "Empty"
     };
 
@@ -348,22 +335,27 @@ namespace ArgumentParser {
     /* The Tokenizer class can be used to open a file and read it token-by-token. Might throw any of the abovely-defined exceptions if syntax errors occur. */
     class Tokenizer {
     private:
-        /* Path to the file which we will read the tokens from. */
-        std::string path;
         /* The file from which we will read the tokens. */
         FILE* file;
         /* Counter used internally over the line numbers. */
         size_t line;
         /* Counter used internall over the column numbers. */
         size_t col;
+        /* The last position in the internal file where a newline was encountered. */
+        long last_newline;
 
         /* Used to temporarily store tokens that were put back. */
         std::vector<Token> temp;
 
         /* Used internally to read the first token off the stream. */
-        Token _read_head();
+        Token read_head();
+        /* Reads the entire, current line from the internal file. */
+        std::string get_line();
 
     public:
+        /* The path of the internal file. */
+        const std::string path;
+
         /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
         Tokenizer(const std::string& path);
         /* The copy constructor for the Tokenizer class has been deleted, as it makes no sense to copy a stream (which the Tokenizer pretends to be). */
@@ -383,16 +375,7 @@ namespace ArgumentParser {
         /* Returns true if an end-of-file has been reached. */
         inline bool eof() const { return feof(this->file); }
 
-        /* There is no copy assignment operator for the Tokenizer class, as it makes no sense to copy a stream (which the Tokenizer pretends to be). */
-        Tokenizer& operator=(const Tokenizer& other) = delete;
-        /* Move assignment operator for the Tokenizer class. */
-        Tokenizer& operator=(Tokenizer&& other);
-        /* Swap operator for the Tokenizer class. */
-        friend void swap(Tokenizer& t1, Tokenizer& t2);
-
     };
-    /* Swap operator for the Tokenizer class. */
-    void swap(Tokenizer& t1, Tokenizer& t2);
 
 }
 

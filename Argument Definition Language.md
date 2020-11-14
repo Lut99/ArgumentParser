@@ -62,7 +62,14 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - equals sign (```EQUALS = /=/g```)
 - semicolon (```SEMICOLON = /;/g```)
 
-Aside from those structural characters, there is also the triple-dot token (```TDOT = /\.\.\./g```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times). Additionally, we also define a special include-token (```INCLUDE = /\.include/g```), which can be specified outside of any argument or type to use the arguments defined in another file.
+Aside from those structural characters, there is also the triple-dot token (```TDOT = /\.\.\./g```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times).
+
+### Compiler directives
+Aside from the stuff that ADL is actually used for, it also supports the ability to pass meta-commands to the parser. Specifically, such a compiler directive starts with a ```DIRECTIVE```-token, followed by any number of other tokens as specified by the parser itself. The special ```DIRECTIVE```-token is any token that starts with a dot, and is followed by at least one of alphanumerical characters, including underscores and hyphens. In regex:
+```
+DIRECTIVE = /\.[A-Za-z0-9_-]+/g
+```
+Note that the value of the directive excludes the preceding dot.
 
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
@@ -91,7 +98,7 @@ where the ```top_level```-rule is defined as:
 top_level = positional
           = option
           = type
-          = include
+          = directive
 ```
 
 ### Common grammar rules
@@ -153,14 +160,12 @@ To support defining arguments, the ADL also allows users to define their own typ
 type = TYPE LCURLY config RCURLY
 ```
 
-### Miscellaneous rules
-Apart from argumenst and types, there is one more 'top-level' rule that ADL supports: includes. This can be used to tell the parser to parse another file as well, and make the arguments in that file available in this file as well. Note that this does not happen in the C-fashion by copying the file; instead, the parser parses both files separately and then merges the two resulting trees of arguments.
-
-The include rule is defined by the following grammar rule:
+### Compiler directives
+As a final top-level construct, ADL defines compiler directives that do not directly influence the result, but instead influence how the file is parsed. While any compiler directive may be implemented by a parser as long as it starts with the ```DIRECTIVE```-token, one is a required part of ADL itself: the include directive. To this end, the following directive rule must be present:
 ```
-include = INCLUDE STRING
+directive = DIRECTIVE STRING
 ```
-where the string describes the file to include.
+In the case of the include directive, the ```DIRECTIVE```-token will have the value 'include', and the ```STRING```-token will specify the path of the file to include.
 
 ## 4. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file. For more information on using the ADL as a user in the context of the ArgumentParser, please refer to the online [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
