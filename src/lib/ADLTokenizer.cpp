@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   14/11/2020, 15:32:25
+ *   14/11/2020, 15:47:53
  * Auto updated?
  *   Yes
  *
@@ -36,7 +36,7 @@ using namespace ArgumentParser;
 /* Shortcut for accepting a token and storing it. */
 #define STORE(C) \
     result.value.push_back((C)); \
-    if ((C) != EOF) { ++this->col; }
+    ++this->col;
 
 /* Shortcut for accepting but not storing a token. */
 #define ACCEPT(C) \
@@ -70,7 +70,7 @@ std::ostream& ArgumentParser::operator<<(std::ostream& os, const Token& token) {
 /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
 Tokenizer::Tokenizer(const std::string& path) :
     line(1),
-    col(0),
+    col(1),
     last_newline(0),
     path(path)
 {
@@ -209,7 +209,7 @@ start:
         } else if (c == '\n') {
             // Increment the line and then try again
             ++this->line;
-            this->col = 0;
+            this->col = 1;
             this->last_newline = ftell(this->file);
             goto start;
         } else if (is_whitespace(c)) {
@@ -240,7 +240,6 @@ id_start:
                 (c >= '0' && c <= '9') ||
                  c == '_' || c == '-') {
             // Remember the value and try to parse more
-            ++this->col;
             STORE(c);
             goto id_start;
         } else {
@@ -290,7 +289,7 @@ dash_dash:
         if (    (c >= 'a' && c <= 'z') ||
                 (c >= 'A' && c <= 'Z') ||
                 (c >= '0' && c <= '9') ||
-                 c == '_' || c == '-') {
+                 c == '_') {
             // Parse it as a longlabel
             result.type = TokenType::longlabel;
             STORE(c);
@@ -398,7 +397,7 @@ string_start:
         } else if (c == '\n') {
             // Add the value, plus update the line count
             result.value.push_back(c);
-            this->col = 0;
+            this->col = 1;
             this->line++;
             this->last_newline = ftell(this->file);
             goto string_start;
@@ -625,7 +624,7 @@ multiline_start:
             goto multiline_star;
         } else if (c == '\n') {
             // Skip, but do update the line counters
-            this->col = 0;
+            this->col = 1;
             this->line++;
             this->last_newline = ftell(this->file);
             goto multiline_start;

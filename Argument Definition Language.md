@@ -19,9 +19,9 @@ ID = /[A-Za-z][A-Za-z0-9_-]*/g
 ```
 Note that any non-recognised configuration keywords may be expelled by the parser. For a list of acceptable keywords in the default parser, check \<TBD\>.
 
-For Options, there are two different identifiers that are used. The first is the so-called longlabel identifier (```LLABEL```). This is an identifier of arbitrary length, which must always start with a double dash (--). Then, it can be followed by any sequence of alphanumerical characters, an underscore or more dashes, as long as it's at least one of those. The regex experession for this identifier would be:
+For Options, there are two different identifiers that are used. The first is the so-called longlabel identifier (```LLABEL```). This is an identifier of arbitrary length, which must always start with a double dash (--). Then, it can be followed by any sequence of alphanumerical characters, an underscore or more dashes, as long as it's at least one of those. Note, however, that to disambiguate from numbers, the first character cannot be another hyphen. The regex experession for this identifier would be:
 ```
-LLABEL = /--[A-Za-z0-9_-]+/g
+LLABEL = /--[A-Za-z0-9_][A-Za-z0-9_-]*/g
 ```
 
 The other identifier used for Options, the shortlabel (```SLABEL```), exists only of a dash and any alphanumerical characters, plus a question mark. The regex-expression would be:
