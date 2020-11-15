@@ -40,10 +40,10 @@ especially for you and me";
 }
 
 variadic_positional <int>... {
-    
+    index ---55;
 }
 
--- <int> {
+--option -o <int> {
     
 }
 

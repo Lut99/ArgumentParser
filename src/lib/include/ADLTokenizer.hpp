@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   14/11/2020, 18:22:47
+ *   15/11/2020, 13:54:32
  * Auto updated?
  *   Yes
  *
@@ -82,8 +82,8 @@ namespace ArgumentParser {
              *   - the size of the part of the raw_line that is erronous
              *   - [optional] a message
              */
-            SyntaxError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const size_t err_start, const size_t err_size, const std::string& message = "") :
-                ADLCompileError(filenames, line, col, raw_line, err_start, err_size, message)
+            SyntaxError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+                ADLCompileError(filenames, line, col, raw_line, message)
             {}
 
         };
@@ -95,7 +95,7 @@ namespace ArgumentParser {
 
             /* Constructor for the UnexpectedCharException, which takes the file where the illegal character occurred, the line number of its occurrence, the column number, the actual line where the error occurred and the illegal character itself. */
             UnexpectedCharException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, col - 1, 1, (std::string("Unexpected character '") += c) + "'."),
+                SyntaxError(filenames, line, col, raw_line, (std::string("Unexpected character '") += c) + "'."),
                 c(c)
             {}
 
@@ -105,7 +105,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the EmptyShortlabelException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
             EmptyShortlabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, col - 1, 1, "Encountered empty shortlabel.")
+                SyntaxError(filenames, line, col, raw_line, "Encountered empty shortlabel.")
             {}
 
         };
@@ -117,7 +117,7 @@ namespace ArgumentParser {
 
             /* Constructor for the IllegalShortlabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
             IllegalShortlabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, col - 2, 2, (std::string("Encountered illegal character '") += c) + "' for shortlabel."),
+                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for shortlabel."),
                 c(c)
             {}
 
@@ -127,7 +127,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the EmptyLonglabelException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
             EmptyLonglabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, col - 1, 2,  "Encountered empty longlabel.")
+                SyntaxError(filenames, line, col, raw_line,  "Encountered empty longlabel.")
             {}
 
         };
@@ -139,7 +139,7 @@ namespace ArgumentParser {
 
             /* Constructor for the IllegalLonglabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
             IllegalLonglabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, col - 3, 3, (std::string("Encountered illegal character '") += c) + "' for longlabel."),
+                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for longlabel."),
                 c(c)
             {}
 
@@ -149,7 +149,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the EmptyNegativeException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
             EmptyNegativeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, 0, 0, "Encountered negative sign without value.")
+                SyntaxError(filenames, line, col, raw_line, "Encountered negative sign without value.")
             {}
 
         };
@@ -161,7 +161,7 @@ namespace ArgumentParser {
 
             /* Constructor for the IllegalNegativeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
             IllegalNegativeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, 0, 0, (std::string("Encountered non-numeric character '") += c) + "' while parsing a numeric value."),
+                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered non-numeric character '") += c) + "' while parsing a numeric value."),
                 c(c)
             {}
 
@@ -171,7 +171,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the EmptyTypeException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
             EmptyTypeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, 0, 0, "Encountered empty type identifier.")
+                SyntaxError(filenames, line, col, raw_line, "Encountered empty type identifier.")
             {}
 
         };
@@ -183,7 +183,7 @@ namespace ArgumentParser {
 
             /* Constructor for the IllegalTypeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
             IllegalTypeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, 0, 0, (std::string("Encountered illegal character '") += c) + "' for a type identifier."),
+                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for a type identifier."),
                 c(c)
             {}
 
@@ -196,7 +196,7 @@ namespace ArgumentParser {
 
             /* Constructor for the IllegalEscapeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
             IllegalEscapeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, 0, 0, (std::string("Cannot escape character '") += c)),
+                SyntaxError(filenames, line, col, raw_line, (std::string("Cannot escape character '") += c)),
                 c(c)
             {}
 

@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   14/11/2020, 18:06:00
+ *   15/11/2020, 14:16:29
  * Auto updated?
  *   Yes
  *
@@ -73,10 +73,6 @@ namespace ArgumentParser::Exceptions {
     private:
         /* The actual line, as string, where the error occurred - used for pretty printing. */
         std::string raw_line;
-        /* The start of the erronous part in the raw_line. */
-        size_t err_start;
-        /* The size of the erronous part in the raw_line. */
-        size_t err_size;
 
         /* Declare the print function as friend. */
         friend std::ostream& print_error(std::ostream& os, const ADLError& e);
@@ -92,15 +88,11 @@ namespace ArgumentParser::Exceptions {
          *   - the line number where the error occurred
          *   - the column number where the error occurred
          *   - the line where the error occurred itself
-         *   - the start of the part of the raw_line that is erronous
-         *   - the size of the part of the raw_line that is erronous
          *   - [optional] a message
          */
-        ADLCompileError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const size_t err_start, const size_t err_size, const std::string& message = "") :
+        ADLCompileError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
             ADLError(filenames, message),
             raw_line(raw_line),
-            err_start(err_start),
-            err_size(err_size),
             line(line),
             col(col)
         {}
@@ -134,7 +126,34 @@ namespace ArgumentParser::Exceptions {
 
     /* Baseclass exception for all non-recoverable errors that are specific to a certain position within a file. */
     class ADLCompileWarning: public ADLWarning {
-        
+    private:
+        /* The actual line, as string, where the error occurred - used for pretty printing. */
+        std::string raw_line;
+
+        /* Declare the print function as friend. */
+        friend std::ostream& print_warning(std::ostream& os, const ADLWarning& e);
+
+    public:
+        /* The line number where the exception occurred in the current file. */
+        const size_t line;
+        /* The column number where the exception occurred in the current file. */
+        const size_t col;
+
+        /* Constructor for the ADLCompileWarning class, which takes:
+         *   - the type of this warning
+         *   - a list of files we tried to parse (breadcrumb-style)
+         *   - the line number where the error occurred
+         *   - the column number where the error occurred
+         *   - the line where the error occurred itself
+         *   - [optional] a message
+         */
+        ADLCompileWarning(const std::string& type, const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+            ADLWarning(type, filenames, message),
+            raw_line(raw_line),
+            line(line),
+            col(col)
+        {}
+
     };
 
 

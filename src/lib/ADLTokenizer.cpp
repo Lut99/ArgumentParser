@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   14/11/2020, 18:20:16
+ *   15/11/2020, 14:09:31
  * Auto updated?
  *   Yes
  *
@@ -304,7 +304,7 @@ dash_dash:
             throw Exceptions::IllegalLonglabelException(this->filenames, this->line, this->col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyLonglabelException(this->filenames, this->line, this->col - 2, this->get_line());
+            throw Exceptions::EmptyLonglabelException(this->filenames, this->line, this->col - 1, this->get_line());
         }
     }
 
@@ -347,10 +347,10 @@ type_start:
             goto type_contd;
         } else if (c != '>') {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalTypeException(this->filenames, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalTypeException(this->filenames, this->line, this->col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyTypeException(this->filenames, result.line, result.col, this->get_line());
+            throw Exceptions::EmptyTypeException(this->filenames, this->line, this->col, this->get_line());
         }
     }
 
@@ -375,7 +375,7 @@ type_contd:
             return result;
         } else {
             // Illegal character
-            throw Exceptions::IllegalTypeException(this->filenames, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalTypeException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -453,10 +453,10 @@ number_start:
             goto number_contd;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalNegativeException(this->filenames, result.line, result.col, this->get_line(), c);
+            throw Exceptions::IllegalNegativeException(this->filenames, this->line, this->col, this->get_line(), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyNegativeException(this->filenames, result.line, result.col, this->get_line());
+            throw Exceptions::EmptyNegativeException(this->filenames, this->line, this->col - 1, this->get_line());
         }
     }
 
