@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   14/11/2020, 17:03:08
+ *   18/11/2020, 20:21:35
  * Auto updated?
  *   Yes
  *
@@ -59,12 +59,12 @@ void parse(ADLTree* root, std::vector<std::string> filenames) {
 /***** PARSER CLASS *****/
 
 /* Parses a given file, including any included files. Returns a single root node, from which the entire parsed tree is build. Does not immediately throw exceptions, but instead collects them as much as possible and therefore throws a vector of ParseExceptions. Use Exceptions::print_exceptions() to print them neatly. */
-ADLTree* Parser::parse(const std::string& filename) {
+ADLTree Parser::parse(const std::string& filename) {
     // Declare a new root node
-    ADLTree* root = new ADLTree();
+    ADLTree root;
 
-    // Call the actual function to populate it
-    ::parse(root, { filename });
+    // Populate it with a file node
+    ::parse(&root, { filename });
 
     // Return it
     return root;
