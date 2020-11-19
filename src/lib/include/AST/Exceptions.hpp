@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 21:02:41
  * Last edited:
- *   18/11/2020, 21:22:32
+ *   19/11/2020, 14:12:47
  * Auto updated?
  *   Yes
  *
@@ -44,23 +44,6 @@ namespace ArgumentParser::Exceptions {
 
         /* Override for std::exception's what() function, for uncaught-exception compatibility. */
         virtual const char* what() const noexcept { return this->message.c_str(); }
-
-    };
-
-    /* Exception that is thrown whenever a node is replaced with an illegal node. */
-    class IllegalNewNodeException : public ASTException {
-    public:
-        /* The NodeTypes that were allowed to be given. */
-        const NodeType expected;
-        /* The NodeType that we got. */
-        const NodeType given;
-
-        /* Constructor for the IllegalNewNodeException class, which takes a context, a possibly OR'ed NodeType that describes which types are allowed and the type that we were illegally given. */
-        IllegalNewNodeException(const char* context, const NodeType expected, const NodeType given) :
-            ASTException(context, generate(context, "Illegal node type return from traversal function: expected " + extract_type_names(expected) + ", got " + nodetype_name.at(given) + ".")),
-            expected(expected),
-            given(given)
-        {}
 
     };
 

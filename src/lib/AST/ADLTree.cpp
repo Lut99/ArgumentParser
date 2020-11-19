@@ -4,13 +4,15 @@
  * Created:
  *   11/12/2020, 5:44:56 PM
  * Last edited:
- *   18/11/2020, 21:22:52
+ *   19/11/2020, 14:29:19
  * Auto updated?
  *   Yes
  *
  * Description:
  *   This file defines the tree used to represent a parsed ADL file.
 **/
+
+#include <algorithm>
 
 #include "ADLTree.hpp"
 #include "Exceptions.hpp"
@@ -19,10 +21,17 @@ using namespace std;
 using namespace ArgumentParser;
 
 
-/***** ADLTREE CLASS, a.k.a., ROOT NODE *****/
+/***** ADLTREE CLASS *****/
+
+/* Constructor for the ADLTree, which doesn't take anything! */
+ADLTree::ADLTree() :
+    ADLNode(NodeType::root, {}, 0, 0, nullptr)
+{}
 
 /* Copy constructor for the ADLTree. */
-ADLTree::ADLTree(const ADLTree& other) {
+ADLTree::ADLTree(const ADLTree& other) :
+    ADLNode(other)
+{
     // Reserve enough space in our vector
     this->files.reserve(other.size());
 
@@ -34,6 +43,7 @@ ADLTree::ADLTree(const ADLTree& other) {
 
 /* Move constructor for the ADLTree. */
 ADLTree::ADLTree(ADLTree&& other) :
+    ADLNode(other),
     files(std::move(other.files))
 {
     // Clear out the other's list of files
@@ -49,58 +59,33 @@ ADLTree::~ADLTree() {
 
 
 
+/* Removes a given node as direct child of this ADLFile. */
+void ADLTree::remove_node(const ADLFile& node) {
+    const char* context = "ADLTree::remove_node()";
+
+    // Find the place of the node
+    std::vector<ADLFile*>::iterator iter = std::find(this->files.begin(), this->files.end(), &node);
+    if (iter == this->files.end()) { throw std::runtime_error(std::string(context) + ": Unknown node encountered.\n"); }
+
+    // Delete the pointer
+    delete (*iter);
+
+    // Use the iterator to remove it from the list
+    this->files.erase(iter);
+}
+
+
+
 /* Traverses the tree, and calls the given function when any of the given types (OR'ed together) is encountered. The return pointer of your function will replace the current node pointer before traversing deeper.*/
-void ADLTree::traverse(NodeType nodes, ADLNode* (*trav_func)(ADLNode*)) {
-    const char* context = "ADLTree::traverse()";
-
-    /* For each of the files, check if we should call trav_func, and else traverse a layer deeper. */
-    for (size_t i = 0; i < this->files.size(); i++) {
-        // If 'file' is in the nodes, then call the trav_func since these are all files
-        if ((nodetype_t) nodes & (nodetype_t) NodeType::file) {
-            // Call the traversal function
-            ADLNode* new_node = trav_func((ADLNode*) this->files[i]);
-
-            // If it differs from the node we gave it, try to update it
-            if (new_node != (ADLNode*) this->files[i]) {
-                // Check if it's still a file
-                if (new_node->get_type() != NodeType::file) { throw Exceptions::IllegalNewNodeException(context, NodeType::file, new_node->get_type()); }
-
-                // It is, so deallocate the old one and replace it with the new one
-                delete this->files[i];
-                this->files[i] = (ADLFile*) new_node;
-            }
-        }
-
-        // In any case, traverse deeper by calling the traverse on the node itself
-        this->files[i]->traverse(nodes, trav_func);
-    }
+void ADLTree::traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*)) {
+    // Call ADLNode's helper with files (casted to ADLNode's)
+    this->_traverse(std::vector<ADLNode*>(this->files.begin(), this->files.end()), node_types, trav_func);
 }
 
 /* Traverses the tree, and calls the given function when any of the given types (OR'ed together) is encountered. The argument to the function is the current node and the argument that we given at the start and may be used to retain a state. The return pointer of your function will replace the current node pointer before traversing deeper. */
-void ADLTree::traverse(NodeType nodes, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& traverse_value) {
-    const char* context = "ADLTree::traverse(value)";
-
-    /* For each of the files, check if we should call trav_func, and else traverse a layer deeper. */
-    for (size_t i = 0; i < this->files.size(); i++) {
-        // If 'file' is in the nodes, then call the trav_func since these are all files
-        if ((nodetype_t) nodes & (nodetype_t) NodeType::file) {
-            // Call the traversal function
-            ADLNode* new_node = trav_func((ADLNode*) this->files[i], traverse_value);
-
-            // If it differs from the node we gave it, try to update it
-            if (new_node != (ADLNode*) this->files[i]) {
-                // Check if it's still a file
-                if (new_node->get_type() != NodeType::file) { throw Exceptions::IllegalNewNodeException(context, NodeType::file, new_node->get_type()); }
-
-                // It is, so deallocate the old one and replace it with the new one
-                delete this->files[i];
-                this->files[i] = (ADLFile*) new_node;
-            }
-        }
-
-        // In any case, traverse deeper by calling the traverse on the node itself
-        this->files[i]->traverse(nodes, trav_func, traverse_value);
-    }
+void ADLTree::traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state) {
+    // Call ADLNode's helper with files (casted to ADLNode's)
+    this->_traverse(std::vector<ADLNode*>(this->files.begin(), this->files.end()), node_types, trav_func, state);
 }
 
 
@@ -114,19 +99,4 @@ ADLTree& ADLTree::operator+=(const ADLTree& other) {
 
     // Return ourselves
     return *this;
-}
-
-
-
-/* Move assignment operator for the ADLTree class. */
-ADLTree& ADLTree::operator=(ADLTree&& other) {
-    if (this != &other) { swap(*this, other); }
-    return *this;
-}
-
-/* Swap operator for the ADLTree class. */
-void ArgumentParser::swap(ADLTree& t1, ADLTree& t2) {
-    using std::swap;
-
-    swap(t1.files, t2.files);
 }
