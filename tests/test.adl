@@ -18,6 +18,11 @@
     includes "hello_world.cpp";
 }
 
+<regex_test> {
+    name "Regex Test";
+    pattern <uint> /-.\// <uint> /-.\// <uint>
+}
+
 positional1 <int> {
     /* Common stuff */
     

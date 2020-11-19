@@ -35,7 +35,7 @@ TYPE = /<[A-Za-z0-9_-]+>/g
 ```
 
 ### Values
-The ADL features three different values: strings, integers and float-points. Unlike identifiers can values be repeated.
+The ADL features four different values: plain strings, regex-expressions, integers and float-points. Unlike identifiers can values be repeated.
 
 The first value type, strings (```STR```), are any sequence of characters wrapped in strings - including spaces, newlines, etc. The regex-expression describing this would look like:
 ```
@@ -43,7 +43,13 @@ STR = /"([^"\\]|\\.)*"/g
 ```
 Note that we did some extra fuzziness to make sure to escape any character preceded by a backslash, including quotes.
 
-The second value type, integers (```NUM```), are simply numbers; this means that they are identified by any number of numerical characters. Note that the parser does not support double negation, and that negative numbers have to begin with three dashes to distinguish them from Option long- or shortlabels. In regex:
+A more special type of strings are regex-expressions (```REGEX```), which can be used when defining types to parse. These expressions start with '/' and end with (unescaped) '/'. Note that newlines are ignored, and that while other newlines may be part of the token, the regex itself will be unable to match any whitespaces. Therefore, whitespaces can be used for beautifying your expression.  
+The regex-expessions to match regex-experessions is:
+```
+REGEX = /\/([^\\\/\n]|(\\\/))*\//g
+```
+
+The third value type, integers (```NUM```), are simply numbers; this means that they are identified by any number of numerical characters. Note that the parser does not support double negation, and that negative numbers have to begin with three dashes to distinguish them from Option long- or shortlabels. In regex:
 ```
 NUM = /(---)?[0-9]+/g
 ```
@@ -112,9 +118,11 @@ config = ID values SEMICOLON config
 The ```config```-rule makes use of the ```values```-rule, which is simply a list of value types (string, integers or floats):
 ```
 values = STRING values
+       = REGEX values
        = NUM values
        = DECIMAL values
        = STRING
+       = REGEX
        = NUM
        = DECIMAL
 ```
