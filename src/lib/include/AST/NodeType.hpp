@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   18/11/2020, 21:20:26
+ *   19/11/2020, 14:44:24
  * Auto updated?
  *   Yes
  *
@@ -25,12 +25,22 @@ namespace ArgumentParser {
 
     /* The NodeType enum, defining all types. */
     enum class NodeType {
-        file = 0x1
+        root = 0x1,
+        file = 0x2,
+        directive = 0x4,
+        type_def = 0x8,
+        positional = 0x10,
+        option = 0x20
     };
 
     /* Map from each NodeType to a capitalized name. */
     const static std::unordered_map<NodeType, std::string> nodetype_name({
-        { NodeType::file, "File" }
+        { NodeType::root, "Root" },
+        { NodeType::file, "File" },
+        { NodeType::directive, "CompilerDirective" },
+        { NodeType::type_def, "TypeDefinition" },
+        { NodeType::positional, "Positional" },
+        { NodeType::option, "Option" }
     });
 
     /* Given a NodeType that may consist of multiple ones, tries to extract all the possible NodeTypes and pretty prints them in a string. */
