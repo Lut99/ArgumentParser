@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   15/11/2020, 13:54:32
+ *   11/20/2020, 2:25:32 PM
  * Auto updated?
  *   Yes
  *
@@ -201,6 +201,11 @@ namespace ArgumentParser {
             {}
 
         };
+        /* Exception for when a newline is encountered in a regex-expression. */
+        class IllegalRegexException: public SyntaxError {
+        public:
+            
+        }
     }
 
 
@@ -222,7 +227,8 @@ namespace ArgumentParser {
         semicolon = 12,
         triple_dot = 13,
         directive = 14,
-        empty = 15
+        regex = 15,
+        empty = 16
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -242,6 +248,7 @@ namespace ArgumentParser {
         "Semicolon",
         "TripleDot",
         "Directive",
+        "Regex",
         "Empty"
     };
 

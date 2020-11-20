@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   15/11/2020, 14:09:31
+ *   11/20/2020, 2:18:33 PM
  * Auto updated?
  *   Yes
  *
@@ -162,9 +162,11 @@ start:
             ACCEPT(c);
             goto dot_start;
         } else if (c == '/') {
-            // Possible comment
+            // Possible comment or regex expression
+            result.line = this->line;
+            result.col = this->col;
             ACCEPT(c);
-            goto comment_start;
+            goto slash_start;
         } else if (c == '[') {
             // Simply return the appropriate token
             result.type = TokenType::l_square;
@@ -572,7 +574,7 @@ dot_directive:
 
 
 
-comment_start:
+slash_start:
     {
         // Get the head character on the stream
         PEEK(c);
@@ -586,6 +588,11 @@ comment_start:
             // Multi-line comment
             ACCEPT(c);
             goto multiline_start;
+        } else if (!is_whitespace(c)) {
+            // Regex-expression
+            result.type = TokenType::regex;
+            STORE(c);
+            goto regex_start;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
             throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
@@ -656,6 +663,28 @@ multiline_star:
             // We see any non-star, so go back to the multiline_start (but do put it back on the stream for newlines)
             REJECT(c);
             goto multiline_start;
+        }
+    }
+
+
+
+regex_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c != '\n') {
+            // Keep parsing as regex
+            STORE(c);
+            goto regex_start;
+        } else if (c == '/') {
+            // End of regex
+            ACCEPT(c);
+            return result;
+        } else {
+            // That's iwwegal
+            throw Exceptions::IllegalRegexException(this->filenames, this->line, this->col, this->get_line());
         }
     }
 }
