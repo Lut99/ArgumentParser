@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   11/20/2020, 2:25:32 PM
+ *   21/11/2020, 14:19:45
  * Auto updated?
  *   Yes
  *
@@ -188,24 +188,28 @@ namespace ArgumentParser {
             {}
 
         };
-        /* Exception for when an illegal character is escaped. */
-        class IllegalEscapeException: public SyntaxError {
+        /* Exception for when an illegal character is parsed while parsing strings. */
+        class IllegalStringException: public SyntaxError {
+        private:
+            /* Possible beautifies the illegal character somewhat. */
+            std::string make_readable(char c) const {
+                if (c == '\n') { return "\\n"; }
+                else if (c == '\r') { return "\\r"; }
+                else if (c == '\t') { return "\\t"; }
+                else { return std::to_string(c); }
+            }
+
         public:
             /* The illegal character we encountered. */
             const char c;
 
-            /* Constructor for the IllegalEscapeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
-            IllegalEscapeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, (std::string("Cannot escape character '") += c)),
+            /* Constructor for the IllegalStringException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
+            IllegalStringException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
+                SyntaxError(filenames, line, col, raw_line, "Encountered non-readable character '" + this->make_readable(c) + "' while parsing string."),
                 c(c)
             {}
 
         };
-        /* Exception for when a newline is encountered in a regex-expression. */
-        class IllegalRegexException: public SyntaxError {
-        public:
-            
-        }
     }
 
 

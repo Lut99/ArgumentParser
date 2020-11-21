@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   11/20/2020, 2:18:33 PM
+ *   21/11/2020, 14:17:50
  * Auto updated?
  *   Yes
  *
@@ -26,7 +26,7 @@ using namespace ArgumentParser;
 
 /* Determines if given token is a whitespace character or not. */
 #define is_whitespace(C) \
-    ((C) == ' ' || (C) == '\t' || (C) == '\n')
+    ((C) == ' ' || (C) == '\t' || (C) == '\r' || (C) == '\n')
 
 /* Shortcut for fetching the head character of the internal stream. */
 #define PEEK(C) \
@@ -127,7 +127,13 @@ start:
         PEEK(c);
 
         // Choose the correct path forward
-        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+        if (c == 'r') {
+            // See if this turns into a regex-expression or an identifier
+            result.line = this->line;
+            result.col = this->col;
+            STORE(c);
+            goto r_start;
+        } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
             // Mark the Token as a general identifier and move to parsing the rest of it
             result.type = TokenType::identifier;
             result.line = this->line;
@@ -162,11 +168,9 @@ start:
             ACCEPT(c);
             goto dot_start;
         } else if (c == '/') {
-            // Possible comment or regex expression
-            result.line = this->line;
-            result.col = this->col;
+            // Comment
             ACCEPT(c);
-            goto slash_start;
+            goto comment_start;
         } else if (c == '[') {
             // Simply return the appropriate token
             result.type = TokenType::l_square;
@@ -227,6 +231,40 @@ start:
             return result;
         } else {
             throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
+        }
+    }
+
+
+
+r_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '\"') {
+            // Parse as regex
+
+            // First, clear the first 'r'
+            result.value = "";
+
+            // Then, parse as string (but with a different type)
+            result.type = TokenType::regex;
+            ACCEPT(c);
+            goto string_start;
+        } else if ((c >= 'a' && c <= 'z') ||
+                   (c >= 'A' && c <= 'Z') ||
+                   (c >= '0' && c <= '9') ||
+                    c == '_' || c == '-') {
+            // Start parsing the value as id
+            result.type = TokenType::identifier;
+            STORE(c);
+            goto id_start;
+        } else {
+            // We parsed what we could, 'pparently this is a one-char identifier
+            result.type = TokenType::identifier;
+            REJECT(c);
+            return result;
         }
     }
 
@@ -391,23 +429,19 @@ string_start:
         // Choose the correct path forward
         if (c == '\\') {
             // Escaping a character; move to the escape state
-            ACCEPT(c);
+            STORE(c);
             goto string_escape;
         } else if (c == '"') {
             // Done!
             ACCEPT(c);
             return result;
-        } else if (c == '\n') {
-            // Add the value, plus update the line count
-            result.value.push_back(c);
-            this->col = 1;
-            this->line++;
-            this->last_newline = ftell(this->file);
-            goto string_start;
-        } else {
+        } else if (c >= ' ' && c <= '~') {
             // Simply add the value and continue parsing
             STORE(c);
             goto string_start;
+        } else {
+            // Don't accept direct newlines
+            throw Exceptions::IllegalStringException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -419,25 +453,13 @@ string_escape:
         PEEK(c);
 
         // Choose the correct path forward
-        if (c == '\\') {
-            // Simply add a backslash
-            STORE('\\');
-            goto string_start;
-        } else if (c == 'n') {
-            // Add a newline character
-            STORE('\n');
-            goto string_start;
-        } else if (c == 'r') {
-            // Add a return carriage character
-            STORE('\r');
-            goto string_start;
-        } else if (c == '"') {
-            // Add a normal '"'
-            STORE('"');
+        if (c >= ' ' && c <= '~') {
+            // Simply add the raw character, without the backslash
+            STORE(c);
             goto string_start;
         } else {
-            // We cannot escape this character
-            throw Exceptions::IllegalEscapeException(this->filenames, this->line, this->col, this->get_line(), c);
+            // Non-readable character is escaped!
+            throw Exceptions::IllegalStringException(this->filenames, this->line, this->col, this->get_line(), c);
         }
     }
 
@@ -574,7 +596,7 @@ dot_directive:
 
 
 
-slash_start:
+comment_start:
     {
         // Get the head character on the stream
         PEEK(c);
@@ -588,11 +610,6 @@ slash_start:
             // Multi-line comment
             ACCEPT(c);
             goto multiline_start;
-        } else if (!is_whitespace(c)) {
-            // Regex-expression
-            result.type = TokenType::regex;
-            STORE(c);
-            goto regex_start;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
             throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
@@ -666,27 +683,6 @@ multiline_star:
         }
     }
 
-
-
-regex_start:
-    {
-        // Get the head character on the stream
-        PEEK(c);
-
-        // Choose the correct path forward
-        if (c != '\n') {
-            // Keep parsing as regex
-            STORE(c);
-            goto regex_start;
-        } else if (c == '/') {
-            // End of regex
-            ACCEPT(c);
-            return result;
-        } else {
-            // That's iwwegal
-            throw Exceptions::IllegalRegexException(this->filenames, this->line, this->col, this->get_line());
-        }
-    }
 }
 
 /* Reads the entire, given line from the internal file, used for error messaging. */

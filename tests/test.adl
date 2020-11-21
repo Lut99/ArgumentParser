@@ -20,7 +20,7 @@
 
 <regex_test> {
     name "Regex Test";
-    pattern <uint> /-.\// <uint> /-.\// <uint>
+    pattern <uint> r"-\.\/" <uint> r"-\.\/" <uint>
 }
 
 positional1 <int> {
@@ -30,8 +30,7 @@ positional1 <int> {
     category "Miscellaneous";
 
     // Sets the description for the help string
-    description "A new argumentparser,
-especially for you and me";
+    description "A new argumentparser,\nespecially for you and me";
     
     // Sets the default value - will be parsed at compile time
     default "1";

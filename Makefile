@@ -13,8 +13,8 @@ OBJ	=$(BIN)/obj
 TEST=tests/
 
 # Required files
-AST = $(shell find $(SOURCEDIR) -name '*.cpp')
-AST = $(PARSER:%.cpp=%.o)
+AST_SOURCE = $(shell find $(SOURCEDIR) -name '*.cpp')
+AST = $(AST_SOURCE:%.cpp=%.o)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
 

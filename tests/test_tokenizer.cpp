@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   11/12/2020, 5:16:55 PM
+ *   21/11/2020, 13:37:50
  * Auto updated?
  *   Yes
  *
@@ -23,12 +23,18 @@ using namespace ArgumentParser;
 
 int main() {
     // Open the test.adl file
-    Tokenizer tokenizer("tests/test.adl");
+    Tokenizer tokenizer({ "tests/test.adl" });
 
     size_t last_line = 0;
     while (!tokenizer.eof()) {
         // Get the token
-        Token t = tokenizer.pop();
+        Token t;
+        try {
+            t = tokenizer.pop();
+        } catch (Exceptions::ADLCompileError& e) {
+            Exceptions::print_error(cerr, e);
+            exit(EXIT_FAILURE);
+        }
 
         // If the line changed, then go to a newline
         if (last_line != t.line) {
