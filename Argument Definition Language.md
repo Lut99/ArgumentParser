@@ -68,7 +68,6 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - right square bracket (```RSQUARE = '\]'```)
 - left curly bracket (```LCURLY = '{'```)
 - right curly bracket (```RCURLY = '}'```)
-- equals sign (```EQUALS = '='```)
 - semicolon (```SEMICOLON = ';'```)
 
 Aside from those structural characters, there is also the triple-dot token (```TDOT = '\.\.\.'```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times).

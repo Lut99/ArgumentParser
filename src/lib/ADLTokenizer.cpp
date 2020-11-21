@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   21/11/2020, 14:17:50
+ *   21/11/2020, 14:26:52
  * Auto updated?
  *   Yes
  *
@@ -195,13 +195,6 @@ start:
         } else if (c == '}') {
             // Simply return the appropriate token
             result.type = TokenType::r_curly;
-            result.line = this->line;
-            result.col = this->col;
-            ACCEPT(c);
-            return result;
-        } else if (c == '=') {
-            // Simply return the appropriate token
-            result.type = TokenType::equals;
             result.line = this->line;
             result.col = this->col;
             ACCEPT(c);
