@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   19/11/2020, 14:24:06
+ *   22/11/2020, 17:18:21
  * Auto updated?
  *   Yes
  *
@@ -75,10 +75,15 @@ void ADLFile::_traverse_update(ADLNode* old_node, ADLNode* new_node) {
 
 /* Removes a given node as direct child of this ADLFile. */
 void ADLFile::remove_node(const ADLNode& node) {
+    return this->remove_node(&node);
+}
+
+/* Removes a given node as direct child of this ADLFile. */
+void ADLFile::remove_node(ADLNode* node) {
     const char* context = "ADLFile::remove_node()";
 
     // Find the place of the node
-    std::vector<ADLNode*>::iterator iter = std::find(this->toplevel.begin(), this->toplevel.end(), &node);
+    std::vector<ADLNode*>::iterator iter = std::find(this->toplevel.begin(), this->toplevel.end(), node);
     if (iter == this->toplevel.end()) { throw std::runtime_error(std::string(context) + ": Unknown node encountered.\n"); }
 
     // Delete the pointer

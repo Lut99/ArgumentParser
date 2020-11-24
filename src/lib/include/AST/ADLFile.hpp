@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:36:22
  * Last edited:
- *   19/11/2020, 14:23:48
+ *   22/11/2020, 17:16:49
  * Auto updated?
  *   Yes
  *
@@ -49,6 +49,8 @@ namespace ArgumentParser {
         inline void add_node(const ADLNode& node) { this->toplevel.push_back(node.copy()); }
         /* Removes a given node as direct child of this ADLFile. */
         void remove_node(const ADLNode& node);
+        /* Removes a given node as direct child of this ADLFile. */
+        void remove_node(ADLNode* node);
 
         /* Allows access to one of the children in this node. */
         inline ADLNode* operator[](size_t index) const { return this->toplevel[index]; }

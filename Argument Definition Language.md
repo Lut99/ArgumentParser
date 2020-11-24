@@ -18,7 +18,7 @@ Arguably one of the most important tokens are the identifiers. They are used to 
 
 For Positionals and configuration keywords, the identifier (referred to as ```ID```) must start with any alphabetical character (a-z & A-Z), and can then be a sequence of arbitrary length of any alphanumerical character, an underscore or a dash. Specifically, the regex expression for this type of identifiers would be:
 ```
-ID = '[A-Za-z][A-Za-z0-9_-]'*
+ID = '[A-Za-z][A-Za-z0-9_-]*'
 ```
 Note that any non-recognised configuration keywords may be expelled by the parser. For a list of acceptable keywords in the default parser, check \<TBD\>.
 
@@ -171,11 +171,11 @@ type = TYPE LCURLY config RCURLY
 ```
 
 ### Compiler directives
-As a final top-level construct, ADL defines compiler directives that do not directly influence the result, but instead influence how the file is parsed. While any compiler directive may be implemented by a parser as long as it starts with the ```DIRECTIVE```-token, one is a required part of ADL itself: the include directive. To this end, the following directive rule must be present:
+As a final top-level construct, ADL defines compiler directives that do not directly influence the result, but instead influence how the file is parsed. Which directives are implemented are entirely compiler-specific, but they all follow the same grammar rule, defined as follows:
 ```
-directive = DIRECTIVE STRING
+directive = DIRECTIVE values
 ```
-In the case of the include directive, the ```DIRECTIVE```-token will have the value 'include', and the ```STRING```-token will specify the path of the file to include.
+where values is the same values rule as discussed under the Common Grammar Rules section.
 
 ## 4. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file. For more information on using the ADL as a user in the context of the ArgumentParser, please refer to the online [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
