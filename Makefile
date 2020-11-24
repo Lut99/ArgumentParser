@@ -19,7 +19,7 @@ PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLTokenizer.o $(OBJ)/AD
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
 
 # Prepare the list of includes
-INCLUDE=-I$(INCL) -I$(INCL)/AST
+INCLUDE=-I$(INCL) -I$(INCL)/AST -I$(INCL)/AST/values
 
 
 
