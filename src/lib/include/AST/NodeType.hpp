@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   24/11/2020, 22:54:14
+ *   24/11/2020, 23:16:44
  * Auto updated?
  *   Yes
  *
@@ -33,15 +33,16 @@ namespace ArgumentParser {
         positional = 0x10,
         option = 0x20,
 
-        value = 0x40,
-        string = 0x80,
-        regex = 0x100,
-        number = 0x200,
-        decimal = 0x400
+        string = 0x40,
+        regex = 0x80,
+        number = 0x100,
+        decimal = 0x200
     };
 
     /* Constant type denoting all value types. */
-    static constexpr NodeType values = (NodeType) ((nodetype_t) NodeType::value | (nodetype_t) NodeType::string | (nodetype_t) NodeType::regex | (nodetype_t) NodeType::number | (nodetype_t) NodeType::decimal);
+    static constexpr NodeType values = (NodeType) ((nodetype_t) NodeType::string | (nodetype_t) NodeType::regex | (nodetype_t) NodeType::number | (nodetype_t) NodeType::decimal);
+
+
 
     /* Map from each NodeType to a capitalized name. */
     const static std::unordered_map<NodeType, std::string> nodetype_name({
@@ -53,12 +54,13 @@ namespace ArgumentParser {
         { NodeType::positional, "Positional" },
         { NodeType::option, "Option" },
 
-        { NodeType::value, "Value" },
         { NodeType::string, "String" },
         { NodeType::regex, "Regex" },
         { NodeType::number, "Number" },
         { NodeType::decimal, "Decimal" }
     });
+
+
 
     /* Given a NodeType that may consist of multiple ones, tries to extract all the possible NodeTypes and pretty prints them in a string. */
     std::string extract_type_names(const NodeType& nodes) {
@@ -81,6 +83,11 @@ namespace ArgumentParser {
 
         // Done, return the string
         return sstr.str();
+    }
+
+    /* Overloads the &-operator for the NodeTypes. */
+    inline nodetype_t operator&(NodeType n1, NodeType n2) {
+        return (nodetype_t) n1 & (nodetype_t) n2;
     }
 
 }

@@ -4,7 +4,7 @@
  * Created:
  *   19/11/2020, 14:41:08
  * Last edited:
- *   24/11/2020, 22:46:16
+ *   24/11/2020, 23:09:20
  * Auto updated?
  *   Yes
  *
@@ -48,6 +48,9 @@ namespace ArgumentParser {
         ADLDirective(ADLDirective&& other);
         /* Destructor for the ADLDirective class. */
         ~ADLDirective();
+
+        /* Allows the ADLDirective to be copied polymorphically. */
+        virtual ADLDirective* copy() const;
 
     };
 }

@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:44:56 PM
  * Last edited:
- *   24/11/2020, 22:45:36
+ *   24/11/2020, 23:08:59
  * Auto updated?
  *   Yes
  *
@@ -132,3 +132,8 @@ ADLTree& ADLTree::operator+=(const ADLTree& other) {
     // Return ourselves
     return *this;
 }
+
+
+
+/* Allows the ADLTree to be copied polymorphically. */
+ADLTree* ADLTree::copy() const { return new ADLTree(*this); }

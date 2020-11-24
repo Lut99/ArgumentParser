@@ -4,7 +4,7 @@
  * Created:
  *   19/11/2020, 14:40:37
  * Last edited:
- *   24/11/2020, 23:01:24
+ *   24/11/2020, 23:12:12
  * Auto updated?
  *   Yes
  *
@@ -26,11 +26,12 @@ using namespace ArgumentParser;
 ADLDirective::ADLDirective(const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent, const std::string& directive, const std::vector<ADLValue*>& arguments) :
     ADLNode(NodeType::directive, filenames, line, col, parent),
     directive(directive),
-    arguments(arguments)
+    values(arguments)
 {}
 
 /* Copy constructor for the ADLDirective class. */
 ADLDirective::ADLDirective(const ADLDirective& other) :
+    ADLNode(other),
     directive(other.directive)
 {
     // Copy the elements one-by-one
@@ -42,6 +43,7 @@ ADLDirective::ADLDirective(const ADLDirective& other) :
 
 /* Move constructor for the ADLDirective class. */
 ADLDirective::ADLDirective(ADLDirective&& other) :
+    ADLNode(other),
     directive(std::move(other.directive)),
     values(std::move(other.values))
 {
@@ -64,19 +66,19 @@ void ADLDirective::_traverse_recurse(const char* trav_id, NodeType node_types, A
     const char* context = "ADLDirective::_traverse_recurse(stateless)";
 
     // Simply loop through all nested elements, possibly replacing them
-    for (size_t i = 0; i < this->files.size(); i++) {
-        ADLFile* new_node = (ADLFile*) this->files[i]->traverse(trav_id, node_types, trav_func);
+    for (size_t i = 0; i < this->values.size(); i++) {
+        ADLValue* new_node = (ADLValue*) this->values[i]->traverse(trav_id, node_types, trav_func);
 
         // Replace it if it changed
-        if (new_node != this->files[i]) {
+        if (new_node != this->values[i]) {
             // Sanity check that the node is still of a legal type
-            if ((nodetype_t) new_node->type & ArgumentParser::values) {
-                throw std::runtime_error(std::string(context) + ": " + trav_id + ": ADLDirective cannot accept nodes of type " + nodetype_name.at(new_node->type) + " (was " + nodetype_name.at(this->files[i]->type) + "), cannot continue.\n");
+            if (new_node->type & ArgumentParser::values) {
+                throw std::runtime_error(std::string(context) + ": " + trav_id + ": ADLDirective cannot accept nodes of type " + nodetype_name.at(new_node->type) + " (was " + nodetype_name.at(this->values[i]->type) + "), cannot continue.\n");
             }
             
             // If so, continue with swapping it out
-            delete this->files[i];
-            this->files[i] = new_node;
+            delete this->values[i];
+            this->values[i] = new_node;
         }
     }
 }
@@ -86,19 +88,24 @@ void ADLDirective::_traverse_recurse(const char* trav_id, NodeType node_types, A
     const char* context = "ADLDirective::_traverse_recurse()";
 
     // Simply loop through all nested elements, possibly replacing them
-    for (size_t i = 0; i < this->files.size(); i++) {
-        ADLFile* new_node = (ADLFile*) this->files[i]->traverse(trav_id, node_types, trav_func, state);
+    for (size_t i = 0; i < this->values.size(); i++) {
+        ADLValue* new_node = (ADLValue*) this->values[i]->traverse(trav_id, node_types, trav_func, state);
 
         // Replace it if it changed
-        if (new_node != this->files[i]) {
+        if (new_node != this->values[i]) {
             // Sanity check that the node is still of a legal type
-            if ((nodetype_t) new_node->type & ArgumentParser::values) {
-                throw std::runtime_error(std::string(context) + ": " + trav_id + ": ADLTree cannot accept nodes of type " + nodetype_name.at(new_node->type) + " (was " + nodetype_name.at(this->files[i]->type) + "), cannot continue.\n");
+            if (new_node->type & ArgumentParser::values) {
+                throw std::runtime_error(std::string(context) + ": " + trav_id + ": ADLTree cannot accept nodes of type " + nodetype_name.at(new_node->type) + " (was " + nodetype_name.at(this->values[i]->type) + "), cannot continue.\n");
             }
             
             // If so, continue with swapping it out
-            delete this->files[i];
-            this->files[i] = new_node;
+            delete this->values[i];
+            this->values[i] = new_node;
         }
     }
 }
+
+
+
+/* Allows the ADLDirective to be copied polymorphically. */
+ADLDirective* ADLDirective::copy() const { return new ADLDirective(*this); }

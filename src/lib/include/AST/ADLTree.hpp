@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:42:12 PM
  * Last edited:
- *   24/11/2020, 22:45:18
+ *   24/11/2020, 23:09:05
  * Auto updated?
  *   Yes
  *
@@ -65,6 +65,9 @@ namespace ArgumentParser{
         inline std::vector<ADLFile*>::const_reverse_iterator rbegin() const { return this->files.rbegin(); }
         /* Returns a reverse iterator pointing to the end of the internal vector of top-level nodes, so that it may be iterator over. */
         inline std::vector<ADLFile*>::const_reverse_iterator rend() const { return this->files.rend(); }
+
+        /* Allows the ADLTree to be copied polymorphically. */
+        virtual ADLTree* copy() const;
 
     };
     
