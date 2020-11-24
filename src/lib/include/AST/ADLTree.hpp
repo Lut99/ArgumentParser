@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:42:12 PM
  * Last edited:
- *   19/11/2020, 14:29:01
+ *   24/11/2020, 22:45:18
  * Auto updated?
  *   Yes
  *
@@ -29,8 +29,10 @@ namespace ArgumentParser{
         /* The files in this tree. */
         std::vector<ADLFile*> files;
 
-        /* Updates the node with the given pointer internally with a new one, returned by the traversal function. */
-        virtual void _traverse_update(ADLNode* old_node, ADLNode* new_node);
+        /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
+        /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
 
     public:
         /* Constructor for the ADLTree, which doesn't take anything! */
@@ -43,19 +45,14 @@ namespace ArgumentParser{
         ~ADLTree();
 
         /* Add a new file child to the tree. */
-        inline void add_file(const ADLFile& file) { this->files.push_back(file.copy()); }
+        inline void add_file(ADLFile* file) { this->files.push_back(file); }
         /* Removes a given node as direct child of this ADLTree. */
-        void remove_node(const ADLFile& node);
+        void remove_node(ADLFile* node);
 
         /* Allows access to the i'th file stored in this tree. */
         inline ADLFile* operator[](size_t i) const { return this->files[i]; }
         /* Returns the number of files currently stored in the ADLTree. */
         inline size_t size() const { return this->files.size(); }
-
-        /* Traverses the tree, and calls the given function when any of the given types (OR'ed together) is encountered. The return pointer of your function will replace the current node pointer before traversing deeper.*/
-        void traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*));
-        /* Traverses the tree, and calls the given function when any of the given types (OR'ed together) is encountered. The argument to the function is the current node and the argument that we given at the start and may be used to retain a state. The return pointer of your function will replace the current node pointer before traversing deeper. */
-        void traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state);
         
         /* Merge this ADLTree with another one. */
         ADLTree& operator+=(const ADLTree& other);

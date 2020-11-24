@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:36:22
  * Last edited:
- *   22/11/2020, 17:16:49
+ *   24/11/2020, 22:45:09
  * Auto updated?
  *   Yes
  *
@@ -32,8 +32,10 @@ namespace ArgumentParser {
         /* Stores the top-level nodes in the file that this ADLFile represents. */
         std::vector<ADLNode*> toplevel;
 
-        /* Updates the node with the given pointer internally with a new one, returned by the traversal function. */
-        virtual void _traverse_update(ADLNode* old_node, ADLNode* new_node);
+        /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
+        /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
 
     public:
         /* Constructor for the ADLFile class, which takes a trail of filenames where it originated, a column number where it originated, a matching column number and the parent of this node. */
@@ -46,9 +48,7 @@ namespace ArgumentParser {
         virtual ~ADLFile();
 
         /* Adds a new node as direct child of this ADLFile. */
-        inline void add_node(const ADLNode& node) { this->toplevel.push_back(node.copy()); }
-        /* Removes a given node as direct child of this ADLFile. */
-        void remove_node(const ADLNode& node);
+        inline void add_node(ADLNode* node) { this->toplevel.push_back(node); }
         /* Removes a given node as direct child of this ADLFile. */
         void remove_node(ADLNode* node);
 
@@ -56,11 +56,6 @@ namespace ArgumentParser {
         inline ADLNode* operator[](size_t index) const { return this->toplevel[index]; }
         /* Returns the number of top-level nodes in this file. */
         inline size_t size() const { return this->toplevel.size(); }
-
-        /* Traverses the ADLFile and it's children. Calls the trav_func on any node with a type occuring in nodes. */
-        virtual void traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*));
-        /* Traverses the ADLFile and it's children. Calls the trav_func on any node with a type occuring in nodes. Additionally, provides the option to retain a state between calls of trav_func in the form of an any-wrapper. */
-        virtual void traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state);
 
         /* Returns a iterator pointing to the start of the internal vector of top-level nodes, so that it may be iterator over. */
         inline std::vector<ADLNode*>::const_iterator begin() const { return this->toplevel.begin(); }

@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:44:56 PM
  * Last edited:
- *   19/11/2020, 14:29:19
+ *   24/11/2020, 22:45:36
  * Auto updated?
  *   Yes
  *
@@ -59,12 +59,58 @@ ADLTree::~ADLTree() {
 
 
 
+/* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+void ADLTree::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) {
+    const char* context = "ADLTree::_traverse_recurse(stateless)";
+
+    // Simply loop through all nested elements, possibly replacing them
+    for (size_t i = 0; i < this->files.size(); i++) {
+        ADLFile* new_node = (ADLFile*) this->files[i]->traverse(trav_id, node_types, trav_func);
+
+        // Replace it if it changed
+        if (new_node != this->files[i]) {
+            // Sanity check that the node is still of a legal type
+            if (new_node->type != NodeType::file) {
+                throw std::runtime_error(std::string(context) + ": " + trav_id + ": ADLTree cannot accept nodes of type " + nodetype_name.at(new_node->type) + " (was File), cannot continue.\n");
+            }
+            
+            // If so, continue with swapping it out
+            delete this->files[i];
+            this->files[i] = new_node;
+        }
+    }
+}
+
+/* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+void ADLTree::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state) {
+    const char* context = "ADLTree::_traverse_recurse()";
+
+    // Simply loop through all nested elements, possibly replacing them
+    for (size_t i = 0; i < this->files.size(); i++) {
+        ADLFile* new_node = (ADLFile*) this->files[i]->traverse(trav_id, node_types, trav_func, state);
+
+        // Replace it if it changed
+        if (new_node != this->files[i]) {
+            // Sanity check that the node is still of a legal type
+            if (new_node->type != NodeType::file) {
+                throw std::runtime_error(std::string(context) + ": " + trav_id + ": ADLTree cannot accept nodes of type " + nodetype_name.at(new_node->type) + " (was File), cannot continue.\n");
+            }
+            
+            // If so, continue with swapping it out
+            delete this->files[i];
+            this->files[i] = new_node;
+        }
+    }
+}
+
+
+
 /* Removes a given node as direct child of this ADLFile. */
-void ADLTree::remove_node(const ADLFile& node) {
+void ADLTree::remove_node(ADLFile* node) {
     const char* context = "ADLTree::remove_node()";
 
     // Find the place of the node
-    std::vector<ADLFile*>::iterator iter = std::find(this->files.begin(), this->files.end(), &node);
+    std::vector<ADLFile*>::iterator iter = std::find(this->files.begin(), this->files.end(), node);
     if (iter == this->files.end()) { throw std::runtime_error(std::string(context) + ": Unknown node encountered.\n"); }
 
     // Delete the pointer
@@ -72,20 +118,6 @@ void ADLTree::remove_node(const ADLFile& node) {
 
     // Use the iterator to remove it from the list
     this->files.erase(iter);
-}
-
-
-
-/* Traverses the tree, and calls the given function when any of the given types (OR'ed together) is encountered. The return pointer of your function will replace the current node pointer before traversing deeper.*/
-void ADLTree::traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*)) {
-    // Call ADLNode's helper with files (casted to ADLNode's)
-    this->_traverse(std::vector<ADLNode*>(this->files.begin(), this->files.end()), node_types, trav_func);
-}
-
-/* Traverses the tree, and calls the given function when any of the given types (OR'ed together) is encountered. The argument to the function is the current node and the argument that we given at the start and may be used to retain a state. The return pointer of your function will replace the current node pointer before traversing deeper. */
-void ADLTree::traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state) {
-    // Call ADLNode's helper with files (casted to ADLNode's)
-    this->_traverse(std::vector<ADLNode*>(this->files.begin(), this->files.end()), node_types, trav_func, state);
 }
 
 

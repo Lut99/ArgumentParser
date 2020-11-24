@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   19/11/2020, 14:13:41
+ *   24/11/2020, 22:43:58
  * Auto updated?
  *   Yes
  *
@@ -25,13 +25,11 @@ namespace ArgumentParser {
     /* Baseclass for all nodes in the tree. */
     class ADLNode {
     protected:
-        /* Updates the node with the given pointer internally with a new one, returned by the traversal function. */
-        virtual void _traverse_update(ADLNode* old_node, ADLNode* new_node) = 0;
-        /* Actual traversal-function for stateless traversal. Takes the context where it is called from, a list of nodes to traverse (in order), which nodes we should trigger the traversal function and the (stateless) traversal function itself. */
-        void _traverse(const std::vector<ADLNode*>& to_traverse, NodeType node_types, ADLNode* (*trav_func)(ADLNode*));
-        /* Actual traversal-function for traversal. Takes the context where it is called from, a list of nodes to traverse (in order), which nodes we should trigger the traversal function, the traversal function itself and the initial state. */
-        void _traverse(const std::vector<ADLNode*>& to_traverse, NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state);
-        
+        /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) = 0;
+        /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state) = 0;
+
     public:
         /* The type of the node. */
         const NodeType type;
@@ -51,10 +49,10 @@ namespace ArgumentParser {
         /* Virtual destructor for the ADLNode class, which doesn't do a lot yet. */
         virtual ~ADLNode() = default;
 
-        /* Virtual function that allows the ADLNode to be traversed polymorphically. */
-        virtual void traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*)) = 0;
-        /* Virtual function that allows the ADLNode to be traversed polymorphically. */
-        virtual void traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state) = 0;
+        /* Traverses through the tree and calls the given traversal function for any node that matches any of the given node types. The trav_id is used for debugging purposes, to help identify which traversal went wrong. This particular overlead does not carry states between trav_func calls. */
+        ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
+        /* Traverses through the tree and calls the given traversal function for any node that matches any of the given node types. The trav_id is used for debugging purposes, to help identify which traversal went wrong. This particular overlead carries a state between trav_func calls, which is initialized with the given value (as std::any). */
+        ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
 
         /* Allows the ADLNode to be copied polymorphically. */
         virtual ADLNode* copy() const = 0;

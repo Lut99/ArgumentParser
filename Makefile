@@ -13,7 +13,7 @@ OBJ	=$(BIN)/obj
 TEST=tests/
 
 # Required files
-AST_SOURCE = $(shell find $(SOURCEDIR) -name '*.cpp')
+AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
 AST = $(AST_SOURCE:%.cpp=%.o)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
@@ -51,7 +51,9 @@ $(OBJ):
 	mkdir -p $@
 $(OBJ)/AST:
 	mkdir -p $@
-dirs: $(BIN) $(OBJ) $(OBJ)/AST
+$(OBJ)/values:
+	mkdir -p $@
+dirs: $(BIN) $(OBJ) $(OBJ)/AST $(OBJ)/AST/values
 
 
 
@@ -59,8 +61,10 @@ dirs: $(BIN) $(OBJ) $(OBJ)/AST
 
 $(OBJ)/%.o: $(LIB)/%.cpp | dirs
 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
-$(OBJ)/AST/%.o: $(LIB)/AST/%.cpp | dirs
-	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
+# $(OBJ)/AST/%.o: $(LIB)/AST/%.cpp | dirs
+# 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
+# $(OBJ)/AST/values/%.o: $(LIB)/AST/values/%.cpp | dirs
+# 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
 
 
 

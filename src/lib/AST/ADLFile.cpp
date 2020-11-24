@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   22/11/2020, 17:18:21
+ *   24/11/2020, 22:44:59
  * Auto updated?
  *   Yes
  *
@@ -58,25 +58,35 @@ ADLFile::~ADLFile() {
 
 
 
-/* Updates the node with the given pointer internally with a new one, returned by the traversal function. */
-void ADLFile::_traverse_update(ADLNode* old_node, ADLNode* new_node) {
-    // Find the correct node in the list of nodes
+/* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+void ADLFile::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) {
+    // Simply loop through all nested elements, possibly replacing them
     for (size_t i = 0; i < this->toplevel.size(); i++) {
-        if (this->toplevel[i] == old_node) {
-            // We found the old node, so delete it, set it to old node and we're done
+        ADLNode* new_node = this->toplevel[i]->traverse(trav_id, node_types, trav_func);
+
+        // Replace it if it changed
+        if (new_node != this->toplevel[i]) {
             delete this->toplevel[i];
             this->toplevel[i] = new_node;
-            return;
+        }
+    }
+}
+
+/* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+void ADLFile::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state) {
+    // Simply loop through all nested elements, possibly replacing them
+    for (size_t i = 0; i < this->toplevel.size(); i++) {
+        ADLNode* new_node = this->toplevel[i]->traverse(trav_id, node_types, trav_func, state);
+
+        // Replace it if it changed
+        if (new_node != this->toplevel[i]) {
+            delete this->toplevel[i];
+            this->toplevel[i] = new_node;
         }
     }
 }
 
 
-
-/* Removes a given node as direct child of this ADLFile. */
-void ADLFile::remove_node(const ADLNode& node) {
-    return this->remove_node(&node);
-}
 
 /* Removes a given node as direct child of this ADLFile. */
 void ADLFile::remove_node(ADLNode* node) {
@@ -91,20 +101,6 @@ void ADLFile::remove_node(ADLNode* node) {
 
     // Use the iterator to remove it from the list
     this->toplevel.erase(iter);
-}
-
-
-
-/* Traverses the ADLFile and it's children. Calls the trav_func on any node with a type occuring in nodes. */
-void ADLFile::traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*)) {
-    // Call the helper function with the correct list of nodes
-    this->_traverse(this->toplevel, node_types, trav_func);
-}
-
-/* Traverses the ADLFile and it's children. Calls the trav_func on any node with a type occuring in nodes. Additionally, provides the option to retain a state between calls of trav_func in the form of an any-wrapper. */
-void ADLFile::traverse(NodeType node_types, ADLNode* (*trav_func)(ADLNode*, std::any&), std::any& state) {
-    // Call the helper function with the correct list of nodes
-    this->_traverse(this->toplevel, node_types, trav_func, state);
 }
 
 
