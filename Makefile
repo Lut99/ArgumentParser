@@ -51,7 +51,7 @@ $(OBJ):
 	mkdir -p $@
 $(OBJ)/AST:
 	mkdir -p $@
-$(OBJ)/values:
+$(OBJ)/AST/values:
 	mkdir -p $@
 dirs: $(BIN) $(OBJ) $(OBJ)/AST $(OBJ)/AST/values
 
