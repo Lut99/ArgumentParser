@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   15/11/2020, 14:18:03
+ *   25/11/2020, 17:11:25
  * Auto updated?
  *   Yes
  *
@@ -21,6 +21,7 @@
 #include <vector>
 #include <string>
 
+#include "ADLTokenizer.hpp"
 #include "ADLExceptions.hpp"
 #include "ADLTree.hpp"
 
@@ -32,6 +33,25 @@ namespace ArgumentParser {
             /* Constructor for the ParseError class, which takes a list of files we tried to parse (breadcrumb-style), the line number where the error occurred, the column number, the actual, optionally a message and optionally a pretty message. */
             ParseError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
                 ADLCompileError(filenames, line, col, raw_line, message)
+            {}
+
+        };
+
+        /* Baseclass exception for when the current symbol on top of the stack doesn't match a valid option. */
+        class IllegalSymbolError: public ParseError {
+        public:
+            /* Constructor for the IllegalSymbolError class, which takes a breadcrumb trail of filenames we are parsing, the line where the error occurred, the column where it occurred, the actual line where it occurred and optionally a message. */
+            IllegalSymbolError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+                ParseError(filenames, line, col, raw_line, message)
+            {}
+
+        };
+        /* Exception for when a top-level node does not contain a valid terminal symbol. */
+        class IllegalToplevelSymbol: public IllegalSymbolError {
+        public:
+            /* Constructor for the IllegalToplevelSymbol class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
+            IllegalToplevelSymbol(const std::vector<std::string>& filenames, const Token* token) :
+                IllegalSymbolError(filenames, token->line, token->col, token->raw_line, "Expected positional identifier, shortlabel, longlabel or type identifier; not '" + token->raw + "'.")
             {}
 
         };
@@ -50,7 +70,7 @@ namespace ArgumentParser {
 
     /* Static "class" that is used to parse a file - and recursively all included files. */
     namespace Parser {
-        /* Parses a given file, including any included files. Returns a single root node, from which the entire parsed tree is build. Does not immediately throw exceptions, but instead collects them as much as possible and therefore throws a vector of ParseExceptions. Use Exceptions::print_exceptions() to print them neatly. */
+        /* Parses a single file. Returns a single root node, from which the entire parsed tree is build. Does not immediately throw exceptions, but collects them in a vector which is then thrown. Use std::print_error on each of them to print them neatly. Warnings are always printed by the function, never thrown. */
         ADLTree* parse(const std::string& filename);
     };
     

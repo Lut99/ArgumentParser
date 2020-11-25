@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 22:59:43
  * Last edited:
- *   24/11/2020, 23:22:56
+ *   25/11/2020, 17:20:02
  * Auto updated?
  *   Yes
  *
@@ -32,8 +32,8 @@ namespace ArgumentParser {
         virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
     
     public:
-        /* Constructor for the ADLValue class, which takes the value type, a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and this node's parent node. */
-        ADLValue(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent);
+        /* Constructor for the ADLValue class, which takes the value type, a breadcrumb trail of filenames where this node originated from, the line number where this node originated from and the column number where it originated from. */
+        ADLValue(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col);
 
         /* Allows the ADLValue to be copied polymorphically. */
         virtual ADLValue* copy() const;

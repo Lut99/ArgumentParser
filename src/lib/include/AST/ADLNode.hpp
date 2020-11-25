@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   24/11/2020, 22:43:58
+ *   25/11/2020, 17:14:47
  * Auto updated?
  *   Yes
  *
@@ -43,9 +43,9 @@ namespace ArgumentParser {
         /* The parent node of this node. */
         ADLNode* parent;
 
-    public:
+
         /* Constructor for the ADLNode, which takes the type of the node, a breadcrumb of filenames where the node originates, the line number where the node originates, a matching column number and the parent node in the tree. */
-        ADLNode(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent);
+        ADLNode(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col);
         /* Virtual destructor for the ADLNode class, which doesn't do a lot yet. */
         virtual ~ADLNode() = default;
 

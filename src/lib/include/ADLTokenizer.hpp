@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   25/11/2020, 16:00:46
+ *   25/11/2020, 17:05:56
  * Auto updated?
  *   Yes
  *
@@ -311,6 +311,8 @@ namespace ArgumentParser {
         size_t line;
         /* The column number where this token started. */
         size_t col;
+        /* The raw line where this token was found. */
+        std::string raw_line;
         /* The raw value of this token, if applicable. */
         std::string raw;
 
@@ -323,6 +325,9 @@ namespace ArgumentParser {
         inline friend std::ostream& operator<<(std::ostream& os, const Token& token) { return token.print(os); }
         /* Allows a token to be written to an outstream. */
         inline friend std::ostream& operator<<(std::ostream& os, Token* token) { return token->print(os); }
+
+        /* Allows the Token to be copied polymorphically. */
+        virtual Token* copy() const;
 
     };
 
@@ -341,7 +346,10 @@ namespace ArgumentParser {
         ValueToken() {}
         
         /* "Promotes" an existing Token to a ValueToken, by copying it and adding our value. Note that the given token will be deallocated. */
-        static ValueToken* promote(Token* other, const T& value);
+        static ValueToken<T>* promote(Token* other, const T& value);
+
+        /* Allows the ValueToken to be copied polymorphically. */
+        virtual ValueToken<T>* copy() const;
 
     };
 

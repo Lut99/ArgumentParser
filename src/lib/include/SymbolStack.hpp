@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:42
  * Last edited:
- *   14/11/2020, 14:35:25
+ *   25/11/2020, 18:05:14
  * Auto updated?
  *   Yes
  *
@@ -26,38 +26,65 @@ namespace ArgumentParser::Parser {
     class Symbol {
     protected:
         /* Constructor for the Symbol class, which takes whether or not this is a terminal symbol. */
-        Symbol(bool is_terminal) :
-            is_terminal(is_terminal)
-        {}
+        Symbol(bool is_terminal);
 
     public:
         /* The type of this symbol (either terminal or nonterminal). */
         bool is_terminal;
 
+        /* Also, declare the destructor as virtual. */
+        virtual ~Symbol() = default;
+        
+        /* Swap operator for the Symbol class. */
+        friend void swap(Symbol& s1, Symbol& s2);
+
     };
+    /* Swap operator for the Symbol class. */
+    void swap(Symbol& s1, Symbol& s2);
+    
     /* Used for Terminal symbols, i.e., raw and probably unparsed tokens. */
     class Terminal : public Symbol {
     private:
         /* The internal token for this Terminal. */
-        Token _token;
+        Token* _token;
 
     public:
-        /* The type of the internal token. */
-        TokenType type;
-
         /* Constructor for a Terminal symbol, which takes an unparsed Token from the Tokenizer. */
-        Terminal(const Token& token) :
-            Symbol(true),
-            _token(token),
-            type(token.type)
-        {}
+        Terminal(Token* token);
+        /* Copy constructor for the Terminal symbol. */
+        Terminal(const Terminal& other);
+        /* Move constructor for the Terminal symbol. */
+        Terminal(Terminal&& other);
+        /* Destructor for the Terminal symbol. */
+        ~Terminal();
 
         /* Returns a reference to the internal token. */
-        inline Token& token() { return this->_token; }
-        /* Returns a constant reference to the internal token. */
-        inline const Token& token() const { return this->_token; }
+        inline Token*& token() { return this->_token; }
+        /* Returns the internal pointer. */
+        inline Token* token() const { return this->_token; }
+        /* Returns the internal type of the token. */
+        inline TokenType type() const { return this->_token->type; }
+
+        /* Returns the line number stored in this token. */
+        inline size_t line() const { return this->_token->line; }
+        /* Returns the column number stored in this token. */
+        inline size_t col() const { return this->_token->col; }
+        /* Returns the raw value stored in this token. */
+        inline std::string raw() const { return this->_token->raw; }
+        /* Returns the parsed value stored in this token. */
+        template <class T> inline T value() const { return ((ValueToken<T>*) this->_token)->value; }
+
+        /* Copy assignment operator for the Terminal symbol. */
+        inline Terminal& operator=(const Terminal& other) { return *this = Terminal(other); }
+        /* Move assignment operator for the Terminal symbol. */
+        Terminal& operator=(Terminal&& other);
+        /* Swap operator for the Terminal symbol. */
+        friend void swap(Terminal& t1, Terminal& t2);
 
     };
+    /* Swap operator for the Terminal symbol. */
+    void swap(Terminal& t1, Terminal& t2);
+    
     /* Used for non-terminal symbols, which are linked to ADLNodes. */
     class NonTerminal : public Symbol {
     private:
@@ -65,20 +92,22 @@ namespace ArgumentParser::Parser {
         ADLNode* _node;
 
     public:
-        /* Type of the internal node. */
-        NodeType type;
-
         /* Constructor for the NonTerminal, which takes a reference to a node. */
         NonTerminal(ADLNode* node) :
             Symbol(false),
-            _node(node),
-            type(node->type)
+            _node(node)
         {}
 
+        /* Returns a reference to the internal token. */
+        inline ADLNode*& token() { return this->_node; }
         /* Returns the internal pointer. */
         inline ADLNode* node() const { return this->_node; }
+        /* Returns the internal type of the token. */
+        inline NodeType type() const { return this->_node->type; }
 
     };
+
+
 
     /* Stack used to store, access and manage symbols. */
     class SymbolStack {
@@ -104,19 +133,12 @@ namespace ArgumentParser::Parser {
         ~SymbolStack();
 
         /* Adds a new terminal on the stack, based on the given token. */
-        void add_terminal(const Token& token);
-        /* Adds a new non-terminal on the stack, based on the given node. */
-        void add_nonterminal(ADLNode* node);
+        void add_terminal(Token* token);
+        /* Replaces the first N symbols (deallocating them) with the new NonTerminal. */
+        void replace(size_t N, NonTerminal* symbol);
 
-        /* Gets the top symbol from the stack. */
-        inline Symbol* head() const { return this->symbols[0]; }
-        /* Gets the last symbol from the stack. */
-        inline Symbol* tail() const { return this->symbols[this->length - 1]; }
-
-        /* Gets & removes the top symbol from the stack. */
-        Symbol* pop_head();
-        /* Gets & removes the last symbol from the stack. */
-        Symbol* pop_tail();
+        /* Returns the i'th symbol from the top of the stack. Note that it doesn't perform any form of memory-safe checking, so use size() to be sure you don't go out of bounds. */
+        inline Symbol* operator[](size_t i) const { return this->symbols[this->length - 1 - i]; }
 
         /* Get the number of elements current on the stack. */
         inline size_t size() const { return this->length; }
@@ -131,7 +153,6 @@ namespace ArgumentParser::Parser {
         friend void swap(SymbolStack& ss1, SymbolStack& ss2);
 
     };
-
     /* Swap operator for the SymbolStack class. */
     void swap(SymbolStack& ss1, SymbolStack& ss2);
 

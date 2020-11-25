@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   25/11/2020, 16:03:15
+ *   25/11/2020, 17:06:38
  * Auto updated?
  *   Yes
  *
@@ -135,6 +135,11 @@ std::ostream& Token::print(std::ostream& os) const {
 
 
 
+/* Allows the Token to be copied polymorphically. */
+Token* Token::copy() const { return new Token(*this); }
+
+
+
 
 
 /***** VALUETOKEN STRUCT *****/
@@ -166,6 +171,12 @@ ValueToken<T>* ValueToken<T>::promote(Token* other, const T& value) {
     // Return the new one
     return result;
 }
+
+
+
+/* Allows the ValueToken to be copied polymorphically. */
+template <class T>
+ValueToken<T>* ValueToken<T>::copy() const { return new ValueToken<T>(*this); }
 
 
 
@@ -238,6 +249,9 @@ start:
     {
         // Get the head character on the stream
         PEEK(c);
+
+        // We can already deduce the line at this point, so put it in the result
+        result->raw_line = this->get_line();
 
         // Choose the correct path forward
         if (c == 'r') {
@@ -817,8 +831,6 @@ std::string Tokenizer::get_line() {
         }
     }
 }
-
-
 
 
 

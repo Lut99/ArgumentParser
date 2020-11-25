@@ -105,7 +105,7 @@ where the ```top_level```-rule is defined as:
 ```
 top_level = positional
           = option
-          = type
+          = typedef
           = directive
 ```
 
@@ -167,13 +167,14 @@ option_id = SLABEL
 ### Type definition
 To support defining arguments, the ADL also allows users to define their own types. Grammar-wise, the syntax for defining a type is very similar to that of defining an argument, and is defined as follows:
 ```
-type = TYPE LCURLY config RCURLY
+typedef = TYPE LCURLY config RCURLY
 ```
 
 ### Compiler directives
 As a final top-level construct, ADL defines compiler directives that do not directly influence the result, but instead influence how the file is parsed. Which directives are implemented are entirely compiler-specific, but they all follow the same grammar rule, defined as follows:
 ```
 directive = DIRECTIVE values
+          = DIRECTIVE
 ```
 where values is the same values rule as discussed under the Common Grammar Rules section.
 

@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   25/11/2020, 16:18:40
+ *   25/11/2020, 17:21:49
  * Auto updated?
  *   Yes
  *
@@ -31,8 +31,8 @@ namespace ArgumentParser {
         /* The floating-point value to store. */
         double value;
 
-        /* Constructor for the ADLDecimal class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from, this node's parent node and the value this node represents. */
-        ADLDecimal(const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent, long value);
+        /* Constructor for the ADLDecimal class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and the value this node represents. */
+        ADLDecimal(const std::vector<std::string>& filenames, size_t line, size_t col, long value);
 
         /* Allows the ADLDecimal to be copied polymorphically. */
         virtual ADLDecimal* copy() const;

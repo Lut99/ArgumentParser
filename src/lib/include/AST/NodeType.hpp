@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   24/11/2020, 23:16:44
+ *   25/11/2020, 18:13:19
  * Auto updated?
  *   Yes
  *
@@ -33,10 +33,11 @@ namespace ArgumentParser {
         positional = 0x10,
         option = 0x20,
 
-        string = 0x40,
-        regex = 0x80,
-        number = 0x100,
-        decimal = 0x200
+        values = 0x40,
+        string = 0x80,
+        regex = 0x100,
+        number = 0x200,
+        decimal = 0x400
     };
 
     /* Constant type denoting all value types. */
@@ -54,6 +55,7 @@ namespace ArgumentParser {
         { NodeType::positional, "Positional" },
         { NodeType::option, "Option" },
 
+        { NodeType::values, "Values" },
         { NodeType::string, "String" },
         { NodeType::regex, "Regex" },
         { NodeType::number, "Number" },

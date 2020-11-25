@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:09:45
  * Last edited:
- *   25/11/2020, 16:11:35
+ *   25/11/2020, 17:21:01
  * Auto updated?
  *   Yes
  *
@@ -33,8 +33,8 @@ namespace ArgumentParser {
         /* Raw value stored in this ADLRegex. */
         std::string value;
 
-        /* Constructor for the ADLRegex class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from, this node's parent node and the raw regex value. */
-        ADLRegex(const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent, const std::string& value);
+        /* Constructor for the ADLRegex class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and the raw regex value. */
+        ADLRegex(const std::vector<std::string>& filenames, size_t line, size_t col, const std::string& value);
 
         /* Allows the ADLRegex to be copied polymorphically. */
         virtual ADLRegex* copy() const;

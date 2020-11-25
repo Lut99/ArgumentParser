@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:39:22
  * Last edited:
- *   24/11/2020, 23:12:32
+ *   25/11/2020, 17:14:55
  * Auto updated?
  *   Yes
  *
@@ -22,12 +22,11 @@ using namespace ArgumentParser;
 /***** ADLNODE CLASS *****/
 
 /* Constructor for the ADLNode, which takes a type and a parent node. */
-ADLNode::ADLNode(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent) :
+ADLNode::ADLNode(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col) :
     type(type),
     filenames(filenames),
     line(line),
-    col(col),
-    parent(parent)
+    col(col)
 {}
 
 

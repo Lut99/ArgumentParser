@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:50
  * Last edited:
- *   13/11/2020, 15:55:29
+ *   25/11/2020, 18:03:08
  * Auto updated?
  *   Yes
  *
@@ -17,6 +17,75 @@
 
 using namespace std;
 using namespace ArgumentParser::Parser;
+
+
+/***** SYMBOL CLASS *****/
+
+/* Constructor for the Symbol class, which takes whether or not this is a terminal symbol. */
+Symbol::Symbol(bool is_terminal) :
+    is_terminal(is_terminal)
+{}
+
+/* Swap operator for the Symbol class. */
+void ArgumentParser::Parser::swap(Symbol& s1, Symbol& s2) {
+    using std::swap;
+
+    swap(s1.is_terminal, s2.is_terminal);
+}
+
+
+
+
+
+/***** TERMINAL CLASS *****/
+
+/* Constructor for a Terminal symbol, which takes an unparsed Token from the Tokenizer. */
+Terminal::Terminal(Token* token) :
+    Symbol(true),
+    _token(token)
+{}
+
+/* Copy constructor for the Terminal symbol. */
+Terminal::Terminal(const Terminal& other) :
+    Symbol(other)
+{
+    // Copy the token explicitly
+    this->_token = other._token->copy();
+}
+
+/* Move constructor for the Terminal symbol. */
+Terminal::Terminal(Terminal&& other) :
+    Symbol(std::move(other)),
+    _token(std::move(other._token))
+{
+    // Set the other's token to nullptr so it doesn't deallocate it
+    other._token = nullptr;
+}
+
+/* Destructor for the Terminal symbol. */
+Terminal::~Terminal() {
+    // Only deallocate the internal token if not null
+    if (this->_token != nullptr) { delete this->_token; }
+}
+
+
+
+/* Move assignment operator for the Terminal symbol. */
+Terminal& Terminal::operator=(Terminal&& other) {
+    if (this != &other) { swap(*this, other); }
+    return *this;
+}
+
+/* Swap operator for the Terminal symbol. */
+void ArgumentParser::Parser::swap(Terminal& t1, Terminal& t2) {
+    using std::swap;
+
+    swap((Symbol&) t1, (Symbol&) t2);
+    swap(t1._token, t2._token);
+}
+
+
+
 
 
 /***** SYMBOLSTACK CLASS *****/
@@ -78,7 +147,7 @@ void SymbolStack::resize() {
 
 
 /* Adds a new terminal on the stack, based on the given token. */
-void SymbolStack::add_terminal(const Token& token) {
+void SymbolStack::add_terminal(Token* token) {
     // Create a new Terminal
     Terminal* term = new Terminal(token);
 
@@ -89,43 +158,20 @@ void SymbolStack::add_terminal(const Token& token) {
     this->symbols[this->length++] = (Symbol*) term;
 }
 
-/* Adds a new non-terminal on the stack, based on the given node. */
-void SymbolStack::add_nonterminal(ADLNode* node) {
-    // Create a new NonTerminal
-    NonTerminal* term = new NonTerminal(node);
+/* Replaces the first N symbols (deallocating them) with the new NonTerminal. */
+void SymbolStack::replace(size_t N, NonTerminal* symbol) {
+    // Loop & deallocate
+    size_t i = this->length - 1;
+    for (; i >= this->length - N; i--) {
+        delete this->symbols[i];
+    }
+    // Decrease the length
+    this->length -= N;
 
-    // Make sure there is enough space left
-    if (this->length >= this->max_length) { this->resize(); }
+    // Insert the new symbol at that place
+    this->symbols[this->length++] = symbol;
 
-    // Add the new terminal symbol
-    this->symbols[this->length++] = (Symbol*) term;
-}
-
-
-
-/* Gets & removes the top symbol from the stack. */
-Symbol* SymbolStack::pop_head() {
-    // Get the first symbol
-    Symbol* head = this->head();
-
-    // Copy all the memory one element back
-    --this->length;
-    if (this->length > 0) { memmove(this->symbols, this->symbols + 1, sizeof(Symbol*) * this->length); }
-
-    // Return the head
-    return head;
-}
-
-/* Gets & removes the last symbol from the stack. */
-Symbol* SymbolStack::pop_tail() {
-    // Get the last symbol
-    Symbol* tail = this->tail();
-
-    // Simply reduce the length by one
-    --this->length;
-
-    // Return the tail
-    return tail;
+    // Done!
 }
 
 

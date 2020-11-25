@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:00:48
  * Last edited:
- *   24/11/2020, 23:23:06
+ *   25/11/2020, 17:20:21
  * Auto updated?
  *   Yes
  *
@@ -21,9 +21,9 @@ using namespace ArgumentParser;
 
 /***** ADLVALUE CLASS *****/
 
-/* Constructor for the ADLValue class, which takes the value type, a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and this node's parent node. */
-ADLValue::ADLValue(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent) :
-    ADLNode(type, filenames, line, col, parent)
+/* Constructor for the ADLValue class, which takes the value type, a breadcrumb trail of filenames where this node originated from, the line number where this node originated from and the column number where it originated from. */
+ADLValue::ADLValue(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col) :
+    ADLNode(type, filenames, line, col)
 {}
 
 

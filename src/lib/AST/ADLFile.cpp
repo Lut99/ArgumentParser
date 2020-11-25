@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   24/11/2020, 22:44:59
+ *   25/11/2020, 20:35:45
  * Auto updated?
  *   Yes
  *
@@ -23,9 +23,9 @@ using namespace ArgumentParser;
 
 /***** ADLFILE CLASS *****/
 
-/* Constructor for the ADLFile class, which takes a trail of filenames where it originated, a column number where it originated, a matching column number and the parent of this node. */
-ADLFile::ADLFile(const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* parent) :
-    ADLNode(NodeType::file, filenames, line, col, parent)
+/* Constructor for the ADLFile class, which only takes a trail of filenames where it originated. */
+ADLFile::ADLFile(const std::vector<std::string>& filenames) :
+    ADLNode(NodeType::file, filenames, 0, 0)
 {}
 
 /* Copy constructor for the ADLFile class. */
@@ -58,6 +58,16 @@ ADLFile::~ADLFile() {
 
 
 
+/* Dynamically adds another nested node to the list of toplevel-nodes. */
+void ADLFile::add_node(ADLNode* node) {
+    // Add it to the internal list
+    this->toplevel.push_back(node);
+    // Don't forget to set ourselves as a parent
+    node->parent = this;
+}
+
+
+
 /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
 void ADLFile::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) {
     // Simply loop through all nested elements, possibly replacing them
@@ -84,23 +94,6 @@ void ADLFile::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNod
             this->toplevel[i] = new_node;
         }
     }
-}
-
-
-
-/* Removes a given node as direct child of this ADLFile. */
-void ADLFile::remove_node(ADLNode* node) {
-    const char* context = "ADLFile::remove_node()";
-
-    // Find the place of the node
-    std::vector<ADLNode*>::iterator iter = std::find(this->toplevel.begin(), this->toplevel.end(), node);
-    if (iter == this->toplevel.end()) { throw std::runtime_error(std::string(context) + ": Unknown node encountered.\n"); }
-
-    // Delete the pointer
-    delete (*iter);
-
-    // Use the iterator to remove it from the list
-    this->toplevel.erase(iter);
 }
 
 
