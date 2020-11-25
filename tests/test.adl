@@ -6,16 +6,19 @@
  * efficient (or so we hope) parser.
  */
 
-.include "more_types.adl"
+.include <stdtypes.adl>
 
+.ifdef "with_date"
 <date> {
     name "Date";
     pattern <uint> "-" <uint> "-" <uint>;
 }
+.endif
 
 <hello_world> {
     name "Hello, world!";
-    includes "hello_world.cpp";
+    pattern r"[A-Za-z_]+";
+    source "hello_world.cpp";
 }
 
 <regex_test> {
