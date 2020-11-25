@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   21/11/2020, 13:37:50
+ *   25/11/2020, 15:45:57
  * Auto updated?
  *   Yes
  *
@@ -28,7 +28,7 @@ int main() {
     size_t last_line = 0;
     while (!tokenizer.eof()) {
         // Get the token
-        Token t;
+        Token* t;
         try {
             t = tokenizer.pop();
         } catch (Exceptions::ADLCompileError& e) {
@@ -37,14 +37,17 @@ int main() {
         }
 
         // If the line changed, then go to a newline
-        if (last_line != t.line) {
-            last_line = t.line;
+        if (last_line != t->line) {
+            last_line = t->line;
             cout << endl;
         } else {
             cout << " ";
         }
 
         // Write it
-        cout << t;
+        cout << *t;
+
+        // Deallocate the token
+        delete t;
     }
 }

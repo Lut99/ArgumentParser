@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   21/11/2020, 14:26:52
+ *   25/11/2020, 16:03:15
  * Auto updated?
  *   Yes
  *
@@ -14,6 +14,8 @@
 **/
 
 #include <cerrno>
+#include <cstdint>
+#include <iostream>
 #include <sstream>
 
 #include "ADLTokenizer.hpp"
@@ -35,7 +37,7 @@ using namespace ArgumentParser;
 
 /* Shortcut for accepting a token and storing it. */
 #define STORE(C) \
-    result.value.push_back((C)); \
+    result->raw.push_back((C)); \
     ++this->col;
 
 /* Shortcut for accepting but not storing a token. */
@@ -46,19 +48,123 @@ using namespace ArgumentParser;
 #define REJECT(C) \
     ungetc((C), this->file);
 
+/* Parses given Token as a number (i.e., integral value) and returns it as a ValueToken. */
+Token* parse_number(const std::vector<std::string>& filenames, const std::string& raw_line, Token* token) {
+    // Init some variables
+    std::string raw = token->raw;
+    long result = 0;
+    long modifier = 1;
+
+    // If the number is negative, reflect that in the modifier and get rid of the raw minus
+    if (raw.substr(0, 3) == "---") {
+        raw = raw.substr(3);
+        modifier *= -1;
+    }
+
+    // Loop and add the numbers
+    bool warned = false;
+    for (size_t i = 0; i < raw.size(); i++) {
+        long value = (long) (raw[i] - '0');
+        if (modifier > 0) {
+            // Check if it won't get out-of-bounds for the positive add
+            if (!warned && result > (numeric_limits<long>::max() / 10.0) - value) {
+                Exceptions::print_warning(cerr, Exceptions::OverflowWarning(filenames, token->line, token->col, raw_line));
+                warned = true;
+            }
+
+            // If it didn't, add it
+            result *= 10;
+            result += value;
+        } else {
+            // Check if it won't get out-of-bounds for the negative add
+            if (!warned && result < (numeric_limits<long>::min() / 10.0) + value) {
+                Exceptions::print_warning(cerr, Exceptions::UnderflowWarning(filenames, token->line, token->col, raw_line));
+                warned = true;
+            }
+
+            // If it didn't, add it
+            result *= 10;
+            result -= value;
+        }
+    }
+
+    // Done, so create a ValueToken and return it
+    return (Token*) ValueToken<long>::promote(token, result);
+}
+
+/* Parses given Token as a decimal (i.e., floating-point value) and returns it as a ValueToken. */
+Token* parse_decimal(const std::vector<std::string>& filenames, const std::string& raw_line, Token* token) {
+    // Init some variables
+    std::string raw = token->raw;
+    double result = 0;
+    double modifier = 1;
+
+    // If the number is negative, reflect that in the modifier and get rid of the raw minus
+    if (raw.substr(0, 3) == "---") {
+        raw = raw.substr(3);
+        modifier *= -1;
+    }
+
+    // Since parsing doubles is hard, let's just call a library function
+    try {
+        result = modifier * std::stod(raw);
+    } catch (std::out_of_range& e) {
+        // Print as the overflow warning
+        Exceptions::print_warning(cerr, Exceptions::FloatOverflowWarning(filenames, token->line, token->col, raw_line));
+        result = std::numeric_limits<double>::max();
+    }
+
+    // Done, so create a ValueToken and return it
+    return (Token*) ValueToken<double>::promote(token, result);
+}
+
 
 
 
 
 /***** TOKEN STRUCT *****/
 
-/* Allows a token to be written to an outstream. */
-std::ostream& ArgumentParser::operator<<(std::ostream& os, const Token& token) {
-    os << tokentype_names[(int) token.type];
-    if (!token.value.empty()) {
-        os << "(" << token.value << ")";
+/* Internal, polymorphic print function. */
+std::ostream& Token::print(std::ostream& os) const {
+    os << tokentype_names[(int) this->type];
+    if (!this->raw.empty()) {
+        os << "(" << this->raw << ")";
     }
     return os;
+}
+
+
+
+
+
+/***** VALUETOKEN STRUCT *****/
+
+/* Internal, polymorphic print function. */
+template <class T>
+std::ostream& ValueToken<T>::print(std::ostream& os) const {
+    return os << tokentype_names[(int) this->type] << "(" << this->value << ")";
+}
+
+/* "Promotes" an existing Token to a ValueToken, by copying it and adding our value. Note that the given token will be deallocated. */
+template <class T>
+ValueToken<T>* ValueToken<T>::promote(Token* other, const T& value) {
+    // Create a new ValueToken
+    ValueToken* result = new ValueToken<T>();
+
+    // Copy the token's properties
+    result->type = other->type;
+    result->line = other->line;
+    result->col = other->col;
+    result->raw = other->raw;
+
+    // Inject the value
+    result->value = value;
+
+    // Delete the old token
+    delete other;
+
+    // Return the new one
+    return result;
 }
 
 
@@ -85,7 +191,6 @@ Tokenizer::Tokenizer(const std::vector<std::string>& filenames) :
     this->temp.reserve(1);
 }
 
-
 /* Move constructor for the Tokenizer class. */
 Tokenizer::Tokenizer(Tokenizer&& other) :
     filenames(other.filenames),
@@ -98,28 +203,36 @@ Tokenizer::Tokenizer(Tokenizer&& other) :
 {
     // Set the other's file pointer to NULL
     other.file = NULL;
+
+    // Also clear the other's list of tokens
+    other.temp.clear();
 }
 
 /* Destructor for the Tokenizer class. */
 Tokenizer::~Tokenizer() {
     // Close the file
     if (this->file != NULL) { fclose(this->file); }
+
+    // Deallocate the temporary tokens
+    for (size_t i = 0; i < this->temp.size(); i++) {
+        delete this->temp[i];
+    }
 }
 
 
 
 /* Used internally to read the first token off the stream. */
-Token Tokenizer::read_head() {
+Token* Tokenizer::read_head() {
     // Check if there are any put-back tokens we wanna see
     if (this->temp.size() > 0) {
-        Token result = this->temp[this->temp.size() - 1];
+        Token* result = this->temp[this->temp.size() - 1];
         this->temp.pop_back();
         return result;
     }
 
     // Otherwise, parse from the stream
     char c;
-    Token result;
+    Token* result = new Token();
 
 start:
     {
@@ -129,42 +242,42 @@ start:
         // Choose the correct path forward
         if (c == 'r') {
             // See if this turns into a regex-expression or an identifier
-            result.line = this->line;
-            result.col = this->col;
+            result->line = this->line;
+            result->col = this->col;
             STORE(c);
             goto r_start;
         } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
             // Mark the Token as a general identifier and move to parsing the rest of it
-            result.type = TokenType::identifier;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::identifier;
+            result->line = this->line;
+            result->col = this->col;
             STORE(c);
             goto id_start;
         } else if (c == '-') { 
-            result.line = this->line;
-            result.col = this->col;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             goto dash_start;
         } else if (c == '<') {
-            result.type = TokenType::type;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::type;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             goto type_start;
         } else if (c == '\"') {
-            result.type = TokenType::string;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::string;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             goto string_start;
         } else if (c >= '0' && c <= '9') {
-            result.line = this->line;
-            result.col = this->col;
+            result->line = this->line;
+            result->col = this->col;
             STORE(c);
             goto number_contd;
         } else if (c == '.') {
-            result.line = this->line;
-            result.col = this->col;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             goto dot_start;
         } else if (c == '/') {
@@ -173,37 +286,37 @@ start:
             goto comment_start;
         } else if (c == '[') {
             // Simply return the appropriate token
-            result.type = TokenType::l_square;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::l_square;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             return result;
         } else if (c == ']') {
             // Simply return the appropriate token
-            result.type = TokenType::r_square;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::r_square;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             return result;
         } else if (c == '{') {
             // Simply return the appropriate token
-            result.type = TokenType::l_curly;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::l_curly;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             return result;
         } else if (c == '}') {
             // Simply return the appropriate token
-            result.type = TokenType::r_curly;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::r_curly;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             return result;
         } else if (c == ';') {
             // Simply return the appropriate token
-            result.type = TokenType::semicolon;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::semicolon;
+            result->line = this->line;
+            result->col = this->col;
             ACCEPT(c);
             return result;
         } else if (c == '\n') {
@@ -218,9 +331,9 @@ start:
             goto start;
         } else if (c == EOF) {
             // Return an empty token
-            result.type = TokenType::empty;
-            result.line = this->line;
-            result.col = this->col;
+            result->type = TokenType::empty;
+            result->line = this->line;
+            result->col = this->col;
             return result;
         } else {
             throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
@@ -239,10 +352,10 @@ r_start:
             // Parse as regex
 
             // First, clear the first 'r'
-            result.value = "";
+            result->raw = "";
 
             // Then, parse as string (but with a different type)
-            result.type = TokenType::regex;
+            result->type = TokenType::regex;
             ACCEPT(c);
             goto string_start;
         } else if ((c >= 'a' && c <= 'z') ||
@@ -250,12 +363,12 @@ r_start:
                    (c >= '0' && c <= '9') ||
                     c == '_' || c == '-') {
             // Start parsing the value as id
-            result.type = TokenType::identifier;
+            result->type = TokenType::identifier;
             STORE(c);
             goto id_start;
         } else {
             // We parsed what we could, 'pparently this is a one-char identifier
-            result.type = TokenType::identifier;
+            result->type = TokenType::identifier;
             REJECT(c);
             return result;
         }
@@ -296,7 +409,7 @@ dash_start:
                 (c >= '0' && c <= '9') ||
                  c == '?') {
             // Done, it was a shortlabel
-            result.type = TokenType::shortlabel;
+            result->type = TokenType::shortlabel;
             STORE(c);
             return result;
         } else if (c == '-') {
@@ -325,7 +438,7 @@ dash_dash:
                 (c >= '0' && c <= '9') ||
                  c == '_') {
             // Parse it as a longlabel
-            result.type = TokenType::longlabel;
+            result->type = TokenType::longlabel;
             STORE(c);
             goto dash_dash_longlabel;
         } else if (c == '-') {
@@ -491,14 +604,16 @@ number_contd:
             goto number_contd;
         } else if (c == '.') {
             // It's decimal, so do that instead
-            result.type = TokenType::decimal;
+            result->type = TokenType::decimal;
             STORE(c);
             goto decimal_contd;
         } else {
-            // Done, return as number
-            result.type = TokenType::number;
+            // Done, it's a normal number
+            result->type = TokenType::number;
             REJECT(c);
-            return result;
+
+            // Return with the parsed value
+            return parse_number(this->filenames, this->get_line(), result);
         }
     }
 
@@ -515,9 +630,9 @@ decimal_contd:
             STORE(c);
             goto decimal_contd;
         } else {
-            // Done, return
+            // Done, return with the parsed value
             REJECT(c);
-            return result;
+            return parse_decimal(this->filenames, this->get_line(), result);
         }
     }
 
@@ -534,12 +649,12 @@ dot_start:
                 (c >= '0' && c <= '9') ||
                  c == '_' || c == '-') {
             // Try to parse as directive
-            result.type = TokenType::directive;
+            result->type = TokenType::directive;
             STORE(c);
             goto dot_directive;
         } else if (c == '.') {
             // So far so good, move to next state
-            result.type = TokenType::triple_dot;
+            result->type = TokenType::triple_dot;
             ACCEPT(c);
             goto dot_dot;
         } else {
@@ -708,9 +823,9 @@ std::string Tokenizer::get_line() {
 
 
 /* Looks at the top token of the stream without removing it. */
-Token Tokenizer::peek() {
+Token* Tokenizer::peek() {
     // Read the token at the head of the stream
-    Token head = this->read_head();
+    Token* head = this->read_head();
     // Always put it back
     this->push(head);
     // Then, return
@@ -718,15 +833,15 @@ Token Tokenizer::peek() {
 }
 
 /* Removes the top token of the stream and returns it. */
-Token Tokenizer::pop() {
+Token* Tokenizer::pop() {
     // Read the token at the head of the stream
-    Token head = this->read_head();
+    Token* head = this->read_head();
     // Then, return
     return head;
 }
 
 /* Puts a token back on the stream. Note that it will not be parsed again, so retrieving it will be much faster than the first time. */
-void Tokenizer::push(const Token& token) {
+void Tokenizer::push(Token* token) {
     // Add the token to our temporary list of tokens, doubling capacity each time we go over it
     if (this->temp.size() == this->temp.capacity()) {
         this->temp.reserve(this->temp.capacity() * 2);

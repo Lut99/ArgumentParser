@@ -6,7 +6,7 @@
  * efficient (or so we hope) parser.
  */
 
-.include <stdtypes.adl>
+.include "<stdtypes>"
 
 .ifdef "with_date"
 <date> {
@@ -47,7 +47,7 @@ positional1 <int> {
 }
 
 variadic_positional <int>... {
-    index ---55;
+    index ---5.5;
 }
 
 --option -o <int> {

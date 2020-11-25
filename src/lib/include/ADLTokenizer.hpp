@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   21/11/2020, 14:19:45
+ *   25/11/2020, 16:00:46
  * Auto updated?
  *   Yes
  *
@@ -23,6 +23,7 @@
 #include <cstring>
 #include <exception>
 #include <unordered_map>
+#include <limits>
 
 #include "ADLExceptions.hpp"
 
@@ -78,8 +79,6 @@ namespace ArgumentParser {
              *   - the line number where the error occurred
              *   - the column number where the error occurred
              *   - the line where the error occurred itself
-             *   - the start of the part of the raw_line that is erronous
-             *   - the size of the part of the raw_line that is erronous
              *   - [optional] a message
              */
             SyntaxError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
@@ -210,6 +209,49 @@ namespace ArgumentParser {
             {}
 
         };
+    
+        /* Baseclass exception for when a value goes out of the allowed range. */
+        class OutOfRangeWarning: public ADLCompileWarning {
+        public:
+            /* Constructor for the OutOfRangeError class, which takes:
+             *   - a list of files we tried to parse (breadcrumb-style)
+             *   - the line number where the error occurred
+             *   - the column number where the error occurred
+             *   - the line where the error occurred itself
+             *   - [optional] a message
+             */
+            OutOfRangeWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+                ADLCompileWarning("out-of-range", filenames, line, col, raw_line, message)
+            {}
+
+        };
+        /* Exception that is thrown when a given number overflows (i.e., it's larger than T::max()). */
+        class OverflowWarning: public OutOfRangeWarning {
+        public:
+            /* Constructor for the OverflowWarning class, which takes a breadcrumb path of files we tried to parse, the line number where the overflow occurred, the column number and the raw line itself where the error occurred. */
+            OverflowWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
+                OutOfRangeWarning(filenames, line, col, raw_line, "Overflow of integral constant (larger than " + std::to_string(std::numeric_limits<long>::max()) + ")")
+            {}
+
+        };
+        /* Exception that is thrown when a given floating-point number overflows. */
+        class FloatOverflowWarning: public OutOfRangeWarning {
+        public:
+            /* Constructor for the FloatOverflowWarning class, which takes a breadcrumb path of files we tried to parse, the line number where the overflow occurred, the column number and the raw line itself where the error occurred. */
+            FloatOverflowWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
+                OutOfRangeWarning(filenames, line, col, raw_line, "Overflow of decimal constant (larger than " + std::to_string(std::numeric_limits<double>::max()) + ")")
+            {}
+
+        };
+        /* Exception that is thrown when a given number underflows (i.e., it's smaller than T::min()). */
+        class UnderflowWarning: public OutOfRangeWarning {
+        public:
+            /* Constructor for the UnderflowWarning class, which takes a breadcrumb path of files we tried to parse, the line number where the underflow occurred, the column number and the raw line itself where the error occurred. */
+            UnderflowWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
+                OutOfRangeWarning(filenames, line, col, raw_line, "Underflow of integral constant (smaller than " + std::to_string(std::numeric_limits<long>::min()) + ")")
+            {}
+
+        };
     }
 
 
@@ -257,7 +299,12 @@ namespace ArgumentParser {
     };
 
     /* The Token struct, which is used to convey information to the higher-level parser. */
-    struct Token {
+    class Token {
+    protected:
+        /* Internal, polymorphic print function. */
+        virtual std::ostream& print(std::ostream& os) const;
+
+    public:
         /* The type of this Token. */
         TokenType type;
         /* The line number where this token started. */
@@ -265,15 +312,38 @@ namespace ArgumentParser {
         /* The column number where this token started. */
         size_t col;
         /* The raw value of this token, if applicable. */
-        std::string value;
+        std::string raw;
+
+        /* Default constructor for the Token class. */
+        Token() {}
+        /* Virtual destructor for the Token class. */
+        virtual ~Token() {}
 
         /* Allows a token to be written to an outstream. */
-        friend std::ostream& operator<<(std::ostream& os, const Token& token);
+        inline friend std::ostream& operator<<(std::ostream& os, const Token& token) { return token.print(os); }
+        /* Allows a token to be written to an outstream. */
+        inline friend std::ostream& operator<<(std::ostream& os, Token* token) { return token->print(os); }
 
     };
-    /* Allows a token to be written to an outstream. */
-    std::ostream& operator<<(std::ostream& os, const Token& token);
 
+    /* Derived ValueToken class, which can store an already parsed, non-string value. */
+    template <class T>
+    class ValueToken : public Token {
+    private:
+        /* Internal, polymorphic print function. */
+        virtual std::ostream& print(std::ostream& os) const;
+
+    public:
+        /* The parsed value this token stores. */
+        T value;
+
+        /* Default constructor for the ValueToken class. */
+        ValueToken() {}
+        
+        /* "Promotes" an existing Token to a ValueToken, by copying it and adding our value. Note that the given token will be deallocated. */
+        static ValueToken* promote(Token* other, const T& value);
+
+    };
 
 
 
@@ -293,10 +363,10 @@ namespace ArgumentParser {
         long last_newline;
 
         /* Used to temporarily store tokens that were put back. */
-        std::vector<Token> temp;
+        std::vector<Token*> temp;
 
         /* Used internally to read the first token off the stream. */
-        Token read_head();
+        Token* read_head();
         /* Reads the entire, current line from the internal file. */
         std::string get_line();
 
@@ -314,11 +384,16 @@ namespace ArgumentParser {
         ~Tokenizer();
 
         /* Looks at the top token of the stream without removing it. */
-        Token peek();
+        Token* peek();
         /* Removes the top token of the stream and returns it. */
-        Token pop();
+        Token* pop();
         /* Puts a token back on the stream. Note that it will not be parsed again, so may retrieving it will be much faster than the first time. */
-        void push(const Token& token);
+        inline void push(const Token& token) { return this->push((Token*) &token); }
+        /* Puts a token back on the stream. Note that it will not be parsed again, so may retrieving it will be much faster than the first time. */
+        template <class T>
+        inline void push(const ValueToken<T>& token) { return this->push((Token*) &token); }
+        /* Puts a token back on the stream. Note that it will not be parsed again, so may retrieving it will be much faster than the first time. */
+        void push(Token* token);
 
         /* Returns true if an end-of-file has been reached. */
         inline bool eof() const { return feof(this->file); }
