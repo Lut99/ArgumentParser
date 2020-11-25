@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:19:31
  * Last edited:
- *   24/11/2020, 23:24:22
+ *   25/11/2020, 16:11:05
  * Auto updated?
  *   Yes
  *
@@ -24,6 +24,7 @@
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
+    /* The ADLString class is used to represent raw string values. */
     class ADLString : public ADLValue {
     public:
         /* Raw value stored in this ADLString. */
