@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:19:31
  * Last edited:
- *   25/11/2020, 17:20:36
+ *   26/11/2020, 12:27:24
  * Auto updated?
  *   Yes
  *
@@ -20,12 +20,12 @@
 #include <string>
 #include <vector>
 
-#include "ADLValue.hpp"
+#include "ADLLeaf.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
     /* The ADLString class is used to represent raw string values. */
-    class ADLString : public ADLValue {
+    class ADLString : public ADLLeaf {
     public:
         /* Raw value stored in this ADLString. */
         std::string value;

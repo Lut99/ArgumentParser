@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:09:45
  * Last edited:
- *   25/11/2020, 17:21:01
+ *   26/11/2020, 12:27:12
  * Auto updated?
  *   Yes
  *
@@ -23,12 +23,12 @@
 #include <string>
 #include <vector>
 
-#include "ADLValue.hpp"
+#include "ADLLeaf.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
     /* The ADLRegex class is used to represent regex-values in the AST. */
-    class ADLRegex : public ADLValue {
+    class ADLRegex : public ADLLeaf {
     public:
         /* Raw value stored in this ADLRegex. */
         std::string value;

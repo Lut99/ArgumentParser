@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   25/11/2020, 18:13:19
+ *   26/11/2020, 12:05:28
  * Auto updated?
  *   Yes
  *
@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 #include <unordered_map>
+#include <limits>
 
 namespace ArgumentParser {
     /* The type to which cast NodeType if we want to perform numeric operations on it. */
@@ -40,8 +41,12 @@ namespace ArgumentParser {
         decimal = 0x400
     };
 
+
+
     /* Constant type denoting all value types. */
-    static constexpr NodeType values = (NodeType) ((nodetype_t) NodeType::string | (nodetype_t) NodeType::regex | (nodetype_t) NodeType::number | (nodetype_t) NodeType::decimal);
+    static constexpr NodeType nt_values = (NodeType) ((nodetype_t) NodeType::string | (nodetype_t) NodeType::regex | (nodetype_t) NodeType::number | (nodetype_t) NodeType::decimal);
+    /* Constant type denoting all types. */
+    static constexpr NodeType nt_all = (NodeType) ~((nodetype_t) 0);
 
 
 
@@ -65,7 +70,7 @@ namespace ArgumentParser {
 
 
     /* Given a NodeType that may consist of multiple ones, tries to extract all the possible NodeTypes and pretty prints them in a string. */
-    std::string extract_type_names(const NodeType& nodes) {
+    std::string extract_type_names(const NodeType nodes, const std::string& concat_word = "and") {
         // Try all of values of the enum to see if it's present
         std::stringstream sstr;
         for (size_t i = 0; i < nodetype_name.size(); i++) {
@@ -76,7 +81,7 @@ namespace ArgumentParser {
             if ((nodetype_t) nodes & nt) {
                 // It does; so print the appropriate inter-node first
                 if (i < nodetype_name.size() - 1) { sstr << ", "; }
-                else { sstr << " and "; }
+                else { sstr << ' ' << concat_word << ' '; }
 
                 // Add the name of the NodeType itself
                 sstr << nodetype_name.at((NodeType) nt);

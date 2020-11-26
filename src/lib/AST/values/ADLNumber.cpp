@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:14:03
  * Last edited:
- *   25/11/2020, 17:21:32
+ *   26/11/2020, 12:27:03
  * Auto updated?
  *   Yes
  *
@@ -26,7 +26,7 @@ using namespace ArgumentParser;
 
 /* Constructor for the ADLNumber class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and the value this node represents. */
 ADLNumber::ADLNumber(const std::vector<std::string>& filenames, size_t line, size_t col, long value) :
-    ADLValue(NodeType::number, filenames, line, col),
+    ADLLeaf(NodeType::number, filenames, line, col),
     value(value)
 {}
 

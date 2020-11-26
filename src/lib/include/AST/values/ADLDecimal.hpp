@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   25/11/2020, 17:21:49
+ *   26/11/2020, 12:26:42
  * Auto updated?
  *   Yes
  *
@@ -22,11 +22,11 @@
 #include <string>
 #include <vector>
 
-#include "ADLValue.hpp"
+#include "ADLLeaf.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
-    class ADLDecimal: public ADLValue {
+    class ADLDecimal: public ADLLeaf {
     public:
         /* The floating-point value to store. */
         double value;

@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:19:24
  * Last edited:
- *   25/11/2020, 17:20:47
+ *   26/11/2020, 12:27:30
  * Auto updated?
  *   Yes
  *
@@ -24,7 +24,7 @@ using namespace ArgumentParser;
 
 /* Constructor for the ADLString class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and the raw string value. */
 ADLString::ADLString(const std::vector<std::string>& filenames, size_t line, size_t col, const std::string& value) :
-    ADLValue(NodeType::string, filenames, line, col),
+    ADLLeaf(NodeType::string, filenames, line, col),
     value(value)
 {}
 

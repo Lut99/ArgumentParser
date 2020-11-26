@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   25/11/2020, 17:21:23
+ *   26/11/2020, 12:26:58
  * Auto updated?
  *   Yes
  *
@@ -22,11 +22,11 @@
 #include <string>
 #include <vector>
 
-#include "ADLValue.hpp"
+#include "ADLLeaf.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
-    class ADLNumber: public ADLValue {
+    class ADLNumber: public ADLLeaf {
     public:
         /* The integral value to store. */
         long value;
