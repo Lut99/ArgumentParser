@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:42
  * Last edited:
- *   26/11/2020, 14:16:04
+ *   26/11/2020, 15:27:28
  * Auto updated?
  *   Yes
  *
@@ -65,10 +65,8 @@ namespace ArgumentParser::Parser {
         /* Returns the internal type of the token. */
         inline TokenType type() const { return this->_token->type; }
 
-        /* Returns the line number stored in this token. */
-        inline size_t line() const { return this->_token->line; }
-        /* Returns the column number stored in this token. */
-        inline size_t col() const { return this->_token->col; }
+        /* Returns the debug information of this token. */
+        inline const DebugInfo& debug() const { return this->_token->debug; }
         /* Returns the raw value stored in this token. */
         inline std::string raw() const { return this->_token->raw; }
         /* Returns the parsed value stored in this token. */
@@ -106,10 +104,8 @@ namespace ArgumentParser::Parser {
         /* Returns the internal type of the token. */
         inline NodeType type() const { return this->_node->type; }
 
-        /* Returns the line number stored in this token. */
-        inline size_t line() const { return this->_node->line; }
-        /* Returns the column number stored in this token. */
-        inline size_t col() const { return this->_node->col; }
+        /* Returns the debug information of this token. */
+        inline const DebugInfo& debug() const { return this->_node->debug; }
 
     };
 

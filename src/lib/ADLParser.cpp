@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   26/11/2020, 14:24:05
+ *   26/11/2020, 16:28:29
  * Auto updated?
  *   Yes
  *
@@ -60,28 +60,28 @@ start:
                 case TokenType::directive:
                     // Cast it to a directive non-terminal, after which values can be added later
                     stack.replace(1, new NonTerminal(
-                        new ADLDirective(filenames, term->line(), term->col(), term->raw())
+                        new ADLDirective(filenames, term->debug(), term->raw())
                     ));
                     return true;
                 
                 case TokenType::string:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
-                    prev_nonterm = new ADLString(filenames, term->line(), term->col(), term->raw());
+                    prev_nonterm = new ADLString(filenames, term->debug(), term->raw());
                     goto value_start;
                 
                 case TokenType::regex:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
-                    prev_nonterm = new ADLRegex(filenames, term->line(), term->col(), term->raw());
+                    prev_nonterm = new ADLRegex(filenames, term->debug(), term->raw());
                     goto value_start;
                 
                 case TokenType::number:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
-                    prev_nonterm = new ADLNumber(filenames, term->line(), term->col(), term->value<long>());
+                    prev_nonterm = new ADLNumber(filenames, term->debug(), term->value<long>());
                     goto value_start;
 
                 case TokenType::decimal:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
-                    prev_nonterm = new ADLDecimal(filenames, term->line(), term->col(), term->value<double>());
+                    prev_nonterm = new ADLDecimal(filenames, term->debug(), term->value<double>());
                     goto value_start;
                 
                 default:
@@ -132,7 +132,7 @@ value_start:
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(1, new NonTerminal(
-                new ADLValues(filenames, prev_nonterm->line, prev_nonterm->col, prev_nonterm)
+                new ADLValues(filenames, prev_nonterm->debug, prev_nonterm)
             ));
             return true;
         }
@@ -187,7 +187,7 @@ void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack
         Symbol* s = stack[i];
         if (s->is_terminal) {
             // If there are terminals left, then we apparently didn't expect it at that position
-            throw Exceptions::IllegalToplevelSymbol(filenames, ((Terminal*) s)->token());
+            throw Exceptions::IllegalSymbolError(filenames, ((Terminal*) s)->token());
         } else {
             NonTerminal* term = (NonTerminal*) s;
             if (term->type() == NodeType::values) {
@@ -208,7 +208,7 @@ void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack
 /***** PARSER CLASS *****/
 
 /* Parses a single file. Returns a single root node, from which the entire parsed tree is build. Does not immediately throw exceptions, but collects them in a vector which is then thrown. Use std::print_error on each of them to print them neatly. Warnings are always printed by the function, never thrown. */
-ADLFile* Parser::parse(const std::vector<std::string>& filenames) {
+ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames) {
     // Let's create a Tokenizer for our file
     Tokenizer in(filenames);
 

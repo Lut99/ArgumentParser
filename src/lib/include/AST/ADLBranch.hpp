@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:36:56
  * Last edited:
- *   26/11/2020, 12:14:54
+ *   26/11/2020, 15:34:58
  * Auto updated?
  *   Yes
  *
@@ -44,10 +44,10 @@ namespace ArgumentParser {
         std::vector<ADLNode*> children;
 
 
-        /* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, the line number where this node originated, a matching column number and optionally a NodeType denoting all accepted children types. */
-        ADLBranch(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, NodeType whitelist = nt_all);
-        /* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, the line number where this node originated, a matching column number, the maximum number of children to allow and optionally a NodeType denoting all accepted children types. */
-        ADLBranch(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, size_t max, NodeType whitelist = nt_all);
+        /* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, a DebugInfo struct linking this node to a location in the source file and optionally a NodeType denoting all accepted children types. */
+        ADLBranch(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug, NodeType whitelist = nt_all);
+        /* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, a DebugInfo struct linking this node to a location in the source file, the maximum number of children to allow and optionally a NodeType denoting all accepted children types. */
+        ADLBranch(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug, size_t max, NodeType whitelist = nt_all);
         /* Copy constructor for the ADLBranch class. */
         ADLBranch(const ADLBranch& other);
         /* Move constructor for the ADLBranch class. */

@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   26/11/2020, 13:59:06
+ *   26/11/2020, 16:26:23
  * Auto updated?
  *   Yes
  *
@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <limits>
 
+#include "DebugInfo.hpp"
 #include "ADLExceptions.hpp"
 
 namespace ArgumentParser {
@@ -76,13 +77,11 @@ namespace ArgumentParser {
         public:
             /* Constructor for the SyntaxError class, which takes:
              *   - a list of files we tried to parse (breadcrumb-style)
-             *   - the line number where the error occurred
-             *   - the column number where the error occurred
-             *   - the line where the error occurred itself
+             *   - a DebugInfo struct linking this exception to a place in the source file
              *   - [optional] a message
              */
-            SyntaxError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
-                ADLCompileError(filenames, line, col, raw_line, message)
+            SyntaxError(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& message = "") :
+                ADLCompileError(filenames, debug, message)
             {}
 
         };
@@ -92,9 +91,9 @@ namespace ArgumentParser {
             /* The character that was illegal. */
             const char c;
 
-            /* Constructor for the UnexpectedCharException, which takes the file where the illegal character occurred, the line number of its occurrence, the column number, the actual line where the error occurred and the illegal character itself. */
-            UnexpectedCharException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, (std::string("Unexpected character '") += c) + "'."),
+            /* Constructor for the UnexpectedCharException, which takes the file where the illegal character occurred, a DebugInfo struct linking this exception to a place in the source file and the illegal character itself. */
+            UnexpectedCharException(const std::vector<std::string>& filenames, const DebugInfo& debug, const char c) :
+                SyntaxError(filenames, debug, (std::string("Unexpected character '") += c) + "'."),
                 c(c)
             {}
 
@@ -102,9 +101,9 @@ namespace ArgumentParser {
         /* Exception for when a single dash isn't followed by an expected character. */
         class EmptyShortlabelException: public SyntaxError {
         public:
-            /* Constructor for the EmptyShortlabelException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
-            EmptyShortlabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, "Encountered empty shortlabel.")
+            /* Constructor for the EmptyShortlabelException class, which takes the name of the file where the empty dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyShortlabelException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Encountered empty shortlabel.")
             {}
 
         };
@@ -114,9 +113,9 @@ namespace ArgumentParser {
             /* The illegal character we encountered. */
             const char c;
 
-            /* Constructor for the IllegalShortlabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
-            IllegalShortlabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for shortlabel."),
+            /* Constructor for the IllegalShortlabelException class, which takes the name of the file where the illegal dash occurred, a DebugInfo struct linking this exception to a place in the source file and the illegal character itself. */
+            IllegalShortlabelException(const std::vector<std::string>& filenames, const DebugInfo& debug, const char c) :
+                SyntaxError(filenames, debug, (std::string("Encountered illegal character '") += c) + "' for shortlabel."),
                 c(c)
             {}
 
@@ -124,9 +123,9 @@ namespace ArgumentParser {
         /* Exception for when a double dash isn't followed by an expected character. */
         class EmptyLonglabelException: public SyntaxError {
         public:
-            /* Constructor for the EmptyLonglabelException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
-            EmptyLonglabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line,  "Encountered empty longlabel.")
+            /* Constructor for the EmptyLonglabelException class, which takes the name of the file where the empty dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyLonglabelException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug,  "Encountered empty longlabel.")
             {}
 
         };
@@ -136,9 +135,9 @@ namespace ArgumentParser {
             /* The illegal character we encountered. */
             const char c;
 
-            /* Constructor for the IllegalLonglabelException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
-            IllegalLonglabelException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for longlabel."),
+            /* Constructor for the IllegalLonglabelException class, which takes the name of the file where the illegal dash occurred, a DebugInfo struct linking this exception to a place in the source file and the illegal character itself. */
+            IllegalLonglabelException(const std::vector<std::string>& filenames, const DebugInfo& debug, const char c) :
+                SyntaxError(filenames, debug, (std::string("Encountered illegal character '") += c) + "' for longlabel."),
                 c(c)
             {}
 
@@ -146,9 +145,9 @@ namespace ArgumentParser {
         /* Exception for when a triple dash isn't followed by an expected character. */
         class EmptyNegativeException: public SyntaxError {
         public:
-            /* Constructor for the EmptyNegativeException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
-            EmptyNegativeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, "Encountered negative sign without value.")
+            /* Constructor for the EmptyNegativeException class, which takes the name of the file where the empty dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyNegativeException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Encountered negative sign without value.")
             {}
 
         };
@@ -158,9 +157,9 @@ namespace ArgumentParser {
             /* The illegal character we encountered. */
             const char c;
 
-            /* Constructor for the IllegalNegativeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
-            IllegalNegativeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered non-numeric character '") += c) + "' while parsing a numeric value."),
+            /* Constructor for the IllegalNegativeException class, which takes the name of the file where the illegal dash occurred, a DebugInfo struct linking this exception to a place in the source file and the illegal character itself. */
+            IllegalNegativeException(const std::vector<std::string>& filenames, const DebugInfo& debug, const char c) :
+                SyntaxError(filenames, debug, (std::string("Encountered non-numeric character '") += c) + "' while parsing a numeric value."),
                 c(c)
             {}
 
@@ -168,9 +167,9 @@ namespace ArgumentParser {
         /* Exception for when a triple dash isn't followed by an expected character. */
         class EmptyTypeException: public SyntaxError {
         public:
-            /* Constructor for the EmptyTypeException class, which takes the name of the file where the empty dash occurred, the line number where it did, the column number and the actual line where the error occurred. */
-            EmptyTypeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                SyntaxError(filenames, line, col, raw_line, "Encountered empty type identifier.")
+            /* Constructor for the EmptyTypeException class, which takes the name of the file where the empty dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyTypeException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Encountered empty type identifier.")
             {}
 
         };
@@ -180,9 +179,9 @@ namespace ArgumentParser {
             /* The illegal character we encountered. */
             const char c;
 
-            /* Constructor for the IllegalTypeException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
-            IllegalTypeException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, (std::string("Encountered illegal character '") += c) + "' for a type identifier."),
+            /* Constructor for the IllegalTypeException class, which takes the name of the file where the illegal dash occurred, a DebugInfo struct linking this exception to a place in the source file and the illegal character itself. */
+            IllegalTypeException(const std::vector<std::string>& filenames, const DebugInfo& debug, const char c) :
+                SyntaxError(filenames, debug, (std::string("Encountered illegal character '") += c) + "' for a type identifier."),
                 c(c)
             {}
 
@@ -202,9 +201,9 @@ namespace ArgumentParser {
             /* The illegal character we encountered. */
             const char c;
 
-            /* Constructor for the IllegalStringException class, which takes the name of the file where the illegal dash occurred, the line number where it did, the column number, the actual line where the error occurred and the illegal character itself. */
-            IllegalStringException(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const char c) :
-                SyntaxError(filenames, line, col, raw_line, "Encountered non-readable character '" + this->make_readable(c) + "' while parsing string."),
+            /* Constructor for the IllegalStringException class, which takes the name of the file where the illegal dash occurred, a DebugInfo struct linking this exception to a place in the source file and the illegal character itself. */
+            IllegalStringException(const std::vector<std::string>& filenames, const DebugInfo& debug, const char c) :
+                SyntaxError(filenames, debug, "Encountered non-readable character '" + this->make_readable(c) + "' while parsing string."),
                 c(c)
             {}
 
@@ -220,8 +219,8 @@ namespace ArgumentParser {
              *   - the line where the error occurred itself
              *   - [optional] a message
              */
-            OutOfRangeWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
-                ADLCompileWarning("out-of-range", filenames, line, col, raw_line, message)
+            OutOfRangeWarning(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& message = "") :
+                ADLCompileWarning("out-of-range", filenames, debug, message)
             {}
 
         };
@@ -229,8 +228,8 @@ namespace ArgumentParser {
         class OverflowWarning: public OutOfRangeWarning {
         public:
             /* Constructor for the OverflowWarning class, which takes a breadcrumb path of files we tried to parse, the line number where the overflow occurred, the column number and the raw line itself where the error occurred. */
-            OverflowWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                OutOfRangeWarning(filenames, line, col, raw_line, "Overflow of integral constant (larger than " + std::to_string(std::numeric_limits<long>::max()) + ")")
+            OverflowWarning(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                OutOfRangeWarning(filenames, debug, "Overflow of integral constant (larger than " + std::to_string(std::numeric_limits<long>::max()) + ")")
             {}
 
         };
@@ -238,8 +237,8 @@ namespace ArgumentParser {
         class FloatOverflowWarning: public OutOfRangeWarning {
         public:
             /* Constructor for the FloatOverflowWarning class, which takes a breadcrumb path of files we tried to parse, the line number where the overflow occurred, the column number and the raw line itself where the error occurred. */
-            FloatOverflowWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                OutOfRangeWarning(filenames, line, col, raw_line, "Overflow of decimal constant (larger than " + std::to_string(std::numeric_limits<double>::max()) + ")")
+            FloatOverflowWarning(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                OutOfRangeWarning(filenames, debug, "Overflow of decimal constant (larger than " + std::to_string(std::numeric_limits<double>::max()) + ")")
             {}
 
         };
@@ -247,8 +246,8 @@ namespace ArgumentParser {
         class UnderflowWarning: public OutOfRangeWarning {
         public:
             /* Constructor for the UnderflowWarning class, which takes a breadcrumb path of files we tried to parse, the line number where the underflow occurred, the column number and the raw line itself where the error occurred. */
-            UnderflowWarning(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line) :
-                OutOfRangeWarning(filenames, line, col, raw_line, "Underflow of integral constant (smaller than " + std::to_string(std::numeric_limits<long>::min()) + ")")
+            UnderflowWarning(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                OutOfRangeWarning(filenames, debug, "Underflow of integral constant (smaller than " + std::to_string(std::numeric_limits<long>::min()) + ")")
             {}
 
         };
@@ -307,17 +306,13 @@ namespace ArgumentParser {
     public:
         /* The type of this Token. */
         TokenType type;
-        /* The line number where this token started. */
-        size_t line;
-        /* The column number where this token started. */
-        size_t col;
-        /* The raw line where this token was found. */
-        std::string raw_line;
+        /* Debug information for this token. */
+        DebugInfo debug;
         /* The raw value of this token, if applicable. */
         std::string raw;
 
         /* Default constructor for the Token class. */
-        Token() {}
+        Token(): debug(di_empty) {}
         /* Virtual destructor for the Token class. */
         virtual ~Token() {}
 
@@ -375,6 +370,8 @@ namespace ArgumentParser {
         size_t col;
         /* The last position in the internal file where a newline was encountered. */
         long last_newline;
+        /* If set to true, will not tokenize any further. */
+        bool done_tokenizing;
 
         /* Used to temporarily store tokens that were put back. */
         std::vector<Token*> temp;
@@ -382,7 +379,7 @@ namespace ArgumentParser {
         /* Used internally to read the first token off the stream. */
         Token* read_head();
         /* Reads the entire, current line from the internal file. */
-        std::string get_line();
+        LineSnippet get_line();
 
     public:
         /* The path we are currently parsing. */
@@ -410,7 +407,7 @@ namespace ArgumentParser {
         void push(Token* token);
 
         /* Returns true if an end-of-file has been reached. */
-        inline bool eof() const { return feof(this->file); }
+        inline bool eof() const { return this->done_tokenizing; }
 
     };
 

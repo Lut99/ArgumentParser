@@ -14,13 +14,14 @@ TEST=tests/
 
 # Required files
 AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
-AST = $(AST_SOURCE:%.cpp=%.o)
+AST = $(AST_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
 
 # Prepare the list of includes and use that to extend the list of directories we need to make
-INCLUDE = -I$(INCL) $(shell find $(INCL) -type d)
-DIRS = $(BIN) $(OBJ) $(INCLUDE:%(INCL)/%:$(OBJ)/%)
+INCLUDE_DIRS = $(shell find $(INCL) -type d)
+INCLUDE = $(INCLUDE_DIRS:%=-I%)
+DIRS = $(BIN) $(OBJ) $(INCLUDE_DIRS:$(INCL)/%=$(OBJ)/%)
 
 
 
@@ -38,8 +39,7 @@ default: all
 all: test_tokenizer
 
 clean:
-	rm -f $(OBJ)/*.o
-	rm -f $(OBJ)/AST/*.o
+	find $(OBJ) -name "*.o" -type f -delete
 	rm -f $(BIN)/*.out
 
 
@@ -52,9 +52,11 @@ $(OBJ):
 	mkdir -p $@
 $(OBJ)/AST:
 	mkdir -p $@
-$(OBJ)/AST/%:
+$(OBJ)/AST/toplevel:
 	mkdir -p $@
-dirs: DIRS
+$(OBJ)/AST/values:
+	mkdir -p $@
+dirs: $(DIRS)
 
 
 

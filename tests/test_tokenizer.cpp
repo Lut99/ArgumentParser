@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   25/11/2020, 15:45:57
+ *   26/11/2020, 15:17:58
  * Auto updated?
  *   Yes
  *
@@ -37,8 +37,8 @@ int main() {
         }
 
         // If the line changed, then go to a newline
-        if (last_line != t->line) {
-            last_line = t->line;
+        if (last_line != t->debug.line1) {
+            last_line = t->debug.line1;
             cout << endl;
         } else {
             cout << " ";

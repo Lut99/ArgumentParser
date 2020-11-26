@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:19:24
  * Last edited:
- *   26/11/2020, 12:27:30
+ *   26/11/2020, 15:38:46
  * Auto updated?
  *   Yes
  *
@@ -22,9 +22,9 @@ using namespace ArgumentParser;
 
 /***** ADLSTRING CLASS *****/
 
-/* Constructor for the ADLString class, which takes a breadcrumb trail of filenames where this node originated from, the line number where this node originated from, the column number where it originated from and the raw string value. */
-ADLString::ADLString(const std::vector<std::string>& filenames, size_t line, size_t col, const std::string& value) :
-    ADLLeaf(NodeType::string, filenames, line, col),
+/* Constructor for the ADLString class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the raw string value. */
+ADLString::ADLString(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& value) :
+    ADLLeaf(NodeType::string, filenames, debug),
     value(value)
 {}
 

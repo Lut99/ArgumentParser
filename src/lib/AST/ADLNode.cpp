@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:39:22
  * Last edited:
- *   25/11/2020, 17:14:55
+ *   26/11/2020, 16:35:35
  * Auto updated?
  *   Yes
  *
@@ -13,7 +13,6 @@
 **/
 
 #include "ADLNode.hpp"
-#include "Exceptions.hpp"
 
 using namespace std;
 using namespace ArgumentParser;
@@ -21,12 +20,11 @@ using namespace ArgumentParser;
 
 /***** ADLNODE CLASS *****/
 
-/* Constructor for the ADLNode, which takes a type and a parent node. */
-ADLNode::ADLNode(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col) :
+/* Constructor for the ADLNode, which takes the type of the node, a breadcrumb of filenames where the node originates and the debug information of where this nodes originates. */
+ADLNode::ADLNode(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug) :
     type(type),
     filenames(filenames),
-    line(line),
-    col(col)
+    debug(debug)
 {}
 
 

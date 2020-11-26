@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 18:11:33
  * Last edited:
- *   26/11/2020, 12:48:48
+ *   26/11/2020, 15:37:42
  * Auto updated?
  *   Yes
  *
@@ -26,8 +26,8 @@ namespace ArgumentParser {
     /* The ADLValues class is used to group ADLValue symbols. */
     class ADLValues: public ADLBranch {
     public:
-        /* Constructor for the ADLValues class, which takes a trail of breadcrumbs for files we're parsing, the line number where the symbol originated, a matching column number and at least one value. */
-        ADLValues(const std::vector<std::string>& filenames, size_t line, size_t col, ADLNode* value);
+        /* Constructor for the ADLValues class, which takes a trail of breadcrumbs for files we're parsing, a DebugInfo struct linking this node to a location in the source file and at least one value. */
+        ADLValues(const std::vector<std::string>& filenames, const DebugInfo& debug, ADLNode* value);
 
         /* Allows the ADLValues to be copied polymorphically. */
         virtual ADLValues* copy() const;

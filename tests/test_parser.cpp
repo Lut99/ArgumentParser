@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 14:30:28
  * Last edited:
- *   14/11/2020, 18:03:38
+ *   26/11/2020, 16:29:17
  * Auto updated?
  *   Yes
  *
@@ -24,10 +24,12 @@ using namespace ArgumentParser;
 int main() {
     // Parse the file
     try {
-        ADLTree* root = Parser::parse("tests/test.adl");
+        ADLFile* root = Parser::parse({ "tests/test.adl" });
+        if (root == nullptr) { return EXIT_FAILURE; }
         delete root;
+        return EXIT_SUCCESS;
     } catch (Exceptions::ADLError& e) {
         Exceptions::print_error(cerr, e);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 }

@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   15/11/2020, 14:16:29
+ *   26/11/2020, 15:47:15
  * Auto updated?
  *   Yes
  *
@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 #include <ostream>
+
+#include "DebugInfo.hpp"
 
 namespace ArgumentParser::Exceptions {
     /* Exception for when there aren't enough filenames. */
@@ -71,30 +73,21 @@ namespace ArgumentParser::Exceptions {
     /* Baseclass exception for all non-recoverable errors that are specific to a certain position within a file. */
     class ADLCompileError: public ADLError {
     private:
-        /* The actual line, as string, where the error occurred - used for pretty printing. */
-        std::string raw_line;
-
         /* Declare the print function as friend. */
         friend std::ostream& print_error(std::ostream& os, const ADLError& e);
 
     public:
-        /* The line number where the exception occurred in the current file. */
-        const size_t line;
-        /* The column number where the exception occurred in the current file. */
-        const size_t col;
+        /* The debug information of the token or node that caused this error. */
+        const DebugInfo debug;
 
         /* Constructor for the ADLCompileError class, which takes:
          *   - a list of files we tried to parse (breadcrumb-style)
-         *   - the line number where the error occurred
-         *   - the column number where the error occurred
-         *   - the line where the error occurred itself
+         *   - a DebugInfo struct containing the location in the source file
          *   - [optional] a message
          */
-        ADLCompileError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+        ADLCompileError(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& message = "") :
             ADLError(filenames, message),
-            raw_line(raw_line),
-            line(line),
-            col(col)
+            debug(debug)
         {}
 
     };
@@ -127,31 +120,22 @@ namespace ArgumentParser::Exceptions {
     /* Baseclass exception for all non-recoverable errors that are specific to a certain position within a file. */
     class ADLCompileWarning: public ADLWarning {
     private:
-        /* The actual line, as string, where the error occurred - used for pretty printing. */
-        std::string raw_line;
-
         /* Declare the print function as friend. */
         friend std::ostream& print_warning(std::ostream& os, const ADLWarning& e);
 
     public:
-        /* The line number where the exception occurred in the current file. */
-        const size_t line;
-        /* The column number where the exception occurred in the current file. */
-        const size_t col;
+        /* The debug information of the token or node that caused this error. */
+        const DebugInfo debug;
 
         /* Constructor for the ADLCompileWarning class, which takes:
          *   - the type of this warning
          *   - a list of files we tried to parse (breadcrumb-style)
-         *   - the line number where the error occurred
-         *   - the column number where the error occurred
-         *   - the line where the error occurred itself
+         *   - a DebugInfo struct containing the location in the source file
          *   - [optional] a message
          */
-        ADLCompileWarning(const std::string& type, const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
+        ADLCompileWarning(const std::string& type, const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& message = "") :
             ADLWarning(type, filenames, message),
-            raw_line(raw_line),
-            line(line),
-            col(col)
+            debug(debug)
         {}
 
     };

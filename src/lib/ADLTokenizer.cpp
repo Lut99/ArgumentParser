@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   25/11/2020, 17:06:38
+ *   26/11/2020, 16:09:03
  * Auto updated?
  *   Yes
  *
@@ -49,7 +49,7 @@ using namespace ArgumentParser;
     ungetc((C), this->file);
 
 /* Parses given Token as a number (i.e., integral value) and returns it as a ValueToken. */
-Token* parse_number(const std::vector<std::string>& filenames, const std::string& raw_line, Token* token) {
+Token* parse_number(const std::vector<std::string>& filenames, Token* token) {
     // Init some variables
     std::string raw = token->raw;
     long result = 0;
@@ -68,7 +68,7 @@ Token* parse_number(const std::vector<std::string>& filenames, const std::string
         if (modifier > 0) {
             // Check if it won't get out-of-bounds for the positive add
             if (!warned && result > (numeric_limits<long>::max() / 10.0) - value) {
-                Exceptions::print_warning(cerr, Exceptions::OverflowWarning(filenames, token->line, token->col, raw_line));
+                Exceptions::print_warning(cerr, Exceptions::OverflowWarning(filenames, token->debug));
                 warned = true;
             }
 
@@ -78,7 +78,7 @@ Token* parse_number(const std::vector<std::string>& filenames, const std::string
         } else {
             // Check if it won't get out-of-bounds for the negative add
             if (!warned && result < (numeric_limits<long>::min() / 10.0) + value) {
-                Exceptions::print_warning(cerr, Exceptions::UnderflowWarning(filenames, token->line, token->col, raw_line));
+                Exceptions::print_warning(cerr, Exceptions::UnderflowWarning(filenames, token->debug));
                 warned = true;
             }
 
@@ -93,7 +93,7 @@ Token* parse_number(const std::vector<std::string>& filenames, const std::string
 }
 
 /* Parses given Token as a decimal (i.e., floating-point value) and returns it as a ValueToken. */
-Token* parse_decimal(const std::vector<std::string>& filenames, const std::string& raw_line, Token* token) {
+Token* parse_decimal(const std::vector<std::string>& filenames, Token* token) {
     // Init some variables
     std::string raw = token->raw;
     double result = 0;
@@ -110,7 +110,7 @@ Token* parse_decimal(const std::vector<std::string>& filenames, const std::strin
         result = modifier * std::stod(raw);
     } catch (std::out_of_range& e) {
         // Print as the overflow warning
-        Exceptions::print_warning(cerr, Exceptions::FloatOverflowWarning(filenames, token->line, token->col, raw_line));
+        Exceptions::print_warning(cerr, Exceptions::FloatOverflowWarning(filenames, token->debug));
         result = std::numeric_limits<double>::max();
     }
 
@@ -158,8 +158,7 @@ ValueToken<T>* ValueToken<T>::promote(Token* other, const T& value) {
 
     // Copy the token's properties
     result->type = other->type;
-    result->line = other->line;
-    result->col = other->col;
+    result->debug = other->debug;
     result->raw = other->raw;
 
     // Inject the value
@@ -190,6 +189,7 @@ Tokenizer::Tokenizer(const std::vector<std::string>& filenames) :
     line(1),
     col(1),
     last_newline(0),
+    done_tokenizing(false),
     path(filenames[filenames.size() - 1])
 {
     // Try to open the file
@@ -209,6 +209,7 @@ Tokenizer::Tokenizer(Tokenizer&& other) :
     line(other.line),
     col(other.col),
     last_newline(other.last_newline),
+    done_tokenizing(other.done_tokenizing),
     temp(other.temp),
     path(other.path)
 {
@@ -251,47 +252,47 @@ start:
         PEEK(c);
 
         // We can already deduce the line at this point, so put it in the result
-        result->raw_line = this->get_line();
+        result->debug.raw_line = this->get_line();
 
         // Choose the correct path forward
         if (c == 'r') {
             // See if this turns into a regex-expression or an identifier
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             STORE(c);
             goto r_start;
         } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
             // Mark the Token as a general identifier and move to parsing the rest of it
             result->type = TokenType::identifier;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             STORE(c);
             goto id_start;
         } else if (c == '-') { 
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             ACCEPT(c);
             goto dash_start;
         } else if (c == '<') {
             result->type = TokenType::type;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             ACCEPT(c);
             goto type_start;
         } else if (c == '\"') {
             result->type = TokenType::string;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             ACCEPT(c);
             goto string_start;
         } else if (c >= '0' && c <= '9') {
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             STORE(c);
             goto number_contd;
         } else if (c == '.') {
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
             ACCEPT(c);
             goto dot_start;
         } else if (c == '/') {
@@ -301,36 +302,46 @@ start:
         } else if (c == '[') {
             // Simply return the appropriate token
             result->type = TokenType::l_square;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else if (c == ']') {
             // Simply return the appropriate token
             result->type = TokenType::r_square;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else if (c == '{') {
             // Simply return the appropriate token
             result->type = TokenType::l_curly;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else if (c == '}') {
             // Simply return the appropriate token
             result->type = TokenType::r_curly;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else if (c == ';') {
             // Simply return the appropriate token
             result->type = TokenType::semicolon;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else if (c == '\n') {
@@ -346,11 +357,14 @@ start:
         } else if (c == EOF) {
             // Return an empty token
             result->type = TokenType::empty;
-            result->line = this->line;
-            result->col = this->col;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            this->done_tokenizing = true;
             return result;
         } else {
-            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -383,6 +397,8 @@ r_start:
         } else {
             // We parsed what we could, 'pparently this is a one-char identifier
             result->type = TokenType::identifier;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col - 1;
             REJECT(c);
             return result;
         }
@@ -405,6 +421,8 @@ id_start:
             goto id_start;
         } else {
             // We parsed what we could, we are done
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col - 1;
             REJECT(c);
             return result;
         }
@@ -424,6 +442,8 @@ dash_start:
                  c == '?') {
             // Done, it was a shortlabel
             result->type = TokenType::shortlabel;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             STORE(c);
             return result;
         } else if (c == '-') {
@@ -432,10 +452,10 @@ dash_start:
             goto dash_dash;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalShortlabelException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalShortlabelException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyShortlabelException(this->filenames, this->line, this->col - 1, this->get_line());
+            throw Exceptions::EmptyShortlabelException(this->filenames, DebugInfo(DebugInfo(this->line, this->col - 1, this->get_line())));
         }
     }
 
@@ -461,10 +481,10 @@ dash_dash:
             goto number_start;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalLonglabelException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalLonglabelException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyLonglabelException(this->filenames, this->line, this->col - 1, this->get_line());
+            throw Exceptions::EmptyLonglabelException(this->filenames, DebugInfo(DebugInfo(this->line, this->col - 1, this->get_line())));
         }
     }
 
@@ -485,6 +505,8 @@ dash_dash_longlabel:
             goto dash_dash_longlabel;
         } else {
             // We parsed what we could, we are done
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col - 1;
             REJECT(c);
             return result;
         }
@@ -507,10 +529,10 @@ type_start:
             goto type_contd;
         } else if (c != '>') {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalTypeException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyTypeException(this->filenames, this->line, this->col, this->get_line());
+            throw Exceptions::EmptyTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()));
         }
     }
 
@@ -531,11 +553,13 @@ type_contd:
             goto type_contd;
         } else if (c == '>') {
             // Type parsing complete
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else {
             // Illegal character
-            throw Exceptions::IllegalTypeException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -553,6 +577,8 @@ string_start:
             goto string_escape;
         } else if (c == '"') {
             // Done!
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
         } else if (c >= ' ' && c <= '~') {
@@ -561,7 +587,7 @@ string_start:
             goto string_start;
         } else {
             // Don't accept direct newlines
-            throw Exceptions::IllegalStringException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalStringException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -579,7 +605,7 @@ string_escape:
             goto string_start;
         } else {
             // Non-readable character is escaped!
-            throw Exceptions::IllegalStringException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalStringException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -597,10 +623,10 @@ number_start:
             goto number_contd;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalNegativeException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::IllegalNegativeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyNegativeException(this->filenames, this->line, this->col - 1, this->get_line());
+            throw Exceptions::EmptyNegativeException(this->filenames, DebugInfo(this->line, this->col - 1, this->get_line()));
         }
     }
 
@@ -624,10 +650,12 @@ number_contd:
         } else {
             // Done, it's a normal number
             result->type = TokenType::number;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col - 1;
             REJECT(c);
 
             // Return with the parsed value
-            return parse_number(this->filenames, this->get_line(), result);
+            return parse_number(this->filenames, result);
         }
     }
 
@@ -645,8 +673,10 @@ decimal_contd:
             goto decimal_contd;
         } else {
             // Done, return with the parsed value
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col - 1;
             REJECT(c);
-            return parse_decimal(this->filenames, this->get_line(), result);
+            return parse_decimal(this->filenames, result);
         }
     }
 
@@ -673,7 +703,7 @@ dot_start:
             goto dot_dot;
         } else {
             // Unexpected!
-            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -687,10 +717,12 @@ dot_dot:
         // Choose the correct path forward
         if (c == '.') {
             // It's confirmed a triple-dot token; done
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
             return result;
         } else {
             // Unexpected!
-            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -711,6 +743,8 @@ dot_directive:
             goto dot_directive;
         } else {
             // Done
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col - 1;
             REJECT(c);
             return result;
         }
@@ -734,7 +768,7 @@ comment_start:
             goto multiline_start;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(this->filenames, this->line, this->col, this->get_line(), c);
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -808,7 +842,7 @@ multiline_star:
 }
 
 /* Reads the entire, given line from the internal file, used for error messaging. */
-std::string Tokenizer::get_line() {
+LineSnippet Tokenizer::get_line() {
     // Store the current file position
     long cursor = ftell(this->file);
 
@@ -823,13 +857,31 @@ std::string Tokenizer::get_line() {
         if (c == '\n' || (c == EOF && feof(this->file))) {
             // Restore the initial file position and return
             fseek(this->file, cursor, SEEK_SET);
-            return sstr.str();
+            break;
         } else if (c == EOF && ferror(this->file)) {
-            // Restore the initial file position and return and empty one
+            // Restore the initial file position and return an empty one
             fseek(this->file, cursor, SEEK_SET);
             return std::string();
         }
     }
+
+    // Reduce the size of the string to 50 if needed, by laternatingly take of one at the end and the start
+    std::string result = sstr.str();
+    size_t c1 = 0;
+    size_t c2 = result.size() - 1;
+    size_t oversize = result.size() > 50 ? result.size() - 50 : 0;
+    for (size_t i = 0; i < oversize; i++) {
+        if (i % 2 == 0) {
+            result.pop_back();
+            --c2;
+        } else {
+            result = std::string(result.c_str() + 1);
+            --c1;
+        }
+    }
+
+    // Done, return
+    return LineSnippet(c1, c2, result);
 }
 
 

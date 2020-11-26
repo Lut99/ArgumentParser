@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:39:35
  * Last edited:
- *   26/11/2020, 12:20:00
+ *   26/11/2020, 16:34:57
  * Auto updated?
  *   Yes
  *
@@ -24,16 +24,16 @@ using namespace ArgumentParser;
 
 /***** ADLBRANCH CLASS *****/
 
-/* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, the line number where this node originated, a matching column number and optionally a NodeType denoting all accepted children types. */
-ADLBranch::ADLBranch(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, NodeType whitelist) :
-    ADLNode(type, filenames, line, col),
+/* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, a DebugInfo struct linking this node to a location in the source file and optionally a NodeType denoting all accepted children types. */
+ADLBranch::ADLBranch(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug, NodeType whitelist) :
+    ADLNode(type, filenames, debug),
     has_max(false),
     whitelist(whitelist)
 {}
 
-/* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, the line number where this node originated, a matching column number, the maximum number of children to allow and optionally a NodeType denoting all accepted children types. */
-ADLBranch::ADLBranch(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col, size_t max, NodeType whitelist = nt_all) :
-    ADLNode(type, filenames, line, col),
+/* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, a DebugInfo struct linking this node to a location in the source file, the maximum number of children to allow and optionally a NodeType denoting all accepted children types. */
+ADLBranch::ADLBranch(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug, size_t max, NodeType whitelist) :
+    ADLNode(type, filenames, debug),
     has_max(true),
     max(max),
     whitelist(whitelist)

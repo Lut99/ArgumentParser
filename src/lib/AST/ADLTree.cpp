@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:44:56 PM
  * Last edited:
- *   26/11/2020, 14:11:40
+ *   26/11/2020, 15:33:07
  * Auto updated?
  *   Yes
  *
@@ -24,7 +24,7 @@ using namespace ArgumentParser;
 
 /* Constructor for the ADLTree, which takes at least one file. */
 ADLTree::ADLTree(ADLNode* file) :
-    ADLBranch(NodeType::root, {}, 0, 0, NodeType::file)
+    ADLBranch(NodeType::root, {}, di_empty, NodeType::file)
 {
     // Add the file if it isn't a nullptr
     if (file != nullptr) { this->add_node((ADLNode*) file); }

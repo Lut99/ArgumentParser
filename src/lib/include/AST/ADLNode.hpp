@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   26/11/2020, 12:12:12
+ *   26/11/2020, 15:31:09
  * Auto updated?
  *   Yes
  *
@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 
+#include "DebugInfo.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
@@ -35,17 +36,15 @@ namespace ArgumentParser {
         const NodeType type;
         /* The breadcrumb of files where the node was parsed from. */
         const std::vector<std::string> filenames;
-        /* The line where this node was parsed from. */
-        const size_t line;
-        /* The column where this node was parsed from. */
-        const size_t col;
+        /* The debug information noting where this node originates from. */
+        const DebugInfo debug;
 
         /* The parent node of this node. */
         ADLNode* parent;
 
 
-        /* Constructor for the ADLNode, which takes the type of the node, a breadcrumb of filenames where the node originates, the line number where the node originates, a matching column number and the parent node in the tree. */
-        ADLNode(NodeType type, const std::vector<std::string>& filenames, size_t line, size_t col);
+        /* Constructor for the ADLNode, which takes the type of the node, a breadcrumb of filenames where the node originates and the debug information of where this nodes originates. */
+        ADLNode(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug);
         /* Virtual destructor for the ADLNode class, which doesn't do a lot yet. */
         virtual ~ADLNode() = default;
 
