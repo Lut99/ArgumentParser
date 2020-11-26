@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   26/11/2020, 16:28:29
+ *   26/11/2020, 17:18:29
  * Auto updated?
  *   Yes
  *
@@ -36,6 +36,7 @@ using namespace ArgumentParser::Parser;
 
 /* Looks at the next symbol of the stack, returning a pointer to it. */
 #define PEEK(SYMBOL, STACK, I) \
+    if ((I) >= (STACK).size()) { /* We're done, so return we didn't find a rule. */ return false; } \
     (SYMBOL) = (STACK)[(I)--];
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
@@ -50,6 +51,7 @@ bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolS
 start:
     {
         // Start by look at the top of the stack
+        if (stack.size() == 0) { return false; }
         PEEK(symbol, stack, stack_i);
 
         // Do different things based on whether it is a terminal or not
@@ -128,6 +130,7 @@ value_start:
         if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::values) {
             // Merge this value to the previously found Values
             term->node<ADLValues>()->add_node(prev_nonterm);
+            stack.remove(1);
             return true;
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
@@ -150,6 +153,7 @@ directive_start:
         if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::file) {
             // Merge this value to the previously found ADLFile
             term->node<ADLFile>()->add_node(prev_nonterm);
+            stack.remove(1);
             return true;
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
@@ -172,6 +176,7 @@ values_start:
         if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::directive) {
             // Merge this value to the previously found ADLFile
             term->node<ADLDirective>()->add_node(prev_nonterm);
+            stack.remove(1);
             return true;
         } else {
             // Otherwise, no such luck (since we can't simply promote a value to a directive)
@@ -212,9 +217,14 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
     // Let's create a Tokenizer for our file
     Tokenizer in(filenames);
 
+    // Initialize the stack
+    SymbolStack stack;
+    #ifdef DEBUG
+    cout << "         " << stack << endl;
+    #endif
+
     // Parse as a shift-reduce parser - in every iteration, fetch a token and attempt to reduce the stack of tokens to a tree of nodes
     Token* lookahead = in.pop();
-    SymbolStack stack;
     bool changed = true;
     while (!in.eof() || changed) {
         // Check to see if we can match any grammar rule (reduce)
@@ -231,7 +241,7 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
         }
 
         #ifdef DEBUG
-        cout << "Current stack: " << stack << endl;
+        cout << (success ? "Reduce : " : "Shift  : ") << stack << endl;
         #endif
     }
 
@@ -241,7 +251,17 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
 
     // Check if we parsed everything
     if (stack.size() != 1 || stack[0]->is_terminal || ((NonTerminal*) stack[0])->type() != NodeType::file) {
+        // Print errors to the user
         analyze_errors(filenames, stack);
+
+        // Free the stack
+        for (size_t i = 0; i < stack.size(); i++) {
+            if (!stack[i]->is_terminal) {
+                delete ((NonTerminal*) stack[i])->node();
+            }
+        }
+
+        // Return that we failed
         return nullptr;
     }
 

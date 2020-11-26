@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:50
  * Last edited:
- *   25/11/2020, 18:03:08
+ *   26/11/2020, 17:22:11
  * Auto updated?
  *   Yes
  *
@@ -92,7 +92,7 @@ void ArgumentParser::Parser::swap(Terminal& t1, Terminal& t2) {
 
 /* Constructor for the SymbolStack, which optionally takes an initial size. */
 SymbolStack::SymbolStack(size_t init_size) :
-    length(init_size),
+    length(0),
     max_length(init_size)
 {
     // Create a list of max_size length
@@ -105,8 +105,10 @@ SymbolStack::SymbolStack(const SymbolStack& other) :
     max_length(other.max_length)
 {
     // Create a new list and copy all pointers
-    this->symbols = new Symbol*[this->max_length];
-    memcpy(this->symbols, other.symbols, sizeof(Symbol*) * this->length);
+    this->symbols = new Symbol*[other.max_length];
+    for (size_t i = 0; i < other.length; i++) {
+        this->symbols[i] = other.symbols[i]->copy();
+    }
 }
 
 /* Move constructor for the SymbolStack class. */
@@ -122,7 +124,13 @@ SymbolStack::SymbolStack(SymbolStack&& other) :
 /* Destructor for the SymbolStack class. */
 SymbolStack::~SymbolStack() {
     // Simply delete the internal list if it isn't stolen
-    if (this->symbols != nullptr) { delete[] this->symbols; }
+    if (this->symbols != nullptr) {
+        // Don't forget to free all pointers themselves
+        for (size_t i = 0; i < this->size(); i++) {
+            delete this->symbols[i];
+        }
+        delete[] this->symbols;
+    }
 }
 
 
@@ -160,18 +168,22 @@ void SymbolStack::add_terminal(Token* token) {
 
 /* Replaces the first N symbols (deallocating them) with the new NonTerminal. */
 void SymbolStack::replace(size_t N, NonTerminal* symbol) {
-    // Loop & deallocate
-    size_t i = this->length - 1;
-    for (; i >= this->length - N; i--) {
-        delete this->symbols[i];
-    }
-    // Decrease the length
-    this->length -= N;
+    this->remove(N);
 
     // Insert the new symbol at that place
     this->symbols[this->length++] = symbol;
 
     // Done!
+}
+
+/* Removes the N first symbols from the stack (deallocating them). */
+void SymbolStack::remove(size_t N) {
+    // Loop & deallocate
+    for (size_t i = 0; i < N; i++) {
+        delete this->symbols[this->length - 1 - i];
+    }
+    // Decrease the length
+    this->length -= N;
 }
 
 
@@ -189,4 +201,16 @@ void ArgumentParser::Parser::swap(SymbolStack& ss1, SymbolStack& ss2) {
     swap(ss1.symbols, ss2.symbols);
     swap(ss1.length, ss2.length);
     swap(ss1.max_length, ss2.max_length);
+}
+
+
+
+/* Allows the SymbolStack to be printed to a given output stream. */
+std::ostream& ArgumentParser::Parser::operator<<(std::ostream& os, const SymbolStack& ss) {
+    os << "stack[";
+    for (size_t i = 0; i < ss.size(); i++) {
+        if (i > 0) { os << ' '; }
+        os << (*ss[i]);
+    }
+    return os << "]";
 }

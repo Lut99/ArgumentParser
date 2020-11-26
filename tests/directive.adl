@@ -1,0 +1,7 @@
+/* DIRECTIVE.adl
+ *   by Lut99
+ *
+ * A test file to test the earliest parse capabilities of the parser in.
+ */
+
+.include "<stdtypes>"

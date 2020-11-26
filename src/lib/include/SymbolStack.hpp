@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:42
  * Last edited:
- *   26/11/2020, 15:27:28
+ *   26/11/2020, 17:21:32
  * Auto updated?
  *   Yes
  *
@@ -17,6 +17,7 @@
 #define SYMBOLSTACK_HPP
 
 #include <cstdlib>
+#include <ostream>
 
 #include "ADLTokenizer.hpp"
 #include "ADLParser.hpp"
@@ -34,13 +35,21 @@ namespace ArgumentParser::Parser {
 
         /* Also, declare the destructor as virtual. */
         virtual ~Symbol() = default;
+
+        /* Virtual function that lets the Terminal or NonTerminals print themselves to a given output stream. */
+        virtual std::ostream& print(std::ostream& os) const = 0;
         
         /* Swap operator for the Symbol class. */
         friend void swap(Symbol& s1, Symbol& s2);
 
+        /* Copies the Symbol polymorphically. */
+        virtual Symbol* copy() const = 0;
+
     };
     /* Swap operator for the Symbol class. */
     void swap(Symbol& s1, Symbol& s2);
+    /* Prints the derived Symbol class to the given output stream. */
+    inline std::ostream& operator<<(std::ostream& os, const Symbol& s) { return s.print(os); }
     
     /* Used for Terminal symbols, i.e., raw and probably unparsed tokens. */
     class Terminal : public Symbol {
@@ -71,6 +80,12 @@ namespace ArgumentParser::Parser {
         inline std::string raw() const { return this->_token->raw; }
         /* Returns the parsed value stored in this token. */
         template <class T> inline T value() const { return ((ValueToken<T>*) this->_token)->value; }
+
+        /* Lets the Terminal print itself to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const { return os << "Terminal(" << tokentype_names[(int) this->_token->type] << ")"; }
+
+        /* Copies the Terminal polymorphically. */
+        virtual Terminal* copy() const { return new Terminal(*this); };
 
         /* Copy assignment operator for the Terminal symbol. */
         inline Terminal& operator=(const Terminal& other) { return *this = Terminal(other); }
@@ -103,6 +118,12 @@ namespace ArgumentParser::Parser {
         inline T* node() const { return (T*) this->_node; }
         /* Returns the internal type of the token. */
         inline NodeType type() const { return this->_node->type; }
+
+        /* Lets the NonTerminal print itself to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const { return os << "NonTerminal(" << nodetype_name.at(this->_node->type) << ")"; }
+
+        /* Copies the NonTerminal polymorphically. */
+        virtual NonTerminal* copy() const { return new NonTerminal(*this); };
 
         /* Returns the debug information of this token. */
         inline const DebugInfo& debug() const { return this->_node->debug; }
@@ -138,6 +159,8 @@ namespace ArgumentParser::Parser {
         void add_terminal(Token* token);
         /* Replaces the first N symbols (deallocating them) with the new NonTerminal. */
         void replace(size_t N, NonTerminal* symbol);
+        /* Removes the N first symbols from the stack (deallocating them). */
+        void remove(size_t N);
 
         /* Returns the i'th symbol from the top of the stack. Note that it doesn't perform any form of memory-safe checking, so use size() to be sure you don't go out of bounds. */
         inline Symbol* operator[](size_t i) const { return this->symbols[i]; }
@@ -157,6 +180,8 @@ namespace ArgumentParser::Parser {
     };
     /* Swap operator for the SymbolStack class. */
     void swap(SymbolStack& ss1, SymbolStack& ss2);
+    /* Allows the SymbolStack to be printed to a given output stream. */
+    std::ostream& operator<<(std::ostream& os, const SymbolStack& ss);
 
 }
 

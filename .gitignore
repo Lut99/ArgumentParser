@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# Valgrind coredumps
+vgcore.*
