@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   26/11/2020, 12:05:28
+ *   26/11/2020, 12:58:09
  * Auto updated?
  *   Yes
  *
@@ -40,13 +40,6 @@ namespace ArgumentParser {
         number = 0x200,
         decimal = 0x400
     };
-
-
-
-    /* Constant type denoting all value types. */
-    static constexpr NodeType nt_values = (NodeType) ((nodetype_t) NodeType::string | (nodetype_t) NodeType::regex | (nodetype_t) NodeType::number | (nodetype_t) NodeType::decimal);
-    /* Constant type denoting all types. */
-    static constexpr NodeType nt_all = (NodeType) ~((nodetype_t) 0);
 
 
 
@@ -93,9 +86,22 @@ namespace ArgumentParser {
     }
 
     /* Overloads the &-operator for the NodeTypes. */
-    inline nodetype_t operator&(NodeType n1, NodeType n2) {
+    inline constexpr nodetype_t operator&(NodeType n1, NodeType n2) {
         return (nodetype_t) n1 & (nodetype_t) n2;
     }
+    /* Overloads the |-operator for the NodeTypes. */
+    inline constexpr NodeType operator|(NodeType n1, NodeType n2) {
+        return (NodeType) ((nodetype_t) n1 | (nodetype_t) n2);
+    }
+
+
+
+    /* Constant type denoting all value types. */
+    static constexpr NodeType nt_values = NodeType::string | NodeType::regex | NodeType::number | NodeType::decimal;
+    /* Constant type denoting all toplevel types. */
+    static constexpr NodeType nt_toplevel = NodeType::directive;
+    /* Constant type denoting all types. */
+    static constexpr NodeType nt_all = (NodeType) ~((nodetype_t) 0);
 
 }
 

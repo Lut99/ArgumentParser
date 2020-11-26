@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:36:22
  * Last edited:
- *   26/11/2020, 12:22:07
+ *   26/11/2020, 14:02:37
  * Auto updated?
  *   Yes
  *
@@ -28,8 +28,8 @@ namespace ArgumentParser {
     /* Class for the second-to-topmost node in the ADL AST. In most cases, topmost node. */
     class ADLFile : public ADLBranch {
     public:
-        /* Constructor for the ADLFile class, which only takes a trail of filenames. */
-        ADLFile(const std::vector<std::string>& filenames);
+        /* Constructor for the ADLFile class, which takes a trail of filenames and optionally a toplevel node. */
+        ADLFile(const std::vector<std::string>& filenames, ADLNode* toplevel = nullptr);
 
         /* Allows the ADLFile to be copied polymorphically. */
         virtual ADLFile* copy() const;

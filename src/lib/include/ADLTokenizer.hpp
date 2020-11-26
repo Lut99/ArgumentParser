@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   25/11/2020, 17:05:56
+ *   26/11/2020, 13:59:06
  * Auto updated?
  *   Yes
  *
@@ -352,6 +352,12 @@ namespace ArgumentParser {
         virtual ValueToken<T>* copy() const;
 
     };
+
+
+
+    /* Returns whether or not a tokentype is one of the value symbols. */
+    #define IS_VALUE(TOKEN) \
+        ((TOKEN)->type == TokenType::string || (TOKEN)->type == TokenType::regex || (TOKEN)->type == TokenType::number || (TOKEN)->type == TokenType::decimal)
 
 
 

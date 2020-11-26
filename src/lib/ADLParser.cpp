@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   25/11/2020, 20:33:38
+ *   26/11/2020, 14:24:05
  * Auto updated?
  *   Yes
  *
@@ -36,16 +36,17 @@ using namespace ArgumentParser::Parser;
 
 /* Looks at the next symbol of the stack, returning a pointer to it. */
 #define PEEK(SYMBOL, STACK, I) \
-    if ((I) >= (STACK).size()) { /* Do something with that no more symbols can be found. */ std::cerr << "WHOA NOTHING LEFT" << std::endl; exit(EXIT_FAILURE); } \
-    (SYMBOL) = (STACK)[(I)++];
+    (SYMBOL) = (STACK)[(I)--];
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
 bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolStack& stack) {
     // Keeps track of where we are looking on the stack
-    size_t stack_i = 0;
-    // Place holder for the to-be-examined symbol
+    size_t stack_i = stack.size() - 1;
+    // Placeholder for the to-be-examined symbol
     Symbol* symbol;
-    
+    // Placeholder for a recently parsed NonTerminal
+    ADLNode* prev_nonterm;
+
 start:
     {
         // Start by look at the top of the stack
@@ -55,83 +56,149 @@ start:
         if (symbol->is_terminal) {
             // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
-            if (term->type() == TokenType::directive) {
-                // Replace the Terminal with a directive that has no values
-                size_t line = term->line();
-                size_t col = term->col();
-                stack.replace(1, new NonTerminal(
-                    new ADLDirective(filenames, line, col, term->raw(), new ADLValues(filenames, line, col))
-                ));
-                return true;
+            switch(term->type()) {
+                case TokenType::directive:
+                    // Cast it to a directive non-terminal, after which values can be added later
+                    stack.replace(1, new NonTerminal(
+                        new ADLDirective(filenames, term->line(), term->col(), term->raw())
+                    ));
+                    return true;
                 
-            } else if (term->type() == TokenType::string) {
-                // Replace it with it's NonTerminal counterpart & be done with it
-                stack.replace(1, new NonTerminal(
-                    new ADLString(filenames, term->line(), term->col(), term->raw())
-                ));
-                return true;
+                case TokenType::string:
+                    // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
+                    prev_nonterm = new ADLString(filenames, term->line(), term->col(), term->raw());
+                    goto value_start;
+                
+                case TokenType::regex:
+                    // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
+                    prev_nonterm = new ADLRegex(filenames, term->line(), term->col(), term->raw());
+                    goto value_start;
+                
+                case TokenType::number:
+                    // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
+                    prev_nonterm = new ADLNumber(filenames, term->line(), term->col(), term->value<long>());
+                    goto value_start;
 
-            } else if (term->type() == TokenType::regex) {
-                // Replace it with it's NonTerminal counterpart & be done with it
-                stack.replace(1, new NonTerminal(
-                    new ADLRegex(filenames, term->line(), term->col(), term->raw())
-                ));
-                return true;
+                case TokenType::decimal:
+                    // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
+                    prev_nonterm = new ADLDecimal(filenames, term->line(), term->col(), term->value<double>());
+                    goto value_start;
+                
+                default:
+                    // No matching rule found
+                    return false;
 
-            } else if (term->type() == TokenType::number) {
-                // Replace it with it's NonTerminal counterpart & be done with it
-                stack.replace(1, new NonTerminal(
-                    new ADLNumber(filenames, term->line(), term->col(), term->value<long>())
-                ));
-                return true;
-
-            } else if (term->type() == TokenType::decimal) {
-                // Replace it with it's NonTerminal counterpart & be done with it
-                stack.replace(1, new NonTerminal(
-                    new ADLDecimal(filenames, term->line(), term->col(), term->value<double>())
-                ));
-                return true;
-
-            } else {
-                // Unknown symbol; hard-error, since we can't continue beyond this point
-                throw Exceptions::IllegalToplevelSymbol(filenames, term->token());
             }
-
         } else {
             // Do different actions based on the type of symbol
             NonTerminal* term = (NonTerminal*) symbol;
-            if (term->type() == NodeType::file) {
+            switch(term->type()) {
+                case NodeType::directive:
+                    // First, check if any values are in the lookahead; if so, don't merge anything but instead shift
+                    if (IS_VALUE(lookahead)) { return false; }
 
-            } else if (term->type() == NodeType::directive) {
+                    // Otherwise, try to merge the directive with a possible ADLFile or create a new one
+                    prev_nonterm = term->node();
+                    goto directive_start;
 
-            } else if (term->type() == NodeType::values) {
+                case NodeType::values:
+                    // First, check if any values are in the lookahead; if so, don't merge anything but instead shift
+                    if (IS_VALUE(lookahead)) { return false; }
 
-            } else if (term->type() & ArgumentParser::values) {
-                
+                    // Otherwise, try to merge the ADLValues with a possible ADLDirective
+                    prev_nonterm = term->node();
+                    goto values_start;
+
+                default:
+                    // No matching rule found
+                    return false;
             }
+        }
+    }
 
+
+
+value_start:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, stack, stack_i);
+
+        // Do different things based on whether it is a terminal or not
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::values) {
+            // Merge this value to the previously found Values
+            term->node<ADLValues>()->add_node(prev_nonterm);
+            return true;
+        } else {
+            // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
+            stack.replace(1, new NonTerminal(
+                new ADLValues(filenames, prev_nonterm->line, prev_nonterm->col, prev_nonterm)
+            ));
+            return true;
+        }
+    }
+
+
+
+directive_start:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, stack, stack_i);
+
+        // Do different things based on whether it is a terminal or not
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::file) {
+            // Merge this value to the previously found ADLFile
+            term->node<ADLFile>()->add_node(prev_nonterm);
+            return true;
+        } else {
+            // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
+            stack.replace(1, new NonTerminal(
+                new ADLFile(filenames, prev_nonterm)
+            ));
+            return true;
+        }
+    }
+
+
+
+values_start:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, stack, stack_i);
+
+        // Do different things based on whether it is a terminal or not
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::directive) {
+            // Merge this value to the previously found ADLFile
+            term->node<ADLDirective>()->add_node(prev_nonterm);
+            return true;
+        } else {
+            // Otherwise, no such luck (since we can't simply promote a value to a directive)
+            return false;
         }
     }
 
 }
 
-/* Private implementation of the parse function, which only parses a single file. Returns a root node if parsing was successfull, but collects and throws ParseExceptions (or TokenizeExceptions) otherwise. */
-ADLTree* shift_reduce(std::vector<std::string> filenames) {
-    // Let's create a Tokenizer for our file
-    Tokenizer in(filenames);
-
-    // Parse as a shift-reduce parser - in every iteration, fetch a token and attempt to reduce the stack of tokens to a tree of nodes
-    Token* lookahead = in.pop();
-    SymbolStack stack;
-    while (stack[0]->is_terminal || ((NonTerminal*) stack[0])->type() != NodeType::root) {
-        // Check to see if we can match any grammar rule (reduce)
-        bool success = reduce(filenames, lookahead, stack);
-
-        // If we couldn't, then shift a new symbol
-        stack.add_terminal(lookahead);
-        lookahead = in.pop();
+/* Analyses a stack that is done in principle but didn't reduce to a single ADLFile* node and prints out each of the errors. */
+void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack& stack) {
+    for (size_t i = 0; i < stack.size(); i++) {
+        Symbol* s = stack[i];
+        if (s->is_terminal) {
+            // If there are terminals left, then we apparently didn't expect it at that position
+            throw Exceptions::IllegalToplevelSymbol(filenames, ((Terminal*) s)->token());
+        } else {
+            NonTerminal* term = (NonTerminal*) s;
+            if (term->type() == NodeType::values) {
+                // Found stray values; that means one or more values have been given out of place
+                throw Exceptions::StrayValuesSymbol(filenames, term->node<ADLValues>());
+            } else if (term->type() == NodeType::directive) {
+                // Found a directive that was apparently not in the top-level scope
+                throw Exceptions::MisplacedDirectiveSymbol(filenames, term->node<ADLDirective>());
+            }
+        }
     }
-
 }
 
 
@@ -141,13 +208,43 @@ ADLTree* shift_reduce(std::vector<std::string> filenames) {
 /***** PARSER CLASS *****/
 
 /* Parses a single file. Returns a single root node, from which the entire parsed tree is build. Does not immediately throw exceptions, but collects them in a vector which is then thrown. Use std::print_error on each of them to print them neatly. Warnings are always printed by the function, never thrown. */
-ADLTree* Parser::parse(const std::string& filename) {
-    // Declare a new root node
-    ADLTree* root = new ADLTree();
+ADLFile* Parser::parse(const std::vector<std::string>& filenames) {
+    // Let's create a Tokenizer for our file
+    Tokenizer in(filenames);
 
-    // Populate it with a file node
-    shift_reduce({ filename });
+    // Parse as a shift-reduce parser - in every iteration, fetch a token and attempt to reduce the stack of tokens to a tree of nodes
+    Token* lookahead = in.pop();
+    SymbolStack stack;
+    bool changed = true;
+    while (!in.eof() || changed) {
+        // Check to see if we can match any grammar rule (reduce)
+        bool success = reduce(filenames, lookahead, stack);
+        changed = success;
 
-    // Return it
-    return root;
+        // If we couldn't, then shift a new symbol if there are any left
+        if (!success && lookahead->type != TokenType::empty) {
+            stack.add_terminal(lookahead);
+            lookahead = in.pop();
+
+            // Mark that the stack still changed
+            changed = true;
+        }
+
+        #ifdef DEBUG
+        cout << "Current stack: " << stack << endl;
+        #endif
+    }
+
+    #ifdef DEBUG
+    cout << "Done parsing, checking it we were able to do everything..." << endl;
+    #endif
+
+    // Check if we parsed everything
+    if (stack.size() != 1 || stack[0]->is_terminal || ((NonTerminal*) stack[0])->type() != NodeType::file) {
+        analyze_errors(filenames, stack);
+        return nullptr;
+    }
+
+    // If we were successfull, return the only symbol as ADLFile!
+    return ((NonTerminal*) stack[0])->node<ADLFile>();
 }

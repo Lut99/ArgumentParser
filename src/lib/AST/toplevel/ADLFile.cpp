@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   26/11/2020, 12:24:22
+ *   26/11/2020, 14:03:08
  * Auto updated?
  *   Yes
  *
@@ -22,10 +22,13 @@ using namespace ArgumentParser;
 
 /***** ADLFILE CLASS *****/
 
-/* Constructor for the ADLFile class, which only takes a trail of filenames where it originated. */
-ADLFile::ADLFile(const std::vector<std::string>& filenames) :
-    ADLBranch(NodeType::file, filenames, 0, 0, NodeType::directive)
-{}
+/* Constructor for the ADLFile class, which takes a trail of filenames and optionally a toplevel node. */
+ADLFile::ADLFile(const std::vector<std::string>& filenames, ADLNode* toplevel) :
+    ADLBranch(NodeType::file, filenames, 0, 0, nt_toplevel)
+{
+    // Add the node if it isn't NULL
+    if (toplevel != nullptr) { this->add_node(toplevel); }
+}
 
 
 

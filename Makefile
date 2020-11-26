@@ -18,14 +18,15 @@ AST = $(AST_SOURCE:%.cpp=%.o)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
 
-# Prepare the list of includes
-INCLUDE=-I$(INCL) -I$(INCL)/AST -I$(INCL)/AST/values
+# Prepare the list of includes and use that to extend the list of directories we need to make
+INCLUDE = -I$(INCL) $(shell find $(INCL) -type d)
+DIRS = $(BIN) $(OBJ) $(INCLUDE:%(INCL)/%:$(OBJ)/%)
 
 
 
 ##### INPUT #####
 ifdef DEBUG
-GXX_ARGS += -g
+GXX_ARGS += -g -DDEBUG
 endif
 
 
@@ -51,9 +52,9 @@ $(OBJ):
 	mkdir -p $@
 $(OBJ)/AST:
 	mkdir -p $@
-$(OBJ)/AST/values:
+$(OBJ)/AST/%:
 	mkdir -p $@
-dirs: $(BIN) $(OBJ) $(OBJ)/AST $(OBJ)/AST/values
+dirs: DIRS
 
 
 

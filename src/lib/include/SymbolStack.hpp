@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:42
  * Last edited:
- *   25/11/2020, 18:05:14
+ *   26/11/2020, 14:16:04
  * Auto updated?
  *   Yes
  *
@@ -99,11 +99,17 @@ namespace ArgumentParser::Parser {
         {}
 
         /* Returns a reference to the internal token. */
-        inline ADLNode*& token() { return this->_node; }
-        /* Returns the internal pointer. */
-        inline ADLNode* node() const { return this->_node; }
+        inline ADLNode*& node() { return this->_node; }
+        /* Returns the internal pointer, optionally pre-casted to the correct type. */
+        template <class T = ADLNode, typename = std::enable_if_t<std::is_base_of<ADLNode, T>::value> >
+        inline T* node() const { return (T*) this->_node; }
         /* Returns the internal type of the token. */
         inline NodeType type() const { return this->_node->type; }
+
+        /* Returns the line number stored in this token. */
+        inline size_t line() const { return this->_node->line; }
+        /* Returns the column number stored in this token. */
+        inline size_t col() const { return this->_node->col; }
 
     };
 
@@ -138,7 +144,7 @@ namespace ArgumentParser::Parser {
         void replace(size_t N, NonTerminal* symbol);
 
         /* Returns the i'th symbol from the top of the stack. Note that it doesn't perform any form of memory-safe checking, so use size() to be sure you don't go out of bounds. */
-        inline Symbol* operator[](size_t i) const { return this->symbols[this->length - 1 - i]; }
+        inline Symbol* operator[](size_t i) const { return this->symbols[i]; }
 
         /* Get the number of elements current on the stack. */
         inline size_t size() const { return this->length; }

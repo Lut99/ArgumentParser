@@ -98,15 +98,14 @@ The grammar in the ADL defines how the tokens can be used, and what semantic mea
 
 The top-level grammar rule is defined as follows:
 ```
-root = top_level root
-     = top_level
-```
-where the ```top_level```-rule is defined as:
-```
-top_level = positional
-          = option
-          = typedef
-          = directive
+file = file positional
+     = file option
+     = file typedef
+     = file directive
+     = positional
+     = option
+     = typedef
+     = directive
 ```
 
 ### Common grammar rules
@@ -114,15 +113,15 @@ Some of the grammar rules are used throughout the ADL, and so we first define th
 
 The first common rule is the ```config```-rule, which is basically the body of an argument or a type. Specifically, it should accept any number of config parameters:
 ```
-config = ID values SEMICOLON config
+config = config ID values SEMICOLON
        = ID values SEMICOLON
 ```
 The ```config```-rule makes use of the ```values```-rule, which is simply a list of value types (string, integers or floats):
 ```
-values = STRING values
-       = REGEX values
-       = NUM values
-       = DECIMAL values
+values = values STRING
+       = values REGEX
+       = values NUM
+       = values DECIMAL
        = STRING
        = REGEX
        = NUM
@@ -143,7 +142,7 @@ Here, the rule with square brackets indicates that the positional is optional, a
 
 The ```types```-rule used here is simpy a list of ```TYPE```-tokens:
 ```
-types = TYPE types
+types = types TYPE
       = TYPE
 ```
 
@@ -173,7 +172,7 @@ typedef = TYPE LCURLY config RCURLY
 ### Compiler directives
 As a final top-level construct, ADL defines compiler directives that do not directly influence the result, but instead influence how the file is parsed. Which directives are implemented are entirely compiler-specific, but they all follow the same grammar rule, defined as follows:
 ```
-directive = DIRECTIVE values
+directive = directive values
           = DIRECTIVE
 ```
 where values is the same values rule as discussed under the Common Grammar Rules section.

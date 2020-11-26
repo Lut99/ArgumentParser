@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:42:12 PM
  * Last edited:
- *   26/11/2020, 12:23:25
+ *   26/11/2020, 14:11:47
  * Auto updated?
  *   Yes
  *
@@ -26,8 +26,8 @@ namespace ArgumentParser{
     /* The root node of any ADLTree, which even spans multiple files. */
     class ADLTree : public ADLBranch {
     public:
-        /* Constructor for the ADLTree, which doesn't take anything! */
-        ADLTree();
+        /* Constructor for the ADLTree, which takes an optional file. */
+        ADLTree(ADLNode* file = nullptr);
 
         /* Merge this ADLTree with another one. */
         ADLTree& operator+=(const ADLTree& other);

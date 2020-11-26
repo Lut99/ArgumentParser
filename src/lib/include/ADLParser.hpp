@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   25/11/2020, 17:11:25
+ *   26/11/2020, 14:28:03
  * Auto updated?
  *   Yes
  *
@@ -37,21 +37,22 @@ namespace ArgumentParser {
 
         };
 
-        /* Baseclass exception for when the current symbol on top of the stack doesn't match a valid option. */
-        class IllegalSymbolError: public ParseError {
+        /* Exception for when an terminal symbol couldn't be matched at all any grammar rule. */
+        class IllegalSymbolError: public ADLCompileError {
         public:
-            /* Constructor for the IllegalSymbolError class, which takes a breadcrumb trail of filenames we are parsing, the line where the error occurred, the column where it occurred, the actual line where it occurred and optionally a message. */
-            IllegalSymbolError(const std::vector<std::string>& filenames, const size_t line, const size_t col, const std::string& raw_line, const std::string& message = "") :
-                ParseError(filenames, line, col, raw_line, message)
+            /* Constructor for the IllegalSymbolError class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
+            IllegalSymbolError(const std::vector<std::string>& filenames, const Token* token) :
+                ADLCompileError(filenames, token->line, token->col, token->raw_line, "Expected positional identifier, shortlabel, longlabel or type identifier; not '" + token->raw + "'.")
             {}
 
         };
-        /* Exception for when a top-level node does not contain a valid terminal symbol. */
-        class IllegalToplevelSymbol: public IllegalSymbolError {
+
+        /* Baseclass exception for when a non-terminal symbol is has been given without the necessary surrounding ones. */
+        class StraySymbolError: public ADLCompileError {
         public:
-            /* Constructor for the IllegalToplevelSymbol class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
-            IllegalToplevelSymbol(const std::vector<std::string>& filenames, const Token* token) :
-                IllegalSymbolError(filenames, token->line, token->col, token->raw_line, "Expected positional identifier, shortlabel, longlabel or type identifier; not '" + token->raw + "'.")
+            /* Constructor for the StraySymbolError class, which takes a breadcrumb trail of filenames we are parsing, a node from which we will deduce stuff and optionally a message. */
+            StraySymbolError(const std::vector<std::string>& filenames, const ADLNode* node, const std::string& message) :
+                ADLCompileError(filenames, node->line, node->col, node->raw_line, message)
             {}
 
         };
