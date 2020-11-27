@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:19:31
  * Last edited:
- *   26/11/2020, 15:38:33
+ *   27/11/2020, 14:54:25
  * Auto updated?
  *   Yes
  *
@@ -32,6 +32,9 @@ namespace ArgumentParser {
 
         /* Constructor for the ADLString class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the raw string value. */
         ADLString(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& value);
+
+        /* Prints the string to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Allows the ADLString to be copied polymorphically. */
         virtual ADLString* copy() const;

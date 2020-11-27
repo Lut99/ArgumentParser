@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 18:11:08
  * Last edited:
- *   26/11/2020, 15:37:58
+ *   27/11/2020, 14:55:57
  * Auto updated?
  *   Yes
  *
@@ -27,6 +27,19 @@ ADLValues::ADLValues(const std::vector<std::string>& filenames, const DebugInfo&
 {
     // Immediately add the value
     this->add_node(value);
+}
+
+
+
+/* Prints each of the internal values to the given output stream, reflecting the AST structure. */
+std::ostream& ADLValues::print(std::ostream& os) const {
+    // Simply print all our children, separated by spaces
+    for (size_t i = 0; i < this->children.size(); i++) {
+        if (i > 0) { os << ' '; }
+        this->children[i]->print(os);
+    }
+    // Return the os
+    return os;
 }
 
 

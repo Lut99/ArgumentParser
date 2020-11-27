@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   27/11/2020, 14:31:10
+ *   27/11/2020, 15:08:14
  * Auto updated?
  *   Yes
  *
@@ -247,7 +247,7 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
     delete lookahead;
 
     #ifdef DEBUG
-    cout << "Done parsing, checking it we were able to do everything..." << endl;
+    cout << endl;
     #endif
 
     // Check if we parsed everything

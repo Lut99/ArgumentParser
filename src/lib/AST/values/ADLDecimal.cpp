@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:14:03
  * Last edited:
- *   26/11/2020, 15:40:36
+ *   27/11/2020, 14:57:01
  * Auto updated?
  *   Yes
  *
@@ -29,6 +29,14 @@ ADLDecimal::ADLDecimal(const std::vector<std::string>& filenames, const DebugInf
     ADLLeaf(NodeType::number, filenames, debug),
     value(value)
 {}
+
+
+
+/* Prints the decimal to the given output stream. */
+std::ostream& ADLDecimal::print(std::ostream& os) const {
+    // Just output the value
+    return os << this->value;
+}
 
 
 

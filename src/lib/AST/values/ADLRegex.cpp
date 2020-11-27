@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:09:41
  * Last edited:
- *   26/11/2020, 15:39:26
+ *   27/11/2020, 14:56:22
  * Auto updated?
  *   Yes
  *
@@ -30,6 +30,14 @@ ADLRegex::ADLRegex(const std::vector<std::string>& filenames, const DebugInfo& d
     ADLLeaf(NodeType::regex, filenames, debug),
     value(value)
 {}
+
+
+
+/* Prints the regex-expression to the given output stream. */
+std::ostream& ADLRegex::print(std::ostream& os) const {
+    // Just output the value in between brackets and with an 'r'
+    return os << "r\"" << this->value << '"';
+}
 
 
 

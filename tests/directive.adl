@@ -5,3 +5,8 @@
  */
 
 .include "<stdtypes>"
+
+.define "AWESOME" 25
+
+.ifdef "nothing"
+.endif

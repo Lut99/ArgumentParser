@@ -4,7 +4,7 @@
  * Created:
  *   19/11/2020, 14:40:37
  * Last edited:
- *   26/11/2020, 16:36:06
+ *   27/11/2020, 14:58:04
  * Auto updated?
  *   Yes
  *
@@ -29,6 +29,21 @@ ADLDirective::ADLDirective(const std::vector<std::string>& filenames, const Debu
 {
     // Add it if the values are given
     if (values != nullptr) { this->add_node(values); }
+}
+
+
+
+/* Prints the ADLDirective to the given output stream, reflecting the AST structure. */
+std::ostream& ADLDirective::print(std::ostream& os) const {
+    // Print our directive, preceded by a dot
+    os << '.' << this->directive;
+    // Add any values
+    if (this->children.size() == 1) {
+        os << ' ';
+        this->children[0]->print(os);
+    }
+    // Close off with a newline and we're done
+    return os << endl;
 }
 
 

@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   26/11/2020, 15:31:09
+ *   27/11/2020, 14:43:42
  * Auto updated?
  *   Yes
  *
@@ -18,6 +18,7 @@
 #include <any>
 #include <vector>
 #include <string>
+#include <ostream>
 
 #include "DebugInfo.hpp"
 #include "NodeType.hpp"
@@ -52,6 +53,9 @@ namespace ArgumentParser {
         ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
         /* Traverses through the tree and calls the given traversal function for any node that matches any of the given node types. The trav_id is used for debugging purposes, to help identify which traversal went wrong. This particular overlead carries a state between trav_func calls, which is initialized with the given value (as std::any). */
         ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
+
+        /* Virtual function to let the Node (and its children, if any) print itself to the given oustream. Note that this will take multiple lines, and should reflect the structure as defined by the AST. */
+        virtual std::ostream& print(std::ostream& os) const = 0;
 
         /* Allows the ADLNode to be copied polymorphically. */
         virtual ADLNode* copy() const = 0;

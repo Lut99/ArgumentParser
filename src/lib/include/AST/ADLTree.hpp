@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:42:12 PM
  * Last edited:
- *   26/11/2020, 14:11:47
+ *   27/11/2020, 14:59:17
  * Auto updated?
  *   Yes
  *
@@ -29,8 +29,8 @@ namespace ArgumentParser{
         /* Constructor for the ADLTree, which takes an optional file. */
         ADLTree(ADLNode* file = nullptr);
 
-        /* Merge this ADLTree with another one. */
-        ADLTree& operator+=(const ADLTree& other);
+        /* Prints the entire tree to the given output stream, reflecting the AST structure. */
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Allows the ADLTree to be copied polymorphically. */
         virtual ADLTree* copy() const;

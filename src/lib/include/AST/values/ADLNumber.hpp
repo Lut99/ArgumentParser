@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   26/11/2020, 15:39:49
+ *   27/11/2020, 14:54:50
  * Auto updated?
  *   Yes
  *
@@ -33,6 +33,9 @@ namespace ArgumentParser {
 
         /* Constructor for the ADLNumber class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
         ADLNumber(const std::vector<std::string>& filenames, const DebugInfo& debug, long value);
+
+        /* Prints the number to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Allows the ADLNumber to be copied polymorphically. */
         virtual ADLNumber* copy() const;

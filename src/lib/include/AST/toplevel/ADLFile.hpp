@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:36:22
  * Last edited:
- *   26/11/2020, 14:02:37
+ *   27/11/2020, 14:46:39
  * Auto updated?
  *   Yes
  *
@@ -30,6 +30,9 @@ namespace ArgumentParser {
     public:
         /* Constructor for the ADLFile class, which takes a trail of filenames and optionally a toplevel node. */
         ADLFile(const std::vector<std::string>& filenames, ADLNode* toplevel = nullptr);
+
+        /* Prints all nodes in this file, reflecting the AST structure. */
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Allows the ADLFile to be copied polymorphically. */
         virtual ADLFile* copy() const;

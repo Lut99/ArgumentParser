@@ -4,7 +4,7 @@
  * Created:
  *   19/11/2020, 14:41:08
  * Last edited:
- *   26/11/2020, 15:36:29
+ *   27/11/2020, 14:49:27
  * Auto updated?
  *   Yes
  *
@@ -34,6 +34,9 @@ namespace ArgumentParser {
 
         /* Constructor for the ADLDirective class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file, the directive itself and optionally a list of values following it. */
         ADLDirective(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& directive, ADLValues* values = nullptr);
+
+        /* Prints the ADLDirective to the given output stream, reflecting the AST structure. */
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Allows the ADLDirective to be copied polymorphically. */
         virtual ADLDirective* copy() const;

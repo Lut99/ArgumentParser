@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   26/11/2020, 15:40:23
+ *   27/11/2020, 14:54:55
  * Auto updated?
  *   Yes
  *
@@ -33,6 +33,9 @@ namespace ArgumentParser {
 
         /* Constructor for the ADLDecimal class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
         ADLDecimal(const std::vector<std::string>& filenames, const DebugInfo& debug, long value);
+
+        /* Prints the decimal to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Allows the ADLDecimal to be copied polymorphically. */
         virtual ADLDecimal* copy() const;

@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:44:56 PM
  * Last edited:
- *   26/11/2020, 15:33:07
+ *   27/11/2020, 14:59:21
  * Auto updated?
  *   Yes
  *
@@ -32,15 +32,18 @@ ADLTree::ADLTree(ADLNode* file) :
 
 
 
-/* Merge this ADLTree with another one. */
-ADLTree& ADLTree::operator+=(const ADLTree& other) {
-    // Simply copy all files from that tree to this one
-    for (size_t i = 0; i < other.children.size(); i++) {
-        this->add_node(other.children[i]->copy());
-    }
+/* Prints the entire tree to the given output stream, reflecting the AST structure. */
+std::ostream& ADLTree::print(std::ostream& os) const {
+    // Simply print all files following each other
+    os << endl;
+    for (size_t i = 0; i < this->children.size(); i++) {
+        ADLFile* file = (ADLFile*) this->children[i];
 
-    // Return ourselves
-    return *this;
+        // Print the file, possible with a few newlines first
+        if (i > 0) { os << endl << endl << endl << endl << endl; }
+        file->print(os);
+    }
+    return os << endl;
 }
 
 
