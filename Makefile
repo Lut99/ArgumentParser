@@ -56,6 +56,8 @@ $(OBJ)/AST/toplevel:
 	mkdir -p $@
 $(OBJ)/AST/values:
 	mkdir -p $@
+$(OBJ)/AST/configs:
+	mkdir -p $@
 dirs: $(DIRS)
 
 

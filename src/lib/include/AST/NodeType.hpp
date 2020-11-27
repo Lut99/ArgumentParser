@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   26/11/2020, 16:38:16
+ *   27/11/2020, 17:22:06
  * Auto updated?
  *   Yes
  *
@@ -16,7 +16,6 @@
 #define NODETYPE_HPP
 
 #include <string>
-#include <sstream>
 #include <unordered_map>
 #include <limits>
 
@@ -29,16 +28,18 @@ namespace ArgumentParser {
         root = 0x1,
         file = 0x2,
 
-        directive = 0x4,
-        type_def = 0x8,
-        positional = 0x10,
-        option = 0x20,
+        type_def = 0x4,
+        positional = 0x8,
+        option = 0x10,
 
-        values = 0x40,
-        string = 0x80,
-        regex = 0x100,
-        number = 0x200,
-        decimal = 0x400
+        configs = 0x20,
+        config = 0x40,
+
+        values = 0x80,
+        string = 0x100,
+        regex = 0x200,
+        number = 0x400,
+        decimal = 0x800
     };
 
 
@@ -48,10 +49,12 @@ namespace ArgumentParser {
         { NodeType::root, "Root" },
         { NodeType::file, "File" },
 
-        { NodeType::directive, "CompilerDirective" },
-        { NodeType::type_def, "TypeDefinition" },
+        { NodeType::type_def, "TypeDef" },
         { NodeType::positional, "Positional" },
         { NodeType::option, "Option" },
+
+        { NodeType::configs, "Configs" },
+        { NodeType::config, "Config" },
 
         { NodeType::values, "Values" },
         { NodeType::string, "String" },
@@ -79,7 +82,7 @@ namespace ArgumentParser {
     /* Constant type denoting all value types. */
     static constexpr NodeType nt_values = NodeType::string | NodeType::regex | NodeType::number | NodeType::decimal;
     /* Constant type denoting all toplevel types. */
-    static constexpr NodeType nt_toplevel = NodeType::directive;
+    static constexpr NodeType nt_toplevel = NodeType::type_def | NodeType::positional | NodeType::option;
     /* Constant type denoting all types. */
     static constexpr NodeType nt_all = (NodeType) ~((nodetype_t) 0);
 

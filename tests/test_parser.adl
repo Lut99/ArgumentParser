@@ -1,0 +1,24 @@
+/* TEST PARSER.adl
+ *   by Lut99
+ *
+ * A test file for me to develop the parser with; it will thus be extended
+ * step-for-step.
+ */
+
+<date> {
+    name "Date";
+    pattern "<uint>" "-" "<uint>" "-" "<uint>";
+}
+
+<hello_world> {
+    name "Hello, world!";
+    pattern r"[A-Za-z_]+";
+    source "hello_world.cpp";
+}
+
+---55 "regular expression!"
+
+<regex_test> {
+    name "Regex Test";
+    pattern "<uint>" r"-\.\/" "<uint>" r"-\.\/" "<uint>";
+}

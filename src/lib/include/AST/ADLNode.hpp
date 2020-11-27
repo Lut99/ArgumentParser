@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   27/11/2020, 14:43:42
+ *   27/11/2020, 16:47:33
  * Auto updated?
  *   Yes
  *
@@ -38,7 +38,7 @@ namespace ArgumentParser {
         /* The breadcrumb of files where the node was parsed from. */
         const std::vector<std::string> filenames;
         /* The debug information noting where this node originates from. */
-        const DebugInfo debug;
+        DebugInfo debug;
 
         /* The parent node of this node. */
         ADLNode* parent;

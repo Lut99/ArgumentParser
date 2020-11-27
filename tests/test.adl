@@ -19,7 +19,7 @@
 
 <regex_test> {
     name "Regex Test";
-    pattern <uint> r"-\.\/" <uint> r"-\.\/" <uint>
+    pattern <uint> r"-\.\/" <uint> r"-\.\/" <uint>;
 }
 
 positional1 <int> {

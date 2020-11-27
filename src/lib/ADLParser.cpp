@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   27/11/2020, 15:08:14
+ *   27/11/2020, 17:19:32
  * Auto updated?
  *   Yes
  *
@@ -17,7 +17,10 @@
 
 #include <iostream>
 
-#include "ADLDirective.hpp"
+#include "ADLTypeDef.hpp"
+
+#include "ADLConfigs.hpp"
+#include "ADLConfig.hpp"
 
 #include "ADLString.hpp"
 #include "ADLRegex.hpp"
@@ -44,8 +47,12 @@ bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolS
     SymbolStack::const_iterator iter = stack.begin();
     // Placeholder for the to-be-examined symbol
     Symbol* symbol;
+    // Placeholder for a recently parsed Terminal s.t. debug information may be kept
+    Token* prev_term;
     // Placeholder for a recently parsed NonTerminal
     ADLNode* prev_nonterm;
+    // Placeholder for a slightly less recently parsed NonTerminal
+    ADLNode* prev_prev_nonterm;
 
 start:
     {
@@ -57,32 +64,35 @@ start:
             // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
             switch(term->type()) {
-                case TokenType::directive:
-                    // Cast it to a directive non-terminal, after which values can be added later
-                    stack.replace(1, new NonTerminal(
-                        new ADLDirective(filenames, term->debug(), term->raw())
-                    ));
-                    return true;
-                
+                case TokenType::r_curly:
+                    // See if we can parse as any of the definitions
+                    prev_term = term->token();
+                    goto definition_start;
+
+                case TokenType::semicolon:
+                    // Check if we can parse this as a config
+                    prev_term = term->token();
+                    goto config_start;
+
                 case TokenType::string:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLString(filenames, term->debug(), term->raw());
-                    goto value_start;
+                    goto value_merge;
                 
                 case TokenType::regex:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLRegex(filenames, term->debug(), term->raw());
-                    goto value_start;
+                    goto value_merge;
                 
                 case TokenType::number:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLNumber(filenames, term->debug(), term->value<long>());
-                    goto value_start;
+                    goto value_merge;
 
                 case TokenType::decimal:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLDecimal(filenames, term->debug(), term->value<double>());
-                    goto value_start;
+                    goto value_merge;
                 
                 default:
                     // No matching rule found
@@ -93,21 +103,10 @@ start:
             // Do different actions based on the type of symbol
             NonTerminal* term = (NonTerminal*) symbol;
             switch(term->type()) {
-                case NodeType::directive:
-                    // First, check if any values are in the lookahead; if so, don't merge anything but instead shift
-                    if (IS_VALUE(lookahead)) { return false; }
-
-                    // Otherwise, try to merge the directive with a possible ADLFile or create a new one
+                case NodeType::type_def:
+                    // Merge with a possible exisitng Files node
                     prev_nonterm = term->node();
-                    goto directive_start;
-
-                case NodeType::values:
-                    // First, check if any values are in the lookahead; if so, don't merge anything but instead shift
-                    if (IS_VALUE(lookahead)) { return false; }
-
-                    // Otherwise, try to merge the ADLValues with a possible ADLDirective
-                    prev_nonterm = term->node();
-                    goto values_start;
+                    goto toplevel_merge;
 
                 default:
                     // No matching rule found
@@ -118,17 +117,180 @@ start:
 
 
 
-value_start:
+definition_start:
     {
         // Start by looking at the top of the stack
         PEEK(symbol, iter);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::values) {
+        if (!symbol->is_terminal && term->type() == NodeType::configs) {
+            // If it's a list of configurations, we're on the good way!
+            prev_nonterm = term->node();
+            goto definition_configs;
+
+        } else {
+            // No matching rule found
+            return false;
+            
+        }
+    }
+
+
+
+definition_configs:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal && term->type() == TokenType::l_curly) {
+            // Yes! Very good! Now continue
+            goto definitions_body;
+            
+        } else {
+            // Not what we're looking for
+            return false;
+
+        }
+    }
+
+
+
+definitions_body:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        if (symbol->is_terminal) {
+            // Do different actions based on the type of symbol
+            Terminal* term = (Terminal*) symbol;
+            if (term->type() == TokenType::type) {
+                // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
+
+                // Compute the typedef's end and start debug info
+                DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+                debug.line2 = prev_term->debug.line2;
+                debug.col2 = prev_term->debug.col2;
+
+                // Replace the symbols on the stack
+                stack.replace(4, new NonTerminal(
+                    new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
+                ));
+                return true;
+                
+            } else {
+                // Cannot do anything with this nonterminal
+                return false;
+            }
+
+        } else {
+            // Do different actions based on the type of symbol
+            NonTerminal* term = (NonTerminal*) symbol;
+            /* TBD */
+            return false;
+
+        }
+    }
+
+
+
+config_start:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && term->type() == NodeType::values) {
+            // Store this as the previous nonterm and then go to the config's final stage
+            prev_nonterm = term->node();
+            goto config_values;
+
+        } else {
+            // Not what we're looking for
+            return false;
+        }
+    }
+
+
+
+config_values:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal && term->type() == TokenType::identifier) {
+            // If it's a normal identifier, that must be the keyword, and thus we're done
+
+            // Construct the debug information
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            debug.line2 = prev_term->debug.line2;
+            debug.col2 = prev_term->debug.col2;
+
+            // Create a new ADLConfig node and set it as the prevous value, then try to merge it with an existing ADLConfigs node
+            prev_nonterm = new ADLConfig(filenames, debug, term->raw(), (ADLValues*) prev_nonterm);
+            goto config_merge;
+
+        } else {
+            // Not what we're looking for, so we're done
+            return false;
+            
+        }
+    }
+
+
+
+config_merge:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a configs node or not
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && term->type() == NodeType::configs) {
+            // Merge this configs node and the one we parsed earlier together
+            term->node<ADLConfigs>()->add_node(prev_nonterm);
+            stack.remove(3);
+
+            // Update the value's debug info though
+            term->node<ADLConfigs>()->debug.line2 = prev_nonterm->debug.line2;
+            term->node<ADLConfigs>()->debug.col2 = prev_nonterm->debug.col2;
+
+            return true;
+
+        } else {
+            // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
+            stack.replace(3, new NonTerminal(
+                new ADLConfigs(filenames, prev_nonterm->debug, (ADLConfig*) prev_nonterm)
+            ));
+            return true;
+            
+        }
+    }
+
+
+
+value_merge:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && term->type() == NodeType::values) {
             // Merge this value to the previously found Values
             term->node<ADLValues>()->add_node(prev_nonterm);
             stack.remove(1);
+
+            // Update the value's debug info though
+            term->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
+            term->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
+
             return true;
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
@@ -139,46 +301,26 @@ value_start:
         }
     }
 
-
-
-directive_start:
+toplevel_merge:
     {
         // Start by looking at the top of the stack
         PEEK(symbol, iter);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::file) {
-            // Merge this value to the previously found ADLFile
+        if (!symbol->is_terminal && term->type() == NodeType::file) {
+            // Merge this value to the previously found File node
             term->node<ADLFile>()->add_node(prev_nonterm);
             stack.remove(1);
             return true;
+            
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(1, new NonTerminal(
                 new ADLFile(filenames, prev_nonterm)
             ));
             return true;
-        }
-    }
-
-
-
-values_start:
-    {
-        // Start by looking at the top of the stack
-        PEEK(symbol, iter);
-
-        // Do different things based on whether it is a terminal or not
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && ((NonTerminal*) term)->type() == NodeType::directive) {
-            // Merge this value to the previously found ADLFile
-            term->node<ADLDirective>()->add_node(prev_nonterm);
-            stack.remove(1);
-            return true;
-        } else {
-            // Otherwise, no such luck (since we can't simply promote a value to a directive)
-            return false;
+            
         }
     }
 
@@ -196,9 +338,6 @@ void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack
             if (term->type() == NodeType::values) {
                 // Found stray values; that means one or more values have been given out of place
                 Exceptions::print_error(cerr, Exceptions::StrayValuesSymbol(filenames, term->node<ADLValues>()));
-            } else if (term->type() == NodeType::directive) {
-                // Found a directive that was apparently not in the top-level scope
-                Exceptions::print_error(cerr, Exceptions::MisplacedDirectiveSymbol(filenames, term->node<ADLDirective>()));
             }
         }
     }
