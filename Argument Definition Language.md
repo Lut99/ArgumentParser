@@ -72,13 +72,6 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 
 Aside from those structural characters, there is also the triple-dot token (```TDOT = '\.\.\.'```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times).
 
-### Compiler directives
-Aside from the stuff that ADL is actually used for, it also supports the ability to pass meta-commands to the parser. Specifically, such a compiler directive starts with a ```DIRECTIVE```-token, followed by any number of other tokens as specified by the parser itself. The special ```DIRECTIVE```-token is any token that starts with a dot, and is followed by at least one of alphanumerical characters, including underscores and hyphens. In regex:
-```
-DIRECTIVE = '\.[A-Za-z0-9_-]+'
-```
-Note that the value of the directive excludes the preceding dot.
-
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
 
@@ -101,11 +94,9 @@ The top-level grammar rule is defined as follows:
 file = file positional
      = file option
      = file typedef
-     = file directive
      = positional
      = option
      = typedef
-     = directive
 ```
 
 ### Common grammar rules
@@ -168,14 +159,6 @@ To support defining arguments, the ADL also allows users to define their own typ
 ```
 typedef = TYPE LCURLY config RCURLY
 ```
-
-### Compiler directives
-As a final top-level construct, ADL defines compiler directives that do not directly influence the result, but instead influence how the file is parsed. Which directives are implemented are entirely compiler-specific, but they all follow the same grammar rule, defined as follows:
-```
-directive = directive values
-          = DIRECTIVE
-```
-where values is the same values rule as discussed under the Common Grammar Rules section.
 
 ## 4. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file. For more information on using the ADL as a user in the context of the ArgumentParser, please refer to the online [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
