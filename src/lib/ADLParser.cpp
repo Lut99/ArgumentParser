@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   26/11/2020, 17:18:29
+ *   27/11/2020, 14:31:10
  * Auto updated?
  *   Yes
  *
@@ -35,14 +35,13 @@ using namespace ArgumentParser::Parser;
 /***** HELPER FUNCTIONS *****/
 
 /* Looks at the next symbol of the stack, returning a pointer to it. */
-#define PEEK(SYMBOL, STACK, I) \
-    if ((I) >= (STACK).size()) { /* We're done, so return we didn't find a rule. */ return false; } \
-    (SYMBOL) = (STACK)[(I)--];
+#define PEEK(SYMBOL, STACK_ITER) \
+    (SYMBOL) = *((STACK_ITER)++);
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
 bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolStack& stack) {
-    // Keeps track of where we are looking on the stack
-    size_t stack_i = stack.size() - 1;
+    // Iterates over each stack symbol, returning the empty terminal if it went out-of-range
+    SymbolStack::const_iterator iter = stack.begin();
     // Placeholder for the to-be-examined symbol
     Symbol* symbol;
     // Placeholder for a recently parsed NonTerminal
@@ -50,9 +49,8 @@ bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolS
 
 start:
     {
-        // Start by look at the top of the stack
-        if (stack.size() == 0) { return false; }
-        PEEK(symbol, stack, stack_i);
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
 
         // Do different things based on whether it is a terminal or not
         if (symbol->is_terminal) {
@@ -123,7 +121,7 @@ start:
 value_start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, stack, stack_i);
+        PEEK(symbol, iter);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
@@ -146,7 +144,7 @@ value_start:
 directive_start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, stack, stack_i);
+        PEEK(symbol, iter);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
@@ -169,7 +167,7 @@ directive_start:
 values_start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, stack, stack_i);
+        PEEK(symbol, iter);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
@@ -192,15 +190,15 @@ void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack
         Symbol* s = stack[i];
         if (s->is_terminal) {
             // If there are terminals left, then we apparently didn't expect it at that position
-            throw Exceptions::IllegalSymbolError(filenames, ((Terminal*) s)->token());
+            Exceptions::print_error(cerr, Exceptions::IllegalToplevelSymbol(filenames, ((Terminal*) s)->token()));
         } else {
             NonTerminal* term = (NonTerminal*) s;
             if (term->type() == NodeType::values) {
                 // Found stray values; that means one or more values have been given out of place
-                throw Exceptions::StrayValuesSymbol(filenames, term->node<ADLValues>());
+                Exceptions::print_error(cerr, Exceptions::StrayValuesSymbol(filenames, term->node<ADLValues>()));
             } else if (term->type() == NodeType::directive) {
                 // Found a directive that was apparently not in the top-level scope
-                throw Exceptions::MisplacedDirectiveSymbol(filenames, term->node<ADLDirective>());
+                Exceptions::print_error(cerr, Exceptions::MisplacedDirectiveSymbol(filenames, term->node<ADLDirective>()));
             }
         }
     }
@@ -244,6 +242,9 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
         cout << (success ? "Reduce : " : "Shift  : ") << stack << endl;
         #endif
     }
+
+    // Don't forget to free the lookahead
+    delete lookahead;
 
     #ifdef DEBUG
     cout << "Done parsing, checking it we were able to do everything..." << endl;

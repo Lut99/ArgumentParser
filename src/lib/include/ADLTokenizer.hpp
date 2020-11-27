@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   26/11/2020, 16:26:23
+ *   27/11/2020, 13:46:35
  * Auto updated?
  *   Yes
  *
@@ -313,6 +313,10 @@ namespace ArgumentParser {
 
         /* Default constructor for the Token class. */
         Token(): debug(di_empty) {}
+        /* Constructor for the Token class, which takes each of its parameters. */
+        Token(TokenType type, const DebugInfo& debug, const std::string& raw) :
+            type(type), debug(debug), raw(raw)
+        {}
         /* Virtual destructor for the Token class. */
         virtual ~Token() {}
 

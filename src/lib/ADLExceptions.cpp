@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   26/11/2020, 16:18:47
+ *   27/11/2020, 13:28:50
  * Auto updated?
  *   Yes
  *
@@ -64,7 +64,7 @@ std::ostream& Exceptions::print_error(std::ostream& os, const Exceptions::ADLErr
 
             // Write the character, possibly doing neat newline padding
             os << sraw[i];
-            if (sraw[i] == '\n') {
+            if (i < sraw.size() - 1 && sraw[i] == '\n') {
                 if (red_mode) { os << "\033[0m"; }
                 os << "      | ";
                 if (red_mode) { os << "\033[31;1m"; }
@@ -76,6 +76,8 @@ std::ostream& Exceptions::print_error(std::ostream& os, const Exceptions::ADLErr
                 red_mode = false;
             }
         }
+        // Add a newline if the last character wasn't
+        if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
 
         // Next, write the same but with spaces and wiggly bits
         os << "      | ";
@@ -134,7 +136,7 @@ std::ostream& Exceptions::print_warning(std::ostream& os, const Exceptions::ADLW
 
             // Write the character, possibly doing neat newline padding
             os << sraw[i];
-            if (sraw[i] == '\n') {
+            if (i < sraw.size() - 1 && sraw[i] == '\n') {
                 if (red_mode) { os << "\033[0m"; }
                 os << "      | ";
                 if (red_mode) { os << "\033[35;1m"; }
@@ -146,6 +148,8 @@ std::ostream& Exceptions::print_warning(std::ostream& os, const Exceptions::ADLW
                 red_mode = false;
             }
         }
+        // Add a newline if the last character wasn't
+        if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
 
         // Next, write the same but with spaces and wiggly bits
         os << "      | ";

@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:50
  * Last edited:
- *   26/11/2020, 17:22:11
+ *   27/11/2020, 14:30:42
  * Auto updated?
  *   Yes
  *
@@ -82,6 +82,100 @@ void ArgumentParser::Parser::swap(Terminal& t1, Terminal& t2) {
 
     swap((Symbol&) t1, (Symbol&) t2);
     swap(t1._token, t2._token);
+}
+
+
+
+
+
+/***** SYMBOLSTACK CONST_ITERATOR *****/
+
+/* Private constructor that initializes the const_iterator with the out_of_bounds flag. */
+SymbolStack::const_iterator::const_iterator(const SymbolStack& stack, size_t i, bool out_of_bounds) :
+    stack(stack),
+    i(i),
+    out_of_bounds(out_of_bounds)
+{}
+
+/* Constructor for the const_iterator class, which takes a SymbolStack object and the starting position from the top of the stack (i.e., stored i = stack.size() - 1 - given i). */
+SymbolStack::const_iterator::const_iterator(const SymbolStack& stack, size_t i) :
+    stack(stack),
+    i(stack.size() - 1 - i),
+    out_of_bounds(stack.size() == 0 || i >= stack.size())
+{}
+
+
+
+/* Increments the iterator by one. */
+SymbolStack::const_iterator& SymbolStack::const_iterator::operator++() {
+    // If already out of bounds, do nothing
+    if (this->out_of_bounds) { return *this; }
+
+    // Otherwise, check if we will go out of bounds
+    if (this->i == 0) {
+        this->out_of_bounds = true;
+        return *this;
+    }
+
+    // If that's not the case, just normally subtract one
+    --this->i;
+    return *this;
+}
+
+/* Increments the iterator by one, after returning the value. */
+SymbolStack::const_iterator SymbolStack::const_iterator::operator++(int) {
+    const_iterator before = *this;
+    ++*this;
+    return before;
+}
+
+/* Increments the iterator by N values. */
+SymbolStack::const_iterator SymbolStack::const_iterator::operator+(size_t N) {
+    // If already out of bounds, do nothing
+    if (this->out_of_bounds) { return const_iterator(this->stack, this->i, true); }
+
+    // Otherwise, check if we will go out of bounds
+    if (this->i < N) {
+        return const_iterator(this->stack, this->i, true);
+    }
+
+    // If that's not the case, just normally subtract one
+    return const_iterator(this->stack, i - N, false);
+}
+
+/* Increments the iterator by N values. */
+SymbolStack::const_iterator& SymbolStack::const_iterator::operator+=(size_t N) {
+    // If already out of bounds, do nothing
+    if (this->out_of_bounds) { return *this; }
+
+    // Otherwise, check if we will go out of bounds
+    if (this->i < N) {
+        this->out_of_bounds = true;
+        return *this;
+    }
+
+    // If that's not the case, just normally subtract one
+    this->i -= N;
+    return *this;
+}
+
+/* Allows random access in the iterator. */
+SymbolStack::const_iterator SymbolStack::const_iterator::operator[](size_t i) {
+    // Simply create a new iterator and let the public constructor deal with it
+    return const_iterator(this->stack, i);
+}
+
+
+
+/* Derefencres the iterator. */
+Symbol* SymbolStack::const_iterator::operator*() const {
+    // If this iterator points to something out-of-bounds, then return the empty symbol
+    if (this->out_of_bounds) {
+        return (Symbol*) &t_empty;
+    }
+
+    // Otherwise, return an actualy symbol
+    return this->stack[this->i];
 }
 
 
@@ -184,6 +278,19 @@ void SymbolStack::remove(size_t N) {
     }
     // Decrease the length
     this->length -= N;
+}
+
+
+
+/* Returns the i'th symbol from the stack, but this one performs out-of-bounds checking and returns the empty Symbol (i.e., terminal wrapping an empty token) if it's out-of-bounds. */
+Symbol* SymbolStack::peek(size_t i) const {
+    if (i >= this->length) {
+        // Simply return the empty token
+        return (Symbol*) &t_empty;
+    }
+
+    // Otherwise, return the correct pointer
+    return this->symbols[i];
 }
 
 

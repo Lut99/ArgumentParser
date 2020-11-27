@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   26/11/2020, 16:28:53
+ *   27/11/2020, 13:54:53
  * Auto updated?
  *   Yes
  *
@@ -40,9 +40,19 @@ namespace ArgumentParser {
         /* Exception for when an terminal symbol couldn't be matched at all any grammar rule. */
         class IllegalSymbolError: public ADLCompileError {
         public:
-            /* Constructor for the IllegalSymbolError class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
-            IllegalSymbolError(const std::vector<std::string>& filenames, const Token* token) :
-                ADLCompileError(filenames, token->debug, "Expected positional identifier, shortlabel, longlabel or type identifier; not '" + token->raw + "'.")
+            /* Constructor for the IllegalSymbolError class, which takes a breadcrumb trail of filenames we are parsing, a token from which we will deduce stuff and optionally a message. */
+            IllegalSymbolError(const std::vector<std::string>& filenames, const Token* token, const std::string& message = "") :
+                ADLCompileError(filenames, token->debug, message)
+            {}
+
+        };
+
+        /* Exception for when an terminal symbol couldn't be matched at all any grammar rule at the toplevel of the file. */
+        class IllegalToplevelSymbol: public IllegalSymbolError {
+        public:
+            /* Constructor for the IllegalToplevelSymbol class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
+            IllegalToplevelSymbol(const std::vector<std::string>& filenames, const Token* token) :
+                IllegalSymbolError(filenames, token, "Expected positional identifier, shortlabel, longlabel or type identifier; not '" + token->raw + "'.")
             {}
 
         };
