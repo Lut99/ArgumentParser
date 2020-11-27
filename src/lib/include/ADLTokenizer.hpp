@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   27/11/2020, 13:46:35
+ *   27/11/2020, 15:56:40
  * Auto updated?
  *   Yes
  *
@@ -271,9 +271,8 @@ namespace ArgumentParser {
         equals = 11,
         semicolon = 12,
         triple_dot = 13,
-        directive = 14,
-        regex = 15,
-        empty = 16
+        regex = 14,
+        empty = 15
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -292,7 +291,6 @@ namespace ArgumentParser {
         "Equals",
         "Semicolon",
         "TripleDot",
-        "Directive",
         "Regex",
         "Empty"
     };

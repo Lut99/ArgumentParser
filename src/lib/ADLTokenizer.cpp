@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   27/11/2020, 13:35:08
+ *   27/11/2020, 15:57:34
  * Auto updated?
  *   Yes
  *
@@ -291,6 +291,7 @@ start:
             STORE(c);
             goto number_contd;
         } else if (c == '.') {
+            result->type = TokenType::triple_dot;
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
             ACCEPT(c);
@@ -688,17 +689,8 @@ dot_start:
         PEEK(c);
 
         // Choose the correct path forward
-        if (    (c >= 'a' && c <= 'z') ||
-                (c >= 'A' && c <= 'Z') ||
-                (c >= '0' && c <= '9') ||
-                 c == '_' || c == '-') {
-            // Try to parse as directive
-            result->type = TokenType::directive;
-            STORE(c);
-            goto dot_directive;
-        } else if (c == '.') {
+        if (c == '.') {
             // So far so good, move to next state
-            result->type = TokenType::triple_dot;
             ACCEPT(c);
             goto dot_dot;
         } else {
@@ -723,30 +715,6 @@ dot_dot:
         } else {
             // Unexpected!
             throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
-        }
-    }
-
-
-
-dot_directive:
-    {
-        // Get the head character on the stream
-        PEEK(c);
-
-        // Choose the correct path forward
-        if (    (c >= 'a' && c <= 'z') ||
-                (c >= 'A' && c <= 'Z') ||
-                (c >= '0' && c <= '9') ||
-                 c == '_' || c == '-') {
-            // Keep parsing as directive
-            STORE(c);
-            goto dot_directive;
-        } else {
-            // Done
-            result->debug.line2 = this->line;
-            result->debug.col2 = this->col - 1;
-            REJECT(c);
-            return result;
         }
     }
 

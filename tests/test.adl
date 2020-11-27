@@ -6,14 +6,10 @@
  * efficient (or so we hope) parser.
  */
 
-.include "<stdtypes>"
-
-.ifdef "with_date"
 <date> {
     name "Date";
     pattern <uint> "-" <uint> "-" <uint>;
 }
-.endif
 
 <hello_world> {
     name "Hello, world!";
