@@ -68,9 +68,8 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - right square bracket (```RSQUARE = '\]'```)
 - left curly bracket (```LCURLY = '{'```)
 - right curly bracket (```RCURLY = '}'```)
+- single dot (```DOT = '.'```)
 - semicolon (```SEMICOLON = ';'```)
-
-Aside from those structural characters, there is also the triple-dot token (```TDOT = '\.\.\.'```), which is used to indicate that a variable is variadic (i.e., its value can be repeated any number of times).
 
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
@@ -107,16 +106,24 @@ The first common rule is the ```config```-rule, which is basically the body of a
 config = config ID values SEMICOLON
        = ID values SEMICOLON
 ```
-The ```config```-rule makes use of the ```values```-rule, which is simply a list of value types (string, integers or floats):
-```
+The ```config```-rule makes use of the ```values```-rule, which is simply a list of value types (string, regex-expressions, integers or floats):
 values = values STRING
        = values REGEX
        = values NUM
        = values DECIMAL
+       = values param
        = STRING
        = REGEX
        = NUM
        = DECIMAL
+       = param
+```
+Note that there is the inclusion of the param-rule, which can be used to reference other fields of either types, positionals or options. The specific rule is given as:
+```
+param = TYPE DOT ID
+      = ID DOT ID
+      = SLABEL DOT ID
+      = LLABEL DOT ID
 ```
 
 ### Argument definition
@@ -127,7 +134,7 @@ The first type of argument, the Positionals, is given by the following grammar r
 positional = ID types LCURLY config RCURLY
            = ID types TDOT LCURLY config RCURLY
            = LSQUARE ID RSQUARE types LCURLY config RCURLY
-           = LSQUARE ID RSQUARE types TDOT LCURLY config RCURLY
+           = LSQUARE ID RSQUARE types DOT DOT DOT LCURLY config RCURLY
 ```
 Here, the rule with square brackets indicates that the positional is optional, and the triple dots indicate that it is variadic - i.e., the positional can have any arbitrary number of values.
 
@@ -140,9 +147,9 @@ types = types TYPE
 Similarly, the second type of arguments can be given with the next grammar rule:
 ```
 option = option_id types LCURLY config RCURLY
-       = option_id types TDOT LCURLY config RCURLY
+       = option_id types DOT DOT DOT LCURLY config RCURLY
        = LSQUARE option_id RSQUARE types LCURLY config RCURLY
-       = LSQUARE option_id RSQUARE types TDOT LCURLY config RCURLY
+       = LSQUARE option_id RSQUARE types DOT DOT DOT LCURLY config RCURLY
 ```
 Again, here the rule with square brackets indicates that the positional is optional, and the triple dots indicate that it is variadic. Additionally, the types rule is the same as defined above.
 
