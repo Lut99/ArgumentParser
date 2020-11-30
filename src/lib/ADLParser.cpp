@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   27/11/2020, 17:19:32
+ *   30/11/2020, 15:13:16
  * Auto updated?
  *   Yes
  *
@@ -40,6 +40,10 @@ using namespace ArgumentParser::Parser;
 /* Looks at the next symbol of the stack, returning a pointer to it. */
 #define PEEK(SYMBOL, STACK_ITER) \
     (SYMBOL) = *((STACK_ITER)++);
+/* Looks at the next symbol of the stack for the error analyzer. */
+#define PEEK_ERR(SYMBOL, STACK, I) \
+    if ((I) >= (STACK).size()) { (SYMBOL) = (Symbol*) &t_empty; } \
+    else { (SYMBOL) = (STACK)[(I)++]; }
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
 bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolStack& stack) {
@@ -301,6 +305,8 @@ value_merge:
         }
     }
 
+
+
 toplevel_merge:
     {
         // Start by looking at the top of the stack
@@ -328,19 +334,24 @@ toplevel_merge:
 
 /* Analyses a stack that is done in principle but didn't reduce to a single ADLFile* node and prints out each of the errors. */
 void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack& stack) {
-    for (size_t i = 0; i < stack.size(); i++) {
-        Symbol* s = stack[i];
-        if (s->is_terminal) {
-            // If there are terminals left, then we apparently didn't expect it at that position
-            Exceptions::print_error(cerr, Exceptions::IllegalToplevelSymbol(filenames, ((Terminal*) s)->token()));
-        } else {
-            NonTerminal* term = (NonTerminal*) s;
-            if (term->type() == NodeType::values) {
-                // Found stray values; that means one or more values have been given out of place
-                Exceptions::print_error(cerr, Exceptions::StrayValuesSymbol(filenames, term->node<ADLValues>()));
-            }
-        }
-    }
+//     size_t stack_i = 0;
+
+//     // Placeholder for the symbol we read from the stack
+//     Symbol* symbol;
+
+//     // Go through another final state machine to arrive at the correct error messages
+// start:
+//     {
+//         // Get the next symbol from the stack
+//         PEEK_ERR(symbol, stack, stack_i);
+
+//         // Do different things depending on if it's a terminal or not
+//         if (symbol->is_terminal) {
+
+//         } else {
+            
+//         }
+//     }
 }
 
 

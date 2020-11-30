@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   27/11/2020, 13:54:53
+ *   27/11/2020, 18:09:40
  * Auto updated?
  *   Yes
  *
@@ -37,6 +37,38 @@ namespace ArgumentParser {
 
         };
 
+
+
+        /* Baseclass exception for when a bracket is unmatched somehow. */
+        class UnmatchedBracketError: public ADLCompileError {
+        public:
+            /* Constructor for the UnmatchedBracketError class, which takes a breadcrumb trail of filenames we are parsing, a token from which we will deduce stuff and optionally a message. */
+            UnmatchedBracketError(const std::vector<std::string>& filenames, const Token* token, const std::string& message = "") :
+                ADLCompileError(filenames, token->debug, message)
+            {}
+
+        };
+        /* Exception for when a left bracket is unmatched. */
+        class UnmatchedLBracketError: public UnmatchedBracketError {
+        public:
+            /* Constructor for the UnmatchedLBracketError class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
+            UnmatchedLBracketError(const std::vector<std::string>& filenames, const Token* token) :
+                UnmatchedBracketError(filenames, token, "No closing bracket for '" + token->raw + "'.")
+            {}
+
+        };
+        /* Exception for when a right bracket is unmatched. */
+        class UnmatchedRBracketError: public UnmatchedBracketError {
+        public:
+            /* Constructor for the UnmatchedRBracketError class, which takes a breadcrumb trail of filenames we are parsing and a token from which we will deduce stuff. */
+            UnmatchedRBracketError(const std::vector<std::string>& filenames, const Token* token) :
+                UnmatchedBracketError(filenames, token, "Encountered stray bracket '" + token->raw + "'.")
+            {}
+
+        };
+
+
+
         /* Exception for when an terminal symbol couldn't be matched at all any grammar rule. */
         class IllegalSymbolError: public ADLCompileError {
         public:
@@ -46,7 +78,6 @@ namespace ArgumentParser {
             {}
 
         };
-
         /* Exception for when an terminal symbol couldn't be matched at all any grammar rule at the toplevel of the file. */
         class IllegalToplevelSymbol: public IllegalSymbolError {
         public:
@@ -68,7 +99,6 @@ namespace ArgumentParser {
             {}
 
         };
-
         /* Exception for when a Values non-terminal is placed but not parsed; it wasn't matched with a valid, large non-terminal. */
         class StrayValuesSymbol: public StraySymbolError {
         public:
@@ -90,7 +120,6 @@ namespace ArgumentParser {
             {}
 
         };
-
         /* Exception for when a Directive non-terminal is placed at any scope other than the toplevel scope. */
         class MisplacedDirectiveSymbol: public StraySymbolError {
         public:

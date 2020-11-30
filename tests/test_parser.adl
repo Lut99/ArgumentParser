@@ -16,8 +16,6 @@
     source "hello_world.cpp";
 }
 
----55 "regular expression!"
-
 <regex_test> {
     name "Regex Test";
     pattern "<uint>" r"-\.\/" "<uint>" r"-\.\/" "<uint>";

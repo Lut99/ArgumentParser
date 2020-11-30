@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   27/11/2020, 15:57:34
+ *   27/11/2020, 18:05:57
  * Auto updated?
  *   Yes
  *
@@ -307,7 +307,7 @@ start:
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            ACCEPT(c);
+            STORE(c);
             return result;
         } else if (c == ']') {
             // Simply return the appropriate token
@@ -316,7 +316,7 @@ start:
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            ACCEPT(c);
+            STORE(c);
             return result;
         } else if (c == '{') {
             // Simply return the appropriate token
@@ -325,7 +325,7 @@ start:
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            ACCEPT(c);
+            STORE(c);
             return result;
         } else if (c == '}') {
             // Simply return the appropriate token
@@ -334,7 +334,7 @@ start:
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            ACCEPT(c);
+            STORE(c);
             return result;
         } else if (c == ';') {
             // Simply return the appropriate token
@@ -343,7 +343,7 @@ start:
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            ACCEPT(c);
+            STORE(c);
             return result;
         } else if (c == '\n') {
             // Increment the line and then try again

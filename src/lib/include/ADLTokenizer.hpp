@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   27/11/2020, 15:56:40
+ *   30/11/2020, 15:10:02
  * Auto updated?
  *   Yes
  *
@@ -268,11 +268,10 @@ namespace ArgumentParser {
         r_square = 8,
         l_curly = 9,
         r_curly = 10,
-        equals = 11,
-        semicolon = 12,
-        triple_dot = 13,
-        regex = 14,
-        empty = 15
+        semicolon = 11,
+        triple_dot = 12,
+        regex = 13,
+        empty = 14
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -288,7 +287,6 @@ namespace ArgumentParser {
         "RSquare",
         "LCurly",
         "RCurly",
-        "Equals",
         "Semicolon",
         "TripleDot",
         "Regex",
@@ -306,7 +304,7 @@ namespace ArgumentParser {
         TokenType type;
         /* Debug information for this token. */
         DebugInfo debug;
-        /* The raw value of this token, if applicable. */
+        /* The raw value of this token. */
         std::string raw;
 
         /* Default constructor for the Token class. */
