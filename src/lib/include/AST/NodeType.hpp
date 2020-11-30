@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   27/11/2020, 17:22:06
+ *   30/11/2020, 17:51:30
  * Auto updated?
  *   Yes
  *
@@ -39,7 +39,8 @@ namespace ArgumentParser {
         string = 0x100,
         regex = 0x200,
         number = 0x400,
-        decimal = 0x800
+        decimal = 0x800,
+        reference = 0x1000
     };
 
 
@@ -60,7 +61,8 @@ namespace ArgumentParser {
         { NodeType::string, "String" },
         { NodeType::regex, "Regex" },
         { NodeType::number, "Number" },
-        { NodeType::decimal, "Decimal" }
+        { NodeType::decimal, "Decimal" },
+        { NodeType::reference, "Reference" }
     });
 
 
@@ -80,7 +82,7 @@ namespace ArgumentParser {
 
 
     /* Constant type denoting all value types. */
-    static constexpr NodeType nt_values = NodeType::string | NodeType::regex | NodeType::number | NodeType::decimal;
+    static constexpr NodeType nt_values = NodeType::string | NodeType::regex | NodeType::number | NodeType::decimal | NodeType::reference;
     /* Constant type denoting all toplevel types. */
     static constexpr NodeType nt_toplevel = NodeType::type_def | NodeType::positional | NodeType::option;
     /* Constant type denoting all types. */

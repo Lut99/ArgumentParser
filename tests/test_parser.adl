@@ -7,7 +7,7 @@
 
 <date> {
     name "Date";
-    pattern "<uint>" "-" "<uint>" "-" "<uint>";
+    pattern <uint>.pattern "-" <uint>.pattern "-" <uint>.pattern;
 }
 
 <hello_world> {
@@ -18,5 +18,5 @@
 
 <regex_test> {
     name "Regex Test";
-    pattern "<uint>" r"-\.\/" "<uint>" r"-\.\/" "<uint>";
+    pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
 }

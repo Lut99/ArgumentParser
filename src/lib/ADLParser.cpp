@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   30/11/2020, 17:34:10
+ *   30/11/2020, 18:09:36
  * Auto updated?
  *   Yes
  *
@@ -26,6 +26,7 @@
 #include "ADLRegex.hpp"
 #include "ADLNumber.hpp"
 #include "ADLDecimal.hpp"
+#include "ADLReference.hpp"
 
 #include "SymbolStack.hpp"
 #include "ADLParser.hpp"
@@ -46,7 +47,7 @@ using namespace ArgumentParser::Parser;
     else { (SYMBOL) = (STACK)[(I)++]; }
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
-bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolStack& stack) {
+std::string reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolStack& stack) {
     // Iterates over each stack symbol, returning the empty terminal if it went out-of-range
     SymbolStack::const_iterator iter = stack.begin();
     // Placeholder for the to-be-examined symbol
@@ -57,6 +58,8 @@ bool reduce(const std::vector<std::string>& filenames, Token* lookahead, SymbolS
     ADLNode* prev_nonterm;
     // Placeholder for a slightly less recently parsed NonTerminal
     ADLNode* prev_prev_nonterm;
+    // Placeholder for any return-rules that might occur
+    std::string applied_rule;
 
 start:
     {
@@ -81,26 +84,35 @@ start:
                 case TokenType::string:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLString(filenames, term->debug(), term->raw());
+                    applied_rule = "string";
                     goto value_merge;
                 
                 case TokenType::regex:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLRegex(filenames, term->debug(), term->raw());
+                    applied_rule = "regex";
                     goto value_merge;
                 
                 case TokenType::number:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLNumber(filenames, term->debug(), term->value<long>());
+                    applied_rule = "number";
                     goto value_merge;
 
                 case TokenType::decimal:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLDecimal(filenames, term->debug(), term->value<double>());
+                    applied_rule = "decimal";
                     goto value_merge;
+                
+                case TokenType::identifier:
+                    // Add only if preceded by a dot symbol
+                    prev_term = term->token();
+                    goto reference_start;
                 
                 default:
                     // No matching rule found
-                    return false;
+                    return "";
 
             }
         } else {
@@ -114,7 +126,7 @@ start:
 
                 default:
                     // No matching rule found
-                    return false;
+                    return "";
             }
         }
     }
@@ -135,7 +147,7 @@ definition_start:
 
         } else {
             // No matching rule found
-            return false;
+            return "";
             
         }
     }
@@ -155,7 +167,7 @@ definition_configs:
             
         } else {
             // Not what we're looking for
-            return false;
+            return "";
 
         }
     }
@@ -183,18 +195,18 @@ definitions_body:
                 stack.replace(4, new NonTerminal(
                     new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
                 ));
-                return true;
+                return "typedef";
                 
             } else {
                 // Cannot do anything with this nonterminal
-                return false;
+                return "";
             }
 
         } else {
             // Do different actions based on the type of symbol
             NonTerminal* term = (NonTerminal*) symbol;
             /* TBD */
-            return false;
+            return "";
 
         }
     }
@@ -215,7 +227,7 @@ config_start:
 
         } else {
             // Not what we're looking for
-            return false;
+            return "";
         }
     }
 
@@ -242,8 +254,60 @@ config_values:
 
         } else {
             // Not what we're looking for, so we're done
-            return false;
+            return "";
             
+        }
+    }
+
+
+
+reference_start:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal && term->type() == TokenType::dot) {
+            // Now we expect one of the identifiers
+            goto reference_dot;
+        } else {
+            // Not for us, apparently
+            return "";
+        }
+    }
+
+
+
+reference_dot:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal && (term->type() == TokenType::identifier ||
+                                    term->type() == TokenType::shortlabel ||
+                                    term->type() == TokenType::longlabel ||
+                                    term->type() == TokenType::type)) {
+            // OK! We got a complete reference! Create it, and then try to merge it with a previous values.
+
+            // Create the debug information
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            debug.line2 = prev_term->debug.line2;
+            debug.col2 = prev_term->debug.col2;
+
+            // Create it, then remove the last two nodes (the other will be handled by values merge)
+            prev_nonterm = (ADLNode*) new ADLReference(filenames, debug, term->raw(), prev_term->raw);
+            stack.remove(2);
+
+            // Jump to merging with a possible ADLValues
+            applied_rule = "reference";
+            goto value_merge;
+
+        } else {
+            // Not for us, apparently
+            return "";
         }
     }
 
@@ -265,14 +329,14 @@ config_merge:
             term->node<ADLConfigs>()->debug.line2 = prev_nonterm->debug.line2;
             term->node<ADLConfigs>()->debug.col2 = prev_nonterm->debug.col2;
 
-            return true;
+            return "config-merge";
 
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(3, new NonTerminal(
                 new ADLConfigs(filenames, prev_nonterm->debug, (ADLConfig*) prev_nonterm)
             ));
-            return true;
+            return "config-new";
             
         }
     }
@@ -295,13 +359,13 @@ value_merge:
             term->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
             term->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
 
-            return true;
+            return applied_rule + "-merge";
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(1, new NonTerminal(
                 new ADLValues(filenames, prev_nonterm->debug, prev_nonterm)
             ));
-            return true;
+            return applied_rule + "-new";
         }
     }
 
@@ -318,14 +382,14 @@ toplevel_merge:
             // Merge this value to the previously found File node
             term->node<ADLFile>()->add_node(prev_nonterm);
             stack.remove(1);
-            return true;
+            return "toplevel-merge";
             
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(1, new NonTerminal(
                 new ADLFile(filenames, prev_nonterm)
             ));
-            return true;
+            return "toplevel-new";
             
         }
     }
@@ -376,11 +440,11 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
     bool changed = true;
     while (!in.eof() || changed) {
         // Check to see if we can match any grammar rule (reduce)
-        bool success = reduce(filenames, lookahead, stack);
-        changed = success;
+        std::string applied_rule = reduce(filenames, lookahead, stack);
+        changed = !applied_rule.empty();
 
         // If we couldn't, then shift a new symbol if there are any left
-        if (!success && lookahead->type != TokenType::empty) {
+        if (applied_rule.empty() && lookahead->type != TokenType::empty) {
             stack.add_terminal(lookahead);
             lookahead = in.pop();
 
@@ -389,7 +453,9 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
         }
 
         #ifdef DEBUG
-        cout << (success ? "Reduce : " : "Shift  : ") << stack << endl;
+        cout << (!applied_rule.empty() ? "Reduce : " : "Shift  : ") << stack;
+        if (!applied_rule.empty()) { cout << " // " << applied_rule; }
+        cout << endl;
         #endif
     }
 
