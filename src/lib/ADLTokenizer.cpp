@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   27/11/2020, 18:05:57
+ *   30/11/2020, 17:42:27
  * Auto updated?
  *   Yes
  *
@@ -290,12 +290,6 @@ start:
             result->debug.col1 = this->col;
             STORE(c);
             goto number_contd;
-        } else if (c == '.') {
-            result->type = TokenType::triple_dot;
-            result->debug.line1 = this->line;
-            result->debug.col1 = this->col;
-            ACCEPT(c);
-            goto dot_start;
         } else if (c == '/') {
             // Comment
             ACCEPT(c);
@@ -330,6 +324,14 @@ start:
         } else if (c == '}') {
             // Simply return the appropriate token
             result->type = TokenType::r_curly;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            STORE(c);
+            return result;
+        } else if (c == '.') {
+            result->type = TokenType::dot;
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
@@ -678,43 +680,6 @@ decimal_contd:
             result->debug.col2 = this->col - 1;
             REJECT(c);
             return parse_decimal(this->filenames, result);
-        }
-    }
-
-
-
-dot_start:
-    {
-        // Get the head character on the stream
-        PEEK(c);
-
-        // Choose the correct path forward
-        if (c == '.') {
-            // So far so good, move to next state
-            ACCEPT(c);
-            goto dot_dot;
-        } else {
-            // Unexpected!
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
-        }
-    }
-
-
-
-dot_dot:
-    {
-        // Get the head character on the stream
-        PEEK(c);
-
-        // Choose the correct path forward
-        if (c == '.') {
-            // It's confirmed a triple-dot token; done
-            result->debug.line2 = this->line;
-            result->debug.col2 = this->col;
-            return result;
-        } else {
-            // Unexpected!
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         }
     }
 

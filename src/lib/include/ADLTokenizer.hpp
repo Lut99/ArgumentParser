@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   30/11/2020, 15:10:02
+ *   30/11/2020, 17:42:36
  * Auto updated?
  *   Yes
  *
@@ -269,7 +269,7 @@ namespace ArgumentParser {
         l_curly = 9,
         r_curly = 10,
         semicolon = 11,
-        triple_dot = 12,
+        dot = 12,
         regex = 13,
         empty = 14
     };
@@ -288,7 +288,7 @@ namespace ArgumentParser {
         "LCurly",
         "RCurly",
         "Semicolon",
-        "TripleDot",
+        "Dot",
         "Regex",
         "Empty"
     };
