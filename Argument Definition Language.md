@@ -57,9 +57,15 @@ The third value type, integers (```NUM```), are simply numbers; this means that 
 NUM = '(---)?[0-9]+'
 ```
 
-Finally, floating-point numbers (```DECIMAL```) are virtually identical to integers, except that they must a dot somewhere not at the start. If a dot is given at the end, the interpret will interpret that as '.0'. In regex:
+Similar to integers are floating-point numbers (```DECIMAL```), with their only difference being that they must have a dot somewhere but not at the start. If a dot is given at the end, the parser will interpret that as '.0'. In regex:
 ```
 DECIMAL = '(---)?[0-9]+\.[0-9]*'
+```
+
+Finally, users can specify inline snippets of C++-code, for easy implementation of type parsers. Each such block is wrapped in matching curly brackets '++{' and '}++'. Then, in the snippet, one can use '++\<X\>++' to reference the X'th value matched by the given pattern. Note that the parser respects C++ comments, meaning that both the special brackets and references can be used in comments without messing up parsing.  
+In regex, the token can be described as:
+```
+SNIPPET = '\+\+{ TBD }\+\+'
 ```
 
 ### Special tokens
