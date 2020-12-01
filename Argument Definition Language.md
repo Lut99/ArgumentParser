@@ -121,6 +121,7 @@ config = config ID values SEMICOLON
        = ID values SEMICOLON
 ```
 The ```config```-rule makes use of the ```values```-rule, which is simply a list of value types (string, regex-expressions, integers or floats):
+```
 values = values STRING
        = values REGEX
        = values NUM
