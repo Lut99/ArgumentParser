@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   01/12/2020, 13:01:00
+ *   12/1/2020, 6:20:38 PM
  * Auto updated?
  *   Yes
  *
@@ -32,16 +32,18 @@ namespace ArgumentParser {
         positional = 0x8,
         option = 0x10,
 
-        configs = 0x20,
-        config = 0x40,
+        types = 0x20,
 
-        values = 0x80,
-        string = 0x100,
-        regex = 0x200,
-        number = 0x400,
-        decimal = 0x800,
-        reference = 0x1000,
-        snippet = 0x2000
+        configs = 0x40,
+        config = 0x80,
+
+        values = 0x100,
+        string = 0x200,
+        regex = 0x400,
+        number = 0x800,
+        decimal = 0x1000,
+        reference = 0x2000,
+        snippet = 0x4000
     };
 
 
@@ -54,6 +56,8 @@ namespace ArgumentParser {
         { NodeType::type_def, "TypeDef" },
         { NodeType::positional, "Positional" },
         { NodeType::option, "Option" },
+
+        { NodeType::types, "Types" },
 
         { NodeType::configs, "Configs" },
         { NodeType::config, "Config" },

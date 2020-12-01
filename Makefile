@@ -58,6 +58,8 @@ $(OBJ)/AST/values:
 	mkdir -p $@
 $(OBJ)/AST/configs:
 	mkdir -p $@
+$(OBJ)/AST/types:
+	mkdir -p $@
 dirs: $(DIRS)
 
 

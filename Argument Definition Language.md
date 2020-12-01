@@ -163,8 +163,10 @@ types = types TYPE
 
 Similarly, the second type of arguments can be given with the next grammar rule:
 ```
-option = option_id types LCURLY config RCURLY
+option = option_id LCURLY config RCURLY
+       = option_id types LCURLY config RCURLY
        = option_id types DOT DOT DOT LCURLY config RCURLY
+       = LSQUARE option_id RSQUARE LCURLY config RCURLY
        = LSQUARE option_id RSQUARE types LCURLY config RCURLY
        = LSQUARE option_id RSQUARE types DOT DOT DOT LCURLY config RCURLY
 ```

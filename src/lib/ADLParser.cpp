@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   01/12/2020, 13:08:55
+ *   12/1/2020, 6:50:07 PM
  * Auto updated?
  *   Yes
  *
@@ -18,6 +18,9 @@
 #include <iostream>
 
 #include "ADLTypeDef.hpp"
+#include "ADLPositional.hpp"
+
+#include "ADLTypes.hpp"
 
 #include "ADLConfigs.hpp"
 #include "ADLConfig.hpp"
@@ -55,6 +58,8 @@ std::string reduce(const std::vector<std::string>& filenames, Token* lookahead, 
     Symbol* symbol;
     // Placeholder for a recently parsed Terminal s.t. debug information may be kept
     Token* prev_term;
+    // Placeholder for a slightly less recently parsed Terminal s.t. debug information may be kept
+    Token* prev_prev_term;
     // Placeholder for a recently parsed NonTerminal
     ADLNode* prev_nonterm;
     // Placeholder for a slightly less recently parsed NonTerminal
@@ -76,6 +81,11 @@ start:
                     // See if we can parse as any of the definitions
                     prev_term = term->token();
                     goto definition_start;
+                
+                case TokenType::type:
+                    // If the tokentype is preceded by an identifier, shortlabel, longlabel or TYPES list, promote it to a TYPES list
+                    prev_term = term->token();
+                    goto types_merge;
 
                 case TokenType::semicolon:
                     // Check if we can parse this as a config
@@ -190,31 +200,143 @@ definitions_body:
         if (symbol->is_terminal) {
             // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
-            if (term->type() == TokenType::type) {
-                // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            switch(term->type()) {
+                case TokenType::type:
+                    // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
 
-                // Compute the typedef's end and start debug info
-                DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
-                debug.line2 = prev_term->debug.line2;
-                debug.col2 = prev_term->debug.col2;
+                    // Compute the typedef's end and start debug info
+                    debug.line2 = prev_term->debug.line2;
+                    debug.col2 = prev_term->debug.col2;
 
-                // Replace the symbols on the stack
-                stack.replace(4, new NonTerminal(
-                    new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
-                ));
-                return "typedef";
-                
-            } else {
-                // Cannot do anything with this nonterminal
-                return "";
+                    // Replace the symbols on the stack
+                    stack.replace(4, new NonTerminal(
+                        new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
+                    ));
+                    return "typedef";
+
+                case TokenType::r_curly:
+                case TokenType::longlabel:
+                case TokenType::shortlabel:
+                    // No types present and not a type itself, so it must be an optional
+                    /* TBD */
+                    return "";
+
+                default:
+                    // Cannot do anything with this nonterminal
+                    return "";
             }
 
         } else {
             // Do different actions based on the type of symbol
             NonTerminal* term = (NonTerminal*) symbol;
-            /* TBD */
+            if (term->type() == NodeType::types) {
+                // Parse as Positional or Optional, depending on which it is
+                prev_prev_nonterm = prev_nonterm;
+                prev_nonterm = term->node();
+                goto argument_types;
+            }
             return "";
 
+        }
+    }
+
+
+
+argument_types:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        if (symbol->is_terminal) {
+            // Do different actions based on the type of symbol
+            Terminal* term = (Terminal*) symbol;
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            switch(term->type()) {
+                case TokenType::longlabel:
+                case TokenType::shortlabel:
+                    // It's an option
+                    /* TBD */
+                    return "";
+                
+                case TokenType::identifier:
+                    // It's a positional
+
+                    // Extend the debug information to the start of this node
+                    debug.line2 = prev_term->debug.line2;
+                    debug.col2 = prev_term->debug.col2;
+
+                    // Replace the symbols on the stack
+                    stack.replace(5, new NonTerminal(
+                        new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, false, (ADLConfigs*) prev_prev_nonterm)
+                    ));
+                    return "positional";
+                
+                case TokenType::r_square:
+                    // Optional argument, but we don't know which yet
+                    goto argument_rsquare;
+
+                default:
+                    // Cannot do anything with this nonterminal
+                    return "";
+            }
+
+        } else {
+            // Do different actions based on the type of symbol
+            NonTerminal* term = (NonTerminal*) symbol;
+            if (term->type() == NodeType::types) {
+                // Parse as Positional or Optional, depending on which it is
+                prev_prev_nonterm = prev_nonterm;
+                prev_nonterm = term->node();
+                goto argument_types;
+            }
+            return "";
+
+        }
+    }
+
+
+
+argument_rsquare:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // To continue, this must be a normal identifier, shortlabel or longlabel
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal || (term->type() == TokenType::identifier ||
+                                    term->type() == TokenType::shortlabel ||
+                                    term->type() == TokenType::longlabel)) {
+            // Set this token as the previous terminal, and then move on to the final state
+            prev_prev_term = prev_term;
+            prev_term = term->token();
+            goto argument_optional;
+
+        } else {
+            // Not successfull
+            return "";
+        }
+    }
+
+
+
+argument_optional:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // To continue, this must be a normal identifier, shortlabel or longlabel
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal || term->type() == TokenType::l_square) {
+            // Set this token as the previous terminal, and then move on to the final state
+            prev_prev_term = prev_term;
+            prev_term = term->token();
+            goto argument_optional;
+
+        } else {
+            // Not successfull
+            return "";
         }
     }
 
@@ -320,6 +442,44 @@ reference_dot:
 
 
 
+types_merge:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // Do different things based on whether it is a terminal or not
+        Terminal* term = (Terminal*) symbol;
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (symbol->is_terminal && (term->type() == TokenType::identifier ||
+                                    term->type() == TokenType::shortlabel ||
+                                    term->type() == TokenType::longlabel ||
+                                    term->type() == TokenType::r_square)) {
+            // Create a new ADLTypes nonterminal
+            stack.replace(1, new NonTerminal(
+                new ADLTypes(filenames, prev_term->debug, prev_term->raw)
+            ));
+            return "types-new";
+
+        } else if (nterm->type() == NodeType::types) {
+            // Merge it with the previous types list
+            nterm->node<ADLTypes>()->ids.push_back(prev_term->raw);
+
+            // Update the debug info of the types list we merged with
+            nterm->node<ADLTypes>()->debug.line2 = prev_term->debug.line2;
+            nterm->node<ADLTypes>()->debug.col2 = prev_term->debug.col2;
+
+            // Remove it from the stack (deallocating the token as well) and we're done
+            stack.remove(1);
+            return "types-merge";
+
+        } else {
+            // Don't promote it, since it will be used to parse as typedef instead
+            return "";
+        }
+    }
+
+
+    
 config_merge:
     {
         // Start by looking at the top of the stack
