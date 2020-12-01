@@ -20,6 +20,9 @@
 <regex_test> {
     name "Regex Test";
     pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
+    source ++{
+        return ++<1>++;
+    }++
 }
 
 positional1 <int> {

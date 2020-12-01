@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   30/11/2020, 17:42:27
+ *   01/12/2020, 12:50:10
  * Auto updated?
  *   Yes
  *
@@ -290,6 +290,13 @@ start:
             result->debug.col1 = this->col;
             STORE(c);
             goto number_contd;
+        } else if (c == '+') {
+            // Probably a C++-snippet
+            result->type = TokenType::snippet;
+            result->debug.line1 = this->line;
+            result->debug.line2 = this->col;
+            ACCEPT(c);
+            goto snippet_start;
         } else if (c == '/') {
             // Comment
             ACCEPT(c);
@@ -530,11 +537,14 @@ type_start:
             // Remember the value and continue to the rest of the type
             STORE(c);
             goto type_contd;
+        } else if (c == EOF) {
+            // Unterminated type definition
+            throw Exceptions::UnterminatedTypeException(this->filenames, result->debug);
         } else if (c != '>') {
             // Let the user know we encountered an illegal character
             throw Exceptions::IllegalTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
         } else {
-            // Let the user know we encountered an empty option
+            // Let the user know we encountered an empty type id
             throw Exceptions::EmptyTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()));
         }
     }
@@ -588,6 +598,9 @@ string_start:
             // Simply add the value and continue parsing
             STORE(c);
             goto string_start;
+        } else if (c == EOF) {
+            // Unterminated string
+            throw Exceptions::UnterminatedStringException(this->filenames, result->debug);
         } else {
             // Don't accept direct newlines
             throw Exceptions::IllegalStringException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
@@ -685,6 +698,199 @@ decimal_contd:
 
 
 
+snippet_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '+') {
+            // We collected the plus_plus so far; just a curly bracket to go, and we start with the snippet
+            ACCEPT(c);
+            goto snippet_pp;
+        } else {
+            // Otherwise, it doesn't make a lot of sense, so error
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+        }
+    }
+
+
+
+snippet_pp:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '{') {
+            // Alright! Start parsing it as a snippet!
+            ACCEPT(c);
+            goto snippet_code;
+        } else {
+            // Otherwise, it doesn't make a lot of sense, so error
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+        }
+    }
+
+
+
+snippet_code:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '}') {
+            // Might be the end of the snippet!
+            STORE(c);
+            goto snippet_bracket;
+        } else if (c == '/') {
+            // Go into any of the comment modes
+            ACCEPT(c);
+            goto snippet_comment_start;
+        } else {
+            // Add to the token's value and keep parsing more snippet
+            STORE(c);
+            goto snippet_code;
+        }
+    }
+
+
+
+snippet_bracket:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '+') {
+            // Continue on the closing path
+            STORE(c);
+            goto snippet_end;
+        } else {
+            // It was nothing, keep on parsing it as usual
+            REJECT(c);
+            goto snippet_code;
+        }
+    }
+
+
+
+snippet_end:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '+') {
+            // Done! Remove the last two values as these turned out to be obsolute, then return
+            ACCEPT(c);
+            result->raw.pop_back();
+            result->raw.pop_back();
+            return result;
+        } else {
+            // It was nothing, keep on parsing it as usual
+            REJECT(c);
+            goto snippet_code;
+        }
+    }
+
+
+
+snippet_comment_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '/') {
+            // Treat it as a single-line comment
+            STORE(c);
+            goto snippet_singleline_start;
+        } else if (c == '*') {
+            // Treat it as a multi-line comment
+            STORE(c);
+            goto snippet_multiline_start;
+        } else {
+            // It was just a normal slash, keep going
+            REJECT(c);
+            goto snippet_code;
+        }
+    }
+
+
+
+snippet_singleline_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '\n') {
+            // We're done; put it back on the stream and go back to normal snippet parsing
+            REJECT(c);
+            goto snippet_code;
+        } else {
+            // Simply keep adding all tokens to the token
+            STORE(c);
+            goto snippet_singleline_start;
+        }
+    }
+
+
+
+snippet_multiline_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '*') {
+            // Might need to stop, let's examine
+            STORE(c);
+            goto snippet_multiline_star;
+        } else if (c == '\n') {
+            // Skip, but do update the line counters
+            this->col = 1;
+            this->line++;
+            this->last_newline = ftell(this->file);
+            result->raw.push_back(c);
+            goto snippet_multiline_start;
+        } else if (c == EOF) {
+            // Whoa! Reached unterminated comment!
+            throw Exceptions::UnterminatedMultilineException(filenames, result->debug);
+        } else {
+            // Simply skip this item
+            STORE(c);
+            goto snippet_multiline_start;
+        }
+    }
+
+
+
+snippet_multiline_star:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '/') {
+            // We're done; continue parsing the snippet normally
+            STORE(c);
+            goto snippet_code;
+        } else if (c == '*') {
+            // Continue parsing these stars
+            STORE(c);
+            goto snippet_multiline_star;
+        } else {
+            // We see any non-star, so go back to the multiline_start (but do put it back on the stream for newlines)
+            REJECT(c);
+            goto snippet_multiline_start;
+        }
+    }
+
+
+
 comment_start:
     {
         // Get the head character on the stream
@@ -742,6 +948,9 @@ multiline_start:
             this->line++;
             this->last_newline = ftell(this->file);
             goto multiline_start;
+        } else if (c == EOF) {
+            // Whoa! Reached unterminated comment!
+            throw Exceptions::UnterminatedMultilineException(filenames, result->debug);
         } else {
             // Simply skip this item
             ACCEPT(c);

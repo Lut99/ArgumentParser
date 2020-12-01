@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   30/11/2020, 18:09:36
+ *   01/12/2020, 13:08:55
  * Auto updated?
  *   Yes
  *
@@ -27,6 +27,7 @@
 #include "ADLNumber.hpp"
 #include "ADLDecimal.hpp"
 #include "ADLReference.hpp"
+#include "ADLSnippet.hpp"
 
 #include "SymbolStack.hpp"
 #include "ADLParser.hpp"
@@ -103,6 +104,12 @@ start:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLDecimal(filenames, term->debug(), term->value<double>());
                     applied_rule = "decimal";
+                    goto value_merge;
+
+                case TokenType::snippet:
+                    // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
+                    prev_nonterm = new ADLSnippet(filenames, term->debug(), term->raw());
+                    applied_rule = "snippet";
                     goto value_merge;
                 
                 case TokenType::identifier:

@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   30/11/2020, 17:42:36
+ *   01/12/2020, 12:50:26
  * Auto updated?
  *   Yes
  *
@@ -208,7 +208,34 @@ namespace ArgumentParser {
             {}
 
         };
-    
+        /* Exception for when a multi-line comment is unterminated. Contains a nested exception that contains an extra note. */
+        class UnterminatedTypeException: public SyntaxError {
+        public:
+            /* Constructor for the UnterminatedTypeException class, which takes the name of the file where the illegal dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            UnterminatedTypeException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Unterminated type identifier encountered.")
+            {}
+
+        };
+        /* Exception for when a multi-line comment is unterminated. Contains a nested exception that contains an extra note. */
+        class UnterminatedStringException: public SyntaxError {
+        public:
+            /* Constructor for the UnterminatedStringException class, which takes the name of the file where the illegal dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            UnterminatedStringException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Unterminated string encountered.")
+            {}
+
+        };
+        /* Exception for when a multi-line comment is unterminated. Contains a nested exception that contains an extra note. */
+        class UnterminatedMultilineException: public SyntaxError {
+        public:
+            /* Constructor for the UnterminatedMultilineException class, which takes the name of the file where the illegal dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            UnterminatedMultilineException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Unterminated multi-comment encountered.")
+            {}
+
+        };
+
         /* Baseclass exception for when a value goes out of the allowed range. */
         class OutOfRangeWarning: public ADLCompileWarning {
         public:
@@ -271,7 +298,8 @@ namespace ArgumentParser {
         semicolon = 11,
         dot = 12,
         regex = 13,
-        empty = 14
+        snippet = 14,
+        empty = 15
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -290,6 +318,7 @@ namespace ArgumentParser {
         "Semicolon",
         "Dot",
         "Regex",
+        "Snippet",
         "Empty"
     };
 

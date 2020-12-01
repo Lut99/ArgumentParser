@@ -62,11 +62,19 @@ Similar to integers are floating-point numbers (```DECIMAL```), with their only 
 DECIMAL = '(---)?[0-9]+\.[0-9]*'
 ```
 
-Finally, users can specify inline snippets of C++-code, for easy implementation of type parsers. Each such block is wrapped in matching curly brackets '++{' and '}++'. Then, in the snippet, one can use '++\<X\>++' to reference the X'th value matched by the given pattern. Note that the parser respects C++ comments, meaning that both the special brackets and references can be used in comments without messing up parsing.  
+Finally, users can specify inline snippets of C++-code, for easy implementation of type parsers. Each such block is wrapped in matching curly brackets '++{' and '}++'. Then, in the snippet, one can use '++\<X\>++' to reference the X'th value matched by the type's given pattern. Note that the parser respects C++ comments, meaning that both the special brackets and references can be used in comments without messing up parsing.  
 In regex, the token can be described as:
 ```
-SNIPPET = '\+\+{ TBD }\+\+'
+SNIPPET = '\+\+{([^/]|(\/\*([^*]|\*+[^/])*\*+\/)|(\/\/.*\n)|\/)*?}\+\+'
 ```
+The expression may look hidious (and it is), but a careful observer should see that it is made up of five parts:
+- The outer '++{' and '}++'
+- A first rule that matches anything but forward slashes
+- A second rule that matches multi-line comments (see below)
+- A third rule that matches single-line comments (see below)
+- A fourth rule matching only forward slashes that aren't part of commas.
+
+In this way, the expression respects C++-style comments.
 
 ### Special tokens
 Aside from identifiers and values, ADL also features a couple of special tokens that are used to derive structure from the text. There are the following:
@@ -74,7 +82,7 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - right square bracket (```RSQUARE = '\]'```)
 - left curly bracket (```LCURLY = '{'```)
 - right curly bracket (```RCURLY = '}'```)
-- single dot (```DOT = '.'```)
+- single dot (```DOT = '\.'```)
 - semicolon (```SEMICOLON = ';'```)
 
 ### Comments
@@ -117,19 +125,21 @@ values = values STRING
        = values REGEX
        = values NUM
        = values DECIMAL
-       = values param
+       = values property
+       = values SNIPPET
        = STRING
        = REGEX
        = NUM
        = DECIMAL
-       = param
+       = property
+       = SNIPPET
 ```
-Note that there is the inclusion of the param-rule, which can be used to reference other fields of either types, positionals or options. The specific rule is given as:
+Note that there is the inclusion of the property-rule, which can be used to reference other fields of either types, positionals or options. The specific rule is given as:
 ```
-param = TYPE DOT ID
-      = ID DOT ID
-      = SLABEL DOT ID
-      = LLABEL DOT ID
+property = TYPE DOT ID
+         = ID DOT ID
+         = SLABEL DOT ID
+         = LLABEL DOT ID
 ```
 
 ### Argument definition
