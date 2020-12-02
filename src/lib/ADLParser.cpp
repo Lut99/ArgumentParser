@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/1/2020, 6:50:07 PM
+ *   12/2/2020, 2:47:00 PM
  * Auto updated?
  *   Yes
  *
@@ -137,7 +137,8 @@ start:
             NonTerminal* term = (NonTerminal*) symbol;
             switch(term->type()) {
                 case NodeType::type_def:
-                    // Merge with a possible exisitng Files node
+                case NodeType::positional:
+                    // Merge with a possible existing Files node
                     prev_nonterm = term->node();
                     goto toplevel_merge;
 
@@ -200,7 +201,7 @@ definitions_body:
         if (symbol->is_terminal) {
             // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
             switch(term->type()) {
                 case TokenType::type:
                     // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
@@ -252,7 +253,7 @@ argument_types:
         if (symbol->is_terminal) {
             // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
             switch(term->type()) {
                 case TokenType::longlabel:
                 case TokenType::shortlabel:
@@ -326,13 +327,22 @@ argument_optional:
         // Start by looking at the top of the stack
         PEEK(symbol, iter);
 
-        // To continue, this must be a normal identifier, shortlabel or longlabel
+        // To continue, we wait for the left square bracket to complete all this
         Terminal* term = (Terminal*) symbol;
         if (symbol->is_terminal || term->type() == TokenType::l_square) {
-            // Set this token as the previous terminal, and then move on to the final state
-            prev_prev_term = prev_term;
-            prev_term = term->token();
-            goto argument_optional;
+            // Success! Replace all those tokens with a Positional one
+
+            // Extend the debug information to the start of this node
+            DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+            debug.line2 = prev_prev_term->debug.line2;
+            debug.col2 = prev_prev_term->debug.col2;
+
+            // Replace the symbols on the stack
+            stack.replace(7, new NonTerminal(
+                new ADLPositional(filenames, debug, prev_term->raw, (ADLTypes*) prev_nonterm, false, false, (ADLConfigs*) prev_prev_nonterm)
+            ));
+            return "optional_positional";
+            
 
         } else {
             // Not successfull
@@ -453,7 +463,7 @@ types_merge:
         if (symbol->is_terminal && (term->type() == TokenType::identifier ||
                                     term->type() == TokenType::shortlabel ||
                                     term->type() == TokenType::longlabel ||
-                                    term->type() == TokenType::r_square)) {
+                                    term->type() == TokenType::r_square) && lookahead->type != TokenType::dot) {
             // Create a new ADLTypes nonterminal
             stack.replace(1, new NonTerminal(
                 new ADLTypes(filenames, prev_term->debug, prev_term->raw)

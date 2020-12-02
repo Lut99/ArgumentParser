@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 5:55:59 PM
  * Last edited:
- *   12/1/2020, 6:11:04 PM
+ *   12/2/2020, 2:30:36 PM
  * Auto updated?
  *   Yes
  *
@@ -22,8 +22,11 @@ using namespace ArgumentParser;
 /***** ADLPOSITIONAL CLASS *****/
 
 /* Constructor for the ADLPositional, which takes a breadcrumb trail of files, a DebugInfo struct linking this node to the source code, the identifier of this Positional, a list of types that make up this Positional as ADLTypes, whether or not this Positional is optional, whether or not this Positional is variadic and optionally a list of configuration parameters for this Positional as ADLConfigs. */
-ADLPositional::ADLPositional(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& id, ADLTypes* types, bool is_optional, bool is_variadic, ADLConfigs* configs = nullptr) :
-    ADLBranch(NodeType::positional, filenames, debug, 2, NodeType::types | NodeType::configs)
+ADLPositional::ADLPositional(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& id, ADLTypes* types, bool is_optional, bool is_variadic, ADLConfigs* configs) :
+    ADLBranch(NodeType::positional, filenames, debug, 2, NodeType::types | NodeType::configs),
+    id(id),
+    optional(is_optional),
+    variadic(is_variadic)
 {
     // Add the types always
     this->add_node((ADLNode*) types);
