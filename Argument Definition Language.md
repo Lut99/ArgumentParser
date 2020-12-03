@@ -67,6 +67,11 @@ Similar to integers are floating-point numbers (```DECIMAL```), with their only 
 DECIMAL = '(---)?[0-9]+\.[0-9]*'
 ```
 
+As a simple, 1-or-0 value, the ADL also includes booleans. A boolean is simply either 'true' or 'false', lowercase, but wrapped in brackets s.t. the parser can easily disambiguate it from identifiers. In regex:
+```
+BOOL = '(\(true\))|(\(false\))'
+```
+
 Finally, users can specify inline snippets of C++-code, for easy implementation of type parsers. Each such block is wrapped in matching curly brackets '++{' and '}++'. Then, in the snippet, one can use '++\<X\>++' to reference the X'th value matched by the type's given pattern. Note that the parser respects C++ comments, meaning that both the special brackets and references can be used in comments without messing up parsing.  
 In regex, the token can be described as:
 ```
@@ -109,9 +114,11 @@ The grammar in the ADL defines how the tokens can be used, and what semantic mea
 
 The top-level grammar rule is defined as follows:
 ```
-file = file positional
+file = file meta
+     = file positional
      = file option
      = file typedef
+     = meta
      = positional
      = option
      = typedef
@@ -131,12 +138,14 @@ values = values STRING
        = values REGEX
        = values NUM
        = values DECIMAL
+       = values BOOL
        = values property
        = values SNIPPET
        = STRING
        = REGEX
        = NUM
        = DECIMAL
+       = BOOL
        = property
        = SNIPPET
 ```
@@ -147,6 +156,17 @@ property = TYPE CONFIG
          = SLABEL CONFIG
          = LLABEL CONFIG
 ```
+
+### Meta definition
+As a special type of toplevel construct, the ADL has space for the meta-definition. This is simply an identifier 'meta', in caps, followed by a normal bracket-config construct (see the arg_body grammar rule):
+```
+meta = ID arg_body
+```
+```
+arg_body = LCURLY config RCURLY
+         = LCURLY RCURLY
+```
+In this toplevel, some special values are allowed that influence some meta-strategies of the to-be-created parser; additionally, any property may be given here s.t. it may be referenced later.
 
 ### Argument definition
 The biggest feature of ADL is, of course, how to define new arguments. Of these, there are two types: Positionals and Options. Both of these will be defined below.
@@ -164,12 +184,6 @@ The ```types```-rule used here is simpy a list of ```TYPE```-tokens:
 ```
 types = types TYPE
       = TYPE
-```
-
-Finally, the ```arg_body```-rule referenced in the ```positional```-rule represents the body of an argument, which can ontain one or more properties:
-```
-arg_body = LCURLY config RCURLY
-         = LCURLY RCURLY
 ```
 
 Similarly, the second type of arguments can be given with the next grammar rule:
@@ -202,4 +216,4 @@ typedef = TYPE LCURLY config RCURLY
 ```
 
 ## 4. Closing thoughts
-This file specifies the Argument Definition Language so that parses can parse the file. For more information on using the ADL as a user in the context of the ArgumentParser, please refer to the online [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
+This file specifies the Argument Definition Language so that parses can parse the file to a semantically correct Abstract Syntax Tree. More information, especially on using the ADL in the context of the ArgumentParser, can be found in the online wiki [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.

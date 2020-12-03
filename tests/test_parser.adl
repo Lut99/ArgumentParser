@@ -5,6 +5,10 @@
  * step-for-step.
  */
 
+META {
+    .auto_help (true);
+}
+
 <date> {
     .name "Date";
     .pattern <uint>.pattern "-" <uint>.pattern "-" <uint>.pattern;

@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   12/1/2020, 6:20:38 PM
+ *   03/12/2020, 17:25:14
  * Auto updated?
  *   Yes
  *
@@ -28,22 +28,23 @@ namespace ArgumentParser {
         root = 0x1,
         file = 0x2,
 
-        type_def = 0x4,
-        positional = 0x8,
-        option = 0x10,
+        meta = 0x4,
+        type_def = 0x8,
+        positional = 0x10,
+        option = 0x20,
 
-        types = 0x20,
+        types = 0x40,
 
-        configs = 0x40,
-        config = 0x80,
+        configs = 0x80,
+        config = 0x100,
 
-        values = 0x100,
-        string = 0x200,
-        regex = 0x400,
-        number = 0x800,
-        decimal = 0x1000,
-        reference = 0x2000,
-        snippet = 0x4000
+        values = 0x200,
+        string = 0x400,
+        regex = 0x800,
+        number = 0x1000,
+        decimal = 0x2000,
+        reference = 0x4000,
+        snippet = 0x8000
     };
 
 
@@ -53,6 +54,7 @@ namespace ArgumentParser {
         { NodeType::root, "Root" },
         { NodeType::file, "File" },
 
+        { NodeType::meta, "Meta" },
         { NodeType::type_def, "TypeDef" },
         { NodeType::positional, "Positional" },
         { NodeType::option, "Option" },
@@ -90,7 +92,7 @@ namespace ArgumentParser {
     /* Constant type denoting all value types. */
     static constexpr NodeType nt_values = NodeType::string | NodeType::regex | NodeType::number | NodeType::decimal | NodeType::reference | NodeType::snippet;
     /* Constant type denoting all toplevel types. */
-    static constexpr NodeType nt_toplevel = NodeType::type_def | NodeType::positional | NodeType::option;
+    static constexpr NodeType nt_toplevel = NodeType::meta | NodeType::type_def | NodeType::positional | NodeType::option;
     /* Constant type denoting all types. */
     static constexpr NodeType nt_all = (NodeType) ~((nodetype_t) 0);
 

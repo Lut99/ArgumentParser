@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   03/12/2020, 14:20:40
+ *   03/12/2020, 18:01:05
  * Auto updated?
  *   Yes
  *
@@ -150,6 +150,12 @@ std::ostream& ValueToken<T>::print(std::ostream& os) const {
     return os << tokentype_names[(int) this->type] << "(" << this->value << ")";
 }
 
+/* Override for the polymorphic print function to beautify boolean printing. */
+template <>
+std::ostream& ValueToken<bool>::print(std::ostream& os) const {
+    return os << tokentype_names[(int) this->type] << "(" << (this->value ? "true" : "false") << ")";
+}
+
 /* "Promotes" an existing Token to a ValueToken, by copying it and adding our value. Note that the given token will be deallocated. */
 template <class T>
 ValueToken<T>* ValueToken<T>::promote(Token* other, const T& value) {
@@ -290,11 +296,18 @@ start:
             result->debug.col1 = this->col;
             STORE(c);
             goto number_contd;
+        } else if (c == '(') {
+            // Aha! Parse as boolean
+            result->type = TokenType::boolean;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            ACCEPT(c);
+            goto bool_start;
         } else if (c == '+') {
             // Probably a C++-snippet
             result->type = TokenType::snippet;
             result->debug.line1 = this->line;
-            result->debug.line2 = this->col;
+            result->debug.col1 = this->col;
             ACCEPT(c);
             goto snippet_start;
         } else if (c == '.') {
@@ -535,7 +548,7 @@ type_start:
             // Remember the value and continue to the rest of the type
             STORE(c);
             goto type_contd;
-        } else if (c == EOF) {
+        } else if (is_whitespace(c) || c == EOF) {
             // Unterminated type definition
             throw Exceptions::UnterminatedTypeException(this->filenames, result->debug);
         } else if (c != '>') {
@@ -568,6 +581,9 @@ type_contd:
             result->debug.col2 = this->col;
             ACCEPT(c);
             return result;
+        } else if (is_whitespace(c) || c == EOF) {
+            // Unterminated type definition
+            throw Exceptions::UnterminatedTypeException(this->filenames, result->debug);
         } else {
             // Illegal character
             throw Exceptions::IllegalTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
@@ -691,6 +707,42 @@ decimal_contd:
             result->debug.col2 = this->col - 1;
             REJECT(c);
             return parse_decimal(this->filenames, result);
+        }
+    }
+
+
+
+bool_start:
+    {
+        // We use a different method here for brevity and better error handling; we collect the values quickly in a string, and then decide if it was legal or not
+        stringstream sstr;
+        while (true) {
+            PEEK(c);
+            if (is_whitespace(c) || c == EOF || c == ';') {
+                throw Exceptions::UnterminatedBooleanException(this->filenames, DebugInfo(result->debug.line1, result->debug.col1, this->line, this->col, result->debug.raw_line));
+            } else if (c == ')') {
+                break;
+            }
+            ACCEPT(c);
+            sstr << c;
+        }
+        result->debug.line2 = this->line;
+        result->debug.col2 = this->col;
+        
+        // Check the string's legality
+        std::string val = sstr.str();
+        if (val == "true") {
+            // Return the boolean 'true' equivalent
+            ACCEPT(c);
+            return ValueToken<bool>::promote(result, true);
+        } else if (val == "false") {
+            // Return the boolean 'false' equivalent
+            ACCEPT(c);
+            return ValueToken<bool>::promote(result, false);
+        } else if (val.empty()) {
+            throw Exceptions::EmptyBooleanException(this->filenames, DebugInfo(this->line, this->col, this->get_line()));
+        } else {
+            throw Exceptions::IllegalBooleanException(this->filenames, result->debug, val);
         }
     }
 

@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   03/12/2020, 14:12:52
+ *   03/12/2020, 17:53:04
  * Auto updated?
  *   Yes
  *
@@ -186,6 +186,28 @@ namespace ArgumentParser {
             {}
 
         };
+        /* Exception for when boolean brackets () are given but nothing is in them. */
+        class EmptyBooleanException: public SyntaxError {
+        public:
+            /* Constructor for the EmptyBooleanException class, which takes the name of the file where the empty dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyBooleanException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Encountered empty boolean value.")
+            {}
+  
+        };
+        /* Exception for when boolean brackets () are given but neither 'true' nor 'false' is in them. */
+        class IllegalBooleanException: public SyntaxError {
+        public:
+            /* The illegal value that was encountered. */
+            std::string value;
+
+            /* Constructor for the IllegalBooleanException class, which takes the name of the file where the empty dash occurred, a DebugInfo struct linking this exception to a place in the source file and the string that was given instead. */
+            IllegalBooleanException(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& value) :
+                SyntaxError(filenames, debug, "Encountered illegal boolean value '" + value + "' (expected 'true' or 'false' only)."),
+                value(value)
+            {}
+  
+        };
         /* Exception for when an illegal character is parsed while parsing strings. */
         class IllegalStringException: public SyntaxError {
         private:
@@ -208,7 +230,7 @@ namespace ArgumentParser {
             {}
 
         };
-        /* Exception for when a multi-line comment is unterminated. Contains a nested exception that contains an extra note. */
+        /* Exception for when a type identifier comment is unterminated. Contains a nested exception that contains an extra note. */
         class UnterminatedTypeException: public SyntaxError {
         public:
             /* Constructor for the UnterminatedTypeException class, which takes the name of the file where the illegal dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
@@ -217,12 +239,21 @@ namespace ArgumentParser {
             {}
 
         };
-        /* Exception for when a multi-line comment is unterminated. Contains a nested exception that contains an extra note. */
+        /* Exception for when a string value is unterminated. Contains a nested exception that contains an extra note. */
         class UnterminatedStringException: public SyntaxError {
         public:
             /* Constructor for the UnterminatedStringException class, which takes the name of the file where the illegal dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
             UnterminatedStringException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
                 SyntaxError(filenames, debug, "Unterminated string encountered.")
+            {}
+
+        };
+        /* Exception for when a boolean is unterminated. Contains a nested exception that contains an extra note. */
+        class UnterminatedBooleanException: public SyntaxError {
+        public:
+            /* Constructor for the UnterminatedBooleanException class, which takes the name of the file where the illegal dash occurred and a DebugInfo struct linking this exception to a place in the source file. */
+            UnterminatedBooleanException(const std::vector<std::string>& filenames, const DebugInfo& debug) :
+                SyntaxError(filenames, debug, "Unterminated boolean value encountered.")
             {}
 
         };
@@ -292,15 +323,16 @@ namespace ArgumentParser {
         string = 5,
         number = 6,
         decimal = 7,
-        l_square = 8,
-        r_square = 9,
-        l_curly = 10,
-        r_curly = 11,
-        semicolon = 12,
-        triple_dot = 13,
-        regex = 14,
-        snippet = 15,
-        empty = 16
+        boolean = 8,
+        l_square = 9,
+        r_square = 10,
+        l_curly = 11,
+        r_curly = 12,
+        semicolon = 13,
+        triple_dot = 14,
+        regex = 15,
+        snippet = 16,
+        empty = 17
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -313,6 +345,7 @@ namespace ArgumentParser {
         "String",
         "Number",
         "Decimal",
+        "Boolean",
         "LSquare",
         "RSquare",
         "LCurly",

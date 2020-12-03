@@ -6,6 +6,10 @@
  * efficient (or so we hope) parser.
  */
 
+META {
+    .auto_help (false);
+}
+
 <date> {
     .name "Date";
     .pattern <uint>.pattern "-" <uint>.pattern "-" <uint>.pattern;
@@ -22,7 +26,7 @@
     .pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
     .source ++{
         return ++<1>++;
-    }++
+    }++;
 }
 
 positional1 <int> {

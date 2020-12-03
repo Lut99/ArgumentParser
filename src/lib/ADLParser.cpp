@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   03/12/2020, 17:12:58
+ *   03/12/2020, 18:04:19
  * Auto updated?
  *   Yes
  *
@@ -17,6 +17,7 @@
 
 #include <iostream>
 
+#include "ADLMeta.hpp"
 #include "ADLTypeDef.hpp"
 #include "ADLPositional.hpp"
 #include "ADLOption.hpp"
@@ -30,6 +31,7 @@
 #include "ADLRegex.hpp"
 #include "ADLNumber.hpp"
 #include "ADLDecimal.hpp"
+#include "ADLBoolean.hpp"
 #include "ADLReference.hpp"
 #include "ADLSnippet.hpp"
 
@@ -123,6 +125,12 @@ start:
                     prev_nonterm = new ADLDecimal(filenames, term->debug(), term->value<double>());
                     applied_rule = "decimal";
                     goto value_merge;
+                
+                case TokenType::boolean:
+                    // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
+                    prev_nonterm = new ADLBoolean(filenames, term->debug(), term->value<bool>());
+                    applied_rule = "boolean";
+                    goto value_merge;
 
                 case TokenType::snippet:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
@@ -144,6 +152,7 @@ start:
             // Do different actions based on the type of symbol
             NonTerminal* term = (NonTerminal*) symbol;
             switch(term->type()) {
+                case NodeType::meta:
                 case NodeType::type_def:
                 case NodeType::positional:
                 case NodeType::option:
@@ -220,6 +229,21 @@ definitions_body:
         if (symbol->is_terminal) {
             Terminal* term = (Terminal*) symbol;
             switch(term->type()) {
+                case TokenType::identifier:
+                    // It's the meta-construct; add it
+                    {
+                        // Collect the debug information for the new definition
+                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        debug.line2 = prev_term->debug.line2;
+                        debug.col2 = prev_term->debug.col2;
+
+                        // Replace the symbols on the stack with the new definition
+                        stack.replace(n_symbols, new NonTerminal(
+                            new ADLMeta(filenames, debug, (ADLConfigs*) prev_nonterm)
+                        ));
+                        return "meta";
+                    }
+
                 case TokenType::type:
                     // Alright, this is definitely a type definition
                     {
@@ -666,195 +690,9 @@ definitions_types_options_optional:
 
 
 
-// definitions_body:
-//     {
-//         // Start by looking at the top of the stack
-//         PEEK(symbol, iter, n_symbols);
-
-//         // Do different things based on whether it is a terminal or not
-//         if (symbol->is_terminal) {
-//             // Do different actions based on the type of symbol
-//             Terminal* term = (Terminal*) symbol;
-//             DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
-//             switch(term->type()) {
-//                 case TokenType::type:
-//                     // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
-
-//                     // Compute the typedef's end and start debug info
-//                     debug.line2 = prev_term->debug.line2;
-//                     debug.col2 = prev_term->debug.col2;
-
-//                     // Replace the symbols on the stack
-//                     stack.replace(4, new NonTerminal(
-//                         new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
-//                     ));
-//                     return "typedef";
-
-//                 case TokenType::longlabel:
-//                 case TokenType::shortlabel:
-//                     // TBD
-//                     return "false";
-                
-//                 case TokenType::triple_dot:
-//                     // It's variadic! Store that it's variadic, and go on and check if there's a type
-//                     variadic = true;
-//                     goto argument_variadic;
-
-//                 default:
-//                     // Cannot do anything with this nonterminal
-//                     return "";
-//             }
-
-//         } else {
-//             // Do different actions based on the type of symbol
-//             NonTerminal* term = (NonTerminal*) symbol;
-//             if (term->type() == NodeType::types) {
-//                 // Parse as Positional or Optional, depending on which it is
-//                 prev_prev_nonterm = prev_nonterm;
-//                 prev_nonterm = term->node();
-//                 goto argument_types;
-//             }
-//             return "";
-
-//         }
-//     }
 
 
-
-// option_first:
-//     {
-        
-//     }
-
-
-
-// argument_variadic:
-//     {
-//         // Start by looking at the top of the stack
-//         PEEK(symbol, iter);
-
-//         // We always expect a type if we saw a variadic token
-//         NonTerminal* term = (NonTerminal*) symbol;
-//         if (!symbol->is_terminal && term->type() == NodeType::types) {
-//             // Parse as Positional or Optional, depending on which it is
-//             prev_prev_nonterm = prev_nonterm;
-//             prev_nonterm = term->node();
-//             goto argument_types;
-//         } else {
-//             // Not a types, so not for us
-//             return "";
-//         }
-//     }
-
-
-
-// argument_types:
-//     {
-//         // Start by looking at the top of the stack
-//         PEEK(symbol, iter);
-
-//         // Do different things based on whether it is a terminal or not
-//         if (symbol->is_terminal) {
-//             // Do different actions based on the type of symbol
-//             Terminal* term = (Terminal*) symbol;
-//             DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
-//             switch(term->type()) {
-//                 case TokenType::longlabel:
-//                 case TokenType::shortlabel:
-//                     // It's an option
-//                     /* TBD */
-//                     return "";
-                
-//                 case TokenType::identifier:
-//                     // It's a positional
-
-//                     // Extend the debug information to the start of this node
-//                     debug.line2 = prev_term->debug.line2;
-//                     debug.col2 = prev_term->debug.col2;
-
-//                     // Replace the symbols on the stack
-//                     stack.replace(5 + variadic, new NonTerminal(
-//                         new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
-//                     ));
-//                     return "positional";
-                
-//                 case TokenType::r_square:
-//                     // Optional argument, but we don't know which yet
-//                     goto argument_rsquare;
-
-//                 default:
-//                     // Cannot do anything with this nonterminal
-//                     return "";
-//             }
-
-//         } else {
-//             // Do different actions based on the type of symbol
-//             NonTerminal* term = (NonTerminal*) symbol;
-//             if (term->type() == NodeType::types) {
-//                 // Parse as Positional or Optional, depending on which it is
-//                 prev_prev_nonterm = prev_nonterm;
-//                 prev_nonterm = term->node();
-//                 goto argument_types;
-//             }
-//             return "";
-
-//         }
-//     }
-
-
-
-// argument_rsquare:
-//     {
-//         // Start by looking at the top of the stack
-//         PEEK(symbol, iter);
-
-//         // To continue, this must be a normal identifier, shortlabel or longlabel
-//         Terminal* term = (Terminal*) symbol;
-//         if (symbol->is_terminal || (term->type() == TokenType::identifier ||
-//                                     term->type() == TokenType::shortlabel ||
-//                                     term->type() == TokenType::longlabel)) {
-//             // Set this token as the previous terminal, and then move on to the final state
-//             prev_prev_term = prev_term;
-//             prev_term = term->token();
-//             goto argument_optional;
-
-//         } else {
-//             // Not successfull
-//             return "";
-//         }
-//     }
-
-
-
-// argument_optional:
-//     {
-//         // Start by looking at the top of the stack
-//         PEEK(symbol, iter);
-
-//         // To continue, we wait for the left square bracket to complete all this
-//         Terminal* term = (Terminal*) symbol;
-//         if (symbol->is_terminal || term->type() == TokenType::l_square) {
-//             // Success! Replace all those tokens with a Positional one
-
-//             // Extend the debug information to the start of this node
-//             DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
-//             debug.line2 = prev_prev_term->debug.line2;
-//             debug.col2 = prev_prev_term->debug.col2;
-
-//             // Replace the symbols on the stack
-//             stack.replace(7 + variadic, new NonTerminal(
-//                 new ADLPositional(filenames, debug, prev_term->raw, (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
-//             ));
-//             return "optional_positional";
-
-//         } else {
-//             // Not successfull
-//             return "";
-//         }
-//     }
-
-
-
+/***** CONFIG RULES *****/
 config_start:
     {
         // Start by looking at the top of the stack
@@ -903,6 +741,9 @@ config_values:
 
 
 
+
+
+/***** REFERENCE RULES *****/
 reference_start:
     {
         // Start by looking at the top of the stack
@@ -936,6 +777,9 @@ reference_start:
 
 
 
+
+
+/***** MERGING / PROMOTION RULES *****/
 types_merge:
     {
         // Start by looking at the top of the stack
