@@ -56,10 +56,12 @@ variadic_positional <int>... {
     
 }
 
-[--optional_option] <int> {
+[--optional_option -O] <int> {
 
 }
 
---default_option [<int>] {
-    .default "5"
+--default_option [<int> <regex_test>...] {
+    .default "5";
 }
+
+[--optional-all -a] [<string>] {}

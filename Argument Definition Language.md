@@ -153,10 +153,10 @@ The biggest feature of ADL is, of course, how to define new arguments. Of these,
 
 The first type of argument, the Positionals, is given by the following grammar rule:
 ```
-positional = ID types LCURLY config RCURLY
-           = ID types TDOT LCURLY config RCURLY
-           = LSQUARE ID RSQUARE types LCURLY config RCURLY
-           = LSQUARE ID RSQUARE types DOT DOT DOT LCURLY config RCURLY
+positional = ID types arg_body
+           = ID types TDOT arg_body
+           = LSQUARE ID RSQUARE types arg_body
+           = LSQUARE ID RSQUARE types TDOT arg_body
 ```
 Here, the rule with square brackets indicates that the positional is optional, and the triple dots indicate that it is variadic - i.e., the positional can have any arbitrary number of values.
 
@@ -166,14 +166,19 @@ types = types TYPE
       = TYPE
 ```
 
+Finally, the ```arg_body```-rule referenced in the ```positional```-rule represents the body of an argument, which can ontain one or more properties:
+```
+arg_body = LCURLY config RCURLY
+         = LCURLY RCURLY
+```
+
 Similarly, the second type of arguments can be given with the next grammar rule:
 ```
-option = option_id LCURLY config RCURLY
-       = option_id types LCURLY config RCURLY
-       = option_id types DOT DOT DOT LCURLY config RCURLY
-       = LSQUARE option_id RSQUARE LCURLY config RCURLY
-       = LSQUARE option_id RSQUARE types LCURLY config RCURLY
-       = LSQUARE option_id RSQUARE types DOT DOT DOT LCURLY config RCURLY
+option = option_id arg_body
+       = option_id types arg_body
+       = option_id LSQUARE types RSQUARE arg_body
+       = option_id types TDOT arg_body
+       = option_id LSQUARE types TDOT RSQUARE arg_body
 ```
 Again, here the rule with square brackets indicates that the positional is optional, and the triple dots indicate that it is variadic. Additionally, the types rule is the same as defined above.
 
@@ -183,7 +188,12 @@ option_id = SLABEL
           = LLABEL
           = SLABEL LLABEL
           = LLABEL SLABEL
+          = LSQUARE SLABEL RSQUARE
+          = LSQUARE LLABEL RSQUARE
+          = LSQUARE SLABEL LLABEL RSQUARE
+          = LSQUARE LLABEL SLABEL RSQUARE
 ```
+Again, the rules with the square brackets indicate that the option is Optional.
 
 ### Type definition
 To support defining arguments, the ADL also allows users to define their own types. Grammar-wise, the syntax for defining a type is very similar to that of defining an argument, and is defined as follows:

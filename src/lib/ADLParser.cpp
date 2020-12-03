@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   03/12/2020, 15:12:07
+ *   03/12/2020, 17:12:58
  * Auto updated?
  *   Yes
  *
@@ -19,6 +19,7 @@
 
 #include "ADLTypeDef.hpp"
 #include "ADLPositional.hpp"
+#include "ADLOption.hpp"
 
 #include "ADLTypes.hpp"
 
@@ -43,8 +44,9 @@ using namespace ArgumentParser::Parser;
 /***** HELPER FUNCTIONS *****/
 
 /* Looks at the next symbol of the stack, returning a pointer to it. */
-#define PEEK(SYMBOL, STACK_ITER) \
-    (SYMBOL) = *((STACK_ITER)++);
+#define PEEK(SYMBOL, STACK_ITER, N_SYMBOLS) \
+    (SYMBOL) = *((STACK_ITER)++); \
+    ++(N_SYMBOLS);
 /* Looks at the next symbol of the stack for the error analyzer. */
 #define PEEK_ERR(SYMBOL, STACK, I) \
     if ((I) >= (STACK).size()) { (SYMBOL) = (Symbol*) &t_empty; } \
@@ -56,6 +58,8 @@ std::string reduce(const std::vector<std::string>& filenames, Token* lookahead, 
     SymbolStack::const_iterator iter = stack.begin();
     // Placeholder for the to-be-examined symbol
     Symbol* symbol;
+    // Keeps track of how many symbols we match in this rule
+    size_t n_symbols = 0;
     // Placeholder for a recently parsed Terminal s.t. debug information may be kept
     Token* prev_term;
     // Placeholder for a slightly less recently parsed Terminal s.t. debug information may be kept
@@ -66,13 +70,15 @@ std::string reduce(const std::vector<std::string>& filenames, Token* lookahead, 
     ADLNode* prev_prev_nonterm;
     // Placeholder for any return-rules that might occur
     std::string applied_rule;
+    // Stores if the types of an Option are optional or not
+    bool types_optional = false;
     // Stores if the argument is variadic or not
     bool variadic = false;
 
 start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         if (symbol->is_terminal) {
@@ -140,6 +146,7 @@ start:
             switch(term->type()) {
                 case NodeType::type_def:
                 case NodeType::positional:
+                case NodeType::option:
                     // Merge with a possible existing Files node
                     prev_nonterm = term->node();
                     goto toplevel_merge;
@@ -153,23 +160,33 @@ start:
 
 
 
+
+
+/***** DEFINITION BODY PARSING *****/
 definition_start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::configs) {
-            // If it's a list of configurations, we're on the good way!
-            prev_nonterm = term->node();
-            goto definition_configs;
-
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            if (term->type() == TokenType::l_curly) {
+                // That means no configuration parameter for this argument
+                prev_nonterm = nullptr;
+                goto definitions_body;
+            }
         } else {
-            // No matching rule found
-            return "";
-            
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            if (nterm->type() == NodeType::configs) {
+                // If it's a list of configurations, we're on the good way!
+                prev_nonterm = nterm->node();
+                goto definition_configs;
+            }
         }
+
+        // If we didn't jump, we failed
+        return "";
     }
 
 
@@ -177,7 +194,7 @@ definition_start:
 definition_configs:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
@@ -197,149 +214,449 @@ definition_configs:
 definitions_body:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         if (symbol->is_terminal) {
-            // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
             switch(term->type()) {
                 case TokenType::type:
-                    // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
+                    // Alright, this is definitely a type definition
+                    {
+                        // Collect the debug information for the new definition
+                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        debug.line2 = prev_term->debug.line2;
+                        debug.col2 = prev_term->debug.col2;
 
-                    // Compute the typedef's end and start debug info
-                    debug.line2 = prev_term->debug.line2;
-                    debug.col2 = prev_term->debug.col2;
+                        // Replace the symbols on the stack with the new definition
+                        stack.replace(n_symbols, new NonTerminal(
+                            new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
+                        ));
+                        return "typedef";
+                    }
 
-                    // Replace the symbols on the stack
-                    stack.replace(4, new NonTerminal(
-                        new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
-                    ));
-                    return "typedef";
-
-                case TokenType::r_square:
-                case TokenType::longlabel:
-                case TokenType::shortlabel:
-                    // No types present and not a type itself, so it must be an Option
-                    /* TBD */
-                    return "";
-                
                 case TokenType::triple_dot:
-                    // It's variadic! Store that it's variadic, and go on and check if there's a type
+                    // The argument (which it definitely is, now) is variadic; mark it as such
                     variadic = true;
-                    goto argument_variadic;
+                    goto definitions_variadic;
+                
+                case TokenType::shortlabel:
+                case TokenType::longlabel:
+                    // It's an option; start to try parsing it
 
+                    // First, mark that there is no type
+                    prev_prev_nonterm = prev_nonterm;
+                    prev_nonterm = nullptr;
+
+                    // Then, store this symbol and move to parsing it
+                    prev_prev_term = prev_term;
+                    prev_term = term->token();
+                    goto definitions_option;
+                
+                case TokenType::r_square:
+                    // Something will be optional, but what? We'll see...
+                    goto definitions_optional_start;
+                
                 default:
-                    // Cannot do anything with this nonterminal
+                    // Not for us
                     return "";
-            }
 
+            }
         } else {
-            // Do different actions based on the type of symbol
-            NonTerminal* term = (NonTerminal*) symbol;
-            if (term->type() == NodeType::types) {
-                // Parse as Positional or Optional, depending on which it is
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            if (nterm->type() == NodeType::types) {
+                // We have types which aren't optional, so store this and try to parse that
                 prev_prev_nonterm = prev_nonterm;
-                prev_nonterm = term->node();
-                goto argument_types;
+                prev_nonterm = nterm->node();
+                goto definitions_types;
+
+            } else {
+                // No success
+                return "";
             }
-            return "";
-
         }
     }
 
 
 
-argument_variadic:
+
+
+/***** DEFINITIONS NON-OPTIONAL TYPE PARSING *****/
+definitions_variadic:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
-        // We always expect a type if we saw a variadic token
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::types) {
-            // Parse as Positional or Optional, depending on which it is
+        // We now only accept an ADLTypes token
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && nterm->type() == NodeType::types) {
+            // OK! Store it and resume on the 'normal' path
             prev_prev_nonterm = prev_nonterm;
-            prev_nonterm = term->node();
-            goto argument_types;
+            prev_nonterm = nterm->node();
+            goto definitions_types;
+
         } else {
-            // Not a types, so not for us
+            // No success
             return "";
         }
     }
 
 
 
-argument_types:
+definitions_option:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        int temp;
+        PEEK(symbol, iter, temp);
+
+        // Prepare placeholders for the options we'll use
+        std::string shortlabel = "";
+        std::string longlabel = "";
+        DebugInfo debug = di_empty;
+        debug.line2 = prev_prev_term->debug.line2;
+        debug.col2 = prev_prev_term->debug.col2;
+
+        // Determine if we're going to use this next symbol or not
+        Terminal* term = (Terminal*) symbol;
+        if (prev_term->type == TokenType::shortlabel) {
+            shortlabel = prev_term->raw;
+            if (symbol->is_terminal && term->type() == TokenType::longlabel) {
+                longlabel = term->raw();
+                debug.line1 = term->debug().line1;
+                debug.col1 = term->debug().col1;
+                debug.raw_line = term->debug().raw_line;
+                ++n_symbols;
+            } else {
+                debug.line1 = prev_term->debug.line1;
+                debug.col1 = prev_term->debug.col1;
+                debug.raw_line = prev_term->debug.raw_line;
+            }
+        } else {
+            longlabel = prev_term->raw;
+            if (symbol->is_terminal && term->type() == TokenType::shortlabel) {
+                shortlabel = term->raw();
+                debug.line1 = term->debug().line1;
+                debug.col1 = term->debug().col1;
+                debug.raw_line = term->debug().raw_line;
+                ++n_symbols;
+            } else {
+                debug.line1 = prev_term->debug.line1;
+                debug.col1 = prev_term->debug.col1;
+                debug.raw_line = prev_term->debug.raw_line;
+            }
+        }
+
+        // Use the found values to create an ADLOption!
+        stack.replace(n_symbols, new NonTerminal(
+            new ADLOption(filenames, debug, shortlabel, longlabel, (ADLTypes*) prev_nonterm, (ADLConfigs*) prev_prev_nonterm, false, types_optional, variadic)
+        ));
+        return std::string("option") + (prev_nonterm == nullptr ? "-typeless" : "");
+        
+    }
+
+
+
+definitions_types:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // Determine the actual node type depending on what we find
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch(term->type()) {
+                case TokenType::identifier:
+                    // It's a positional, and we can parse it immediately
+                    {
+                        // Collect the debug information for the new definition
+                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        debug.line2 = prev_term->debug.line2;
+                        debug.col2 = prev_term->debug.col2;
+
+                        // Apply the grammar rule!
+                        stack.replace(n_symbols, new NonTerminal(
+                            new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
+                        ));
+                        return "positional";
+                    }
+                
+                case TokenType::shortlabel:
+                case TokenType::longlabel:
+                    // Time to parse it as non-optional option
+                    prev_prev_term = prev_term;
+                    prev_term = term->token();
+                    goto definitions_option;
+                
+                case TokenType::r_square:
+                    // It's an optional argument of some sort; check it out
+                    goto definitions_types_optional;
+                
+                default:
+                    // Not successfull
+                    return "";
+
+            }
+            
+        } else {
+            // Only looking for terminals this time around
+            return "";
+        }
+
+    }
+
+
+
+definitions_types_optional:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // Determine the actual node type depending on what we find
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch(term->type()) {
+                case TokenType::identifier:
+                    // It's a positional, and we can parse it immediately
+                    {
+                        // Check if the next symbol is actually optional
+                        PEEK(symbol, iter, n_symbols);
+                        if (!symbol->is_terminal || ((Terminal*) symbol)->type() != TokenType::l_square) {
+                            // It wasn't
+                            return "";
+                        }
+
+                        // Collect the debug information for the new definition
+                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        debug.line2 = prev_term->debug.line2;
+                        debug.col2 = prev_term->debug.col2;
+
+                        // Apply the grammar rule!
+                        stack.replace(n_symbols, new NonTerminal(
+                            new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, true, variadic, (ADLConfigs*) prev_prev_nonterm)
+                        ));
+                        return "positional-optional";
+                    }
+                
+                case TokenType::shortlabel:
+                case TokenType::longlabel:
+                    // Time to parse it as optional option
+                    prev_prev_term = prev_term;
+                    prev_term = term->token();
+                    goto definitions_optional_option;
+                
+                default:
+                    // Not successfull
+                    return "";
+
+            }
+            
+        } else {
+            // Only looking for terminals this time around
+            return "";
+        }
+
+    }
+
+
+
+
+
+/***** DEFINITIONS OPTIONAL TYPE PARSING *****/
+definitions_optional_start:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         if (symbol->is_terminal) {
-            // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
             switch(term->type()) {
-                case TokenType::longlabel:
                 case TokenType::shortlabel:
-                    // It's an option
-                    /* TBD */
+                case TokenType::longlabel:
+                    // It's an option; start to try parsing it
+
+                    // First, mark that there is no type
+                    prev_prev_nonterm = prev_nonterm;
+                    prev_nonterm = nullptr;
+
+                    // Then, store this symbol and move to parsing it
+                    prev_prev_term = prev_term;
+                    prev_term = term->token();
+                    goto definitions_optional_option;
+
+                case TokenType::triple_dot:
+                    // The argument (which it definitely is, now) is variadic; mark it as such
+                    variadic = true;
+                    goto definitions_optional_variadic;
+                
+                default:
+                    // Not for us
                     return "";
-                
-                case TokenType::identifier:
-                    // It's a positional
 
-                    // Extend the debug information to the start of this node
-                    debug.line2 = prev_term->debug.line2;
-                    debug.col2 = prev_term->debug.col2;
+            }
+        } else {
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            if (nterm->type() == NodeType::types) {
+                // We have types which are optional, so store this and try to parse that
+                prev_prev_nonterm = prev_nonterm;
+                prev_nonterm = nterm->node();
+                goto definitions_optional_types;
 
-                    // Replace the symbols on the stack
-                    stack.replace(5 + variadic, new NonTerminal(
-                        new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
-                    ));
-                    return "positional";
-                
+            } else {
+                // No success
+                return "";
+            }
+        }
+    }
+
+
+
+definitions_optional_option:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // Prepare placeholders for the options we'll use
+        std::string shortlabel = "";
+        std::string longlabel = "";
+        DebugInfo debug = di_empty;
+        debug.line2 = prev_prev_term->debug.line2;
+        debug.col2 = prev_prev_term->debug.col2;
+
+        // Determine if we're going to use this next symbol or not
+        Terminal* term = (Terminal*) symbol;
+        if (prev_term->type == TokenType::shortlabel) {
+            shortlabel = prev_term->raw;
+            if (symbol->is_terminal && term->type() == TokenType::longlabel) {
+                longlabel = term->raw();
+                debug.line1 = term->debug().line1;
+                debug.col1 = term->debug().col1;
+                debug.raw_line = term->debug().raw_line;
+            } else {
+                debug.line1 = prev_term->debug.line1;
+                debug.col1 = prev_term->debug.col1;
+                debug.raw_line = prev_term->debug.raw_line;
+            }
+        } else {
+            longlabel = prev_term->raw;
+            if (symbol->is_terminal && term->type() == TokenType::shortlabel) {
+                shortlabel = term->raw();
+                debug.line1 = term->debug().line1;
+                debug.col1 = term->debug().col1;
+                debug.raw_line = term->debug().raw_line;
+            } else {
+                debug.line1 = prev_term->debug.line1;
+                debug.col1 = prev_term->debug.col1;
+                debug.raw_line = prev_term->debug.raw_line;
+            }
+        }
+
+        // See if the next item is actually the mandatory closing bracket
+        if (!shortlabel.empty() && !longlabel.empty()) {
+            // We used the current symbol; grab a new one for comparison instead
+            PEEK(symbol, iter, n_symbols);
+        }
+        if (!symbol->is_terminal || ((Terminal*) symbol)->type() != TokenType::l_square) {
+            // It isn't; stop this party
+            return "";
+        }
+
+        // Use the found values to create an ADLOption!
+        stack.replace(n_symbols, new NonTerminal(
+            new ADLOption(filenames, debug, shortlabel, longlabel, (ADLTypes*) prev_nonterm, (ADLConfigs*) prev_prev_nonterm, true, types_optional, variadic)
+        ));
+        return std::string("option-optional") + (prev_nonterm == nullptr ? "-typeless" : "");
+        
+    }
+
+
+
+definitions_optional_variadic:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // We now only accept an ADLTypes token
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && nterm->type() == NodeType::types) {
+            // OK! Store it and resume on the 'normal' path
+            prev_prev_nonterm = prev_nonterm;
+            prev_nonterm = nterm->node();
+            goto definitions_optional_types;
+
+        } else {
+            // No success
+            return "";
+        }
+    }
+
+
+
+definitions_optional_types:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // We now only accept a closing bracket
+        Terminal* term = (Terminal*) symbol;
+        if (symbol->is_terminal && term->type() == TokenType::l_square) {
+            // Sweet! Go on to a special state which only allows parsing of Options, after marking the type as optional
+            types_optional = true;
+            goto definitions_types_options;
+
+        } else {
+            // No success
+            return "";
+        }
+    }
+
+
+
+definitions_types_options:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // We now only accept (optional) shortlabels and / or longlabels
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch(term->type()) {
+                case TokenType::shortlabel:
+                case TokenType::longlabel:
+                    // Non-optional Option; parse it as such (but this time, with types)
+                    prev_prev_term = prev_term;
+                    prev_term = term->token();
+                    goto definitions_option;
+
                 case TokenType::r_square:
-                    // Optional argument, but we don't know which yet
-                    goto argument_rsquare;
+                    // Go into one final state, searching for the idenfitier
+                    goto definitions_types_options_optional;
+                    
 
                 default:
-                    // Cannot do anything with this nonterminal
+                    // Not successfull
                     return "";
             }
-
-        } else {
-            // Do different actions based on the type of symbol
-            NonTerminal* term = (NonTerminal*) symbol;
-            if (term->type() == NodeType::types) {
-                // Parse as Positional or Optional, depending on which it is
-                prev_prev_nonterm = prev_nonterm;
-                prev_nonterm = term->node();
-                goto argument_types;
-            }
-            return "";
-
         }
+
+        // Not successfull
+        return "";
     }
 
 
 
-argument_rsquare:
+definitions_types_options_optional:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
-        // To continue, this must be a normal identifier, shortlabel or longlabel
+        // We now only accept shortlabels and / or longlabels
         Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal || (term->type() == TokenType::identifier ||
-                                    term->type() == TokenType::shortlabel ||
-                                    term->type() == TokenType::longlabel)) {
-            // Set this token as the previous terminal, and then move on to the final state
+        if (symbol->is_terminal && (term->type() == TokenType::shortlabel || term->type() == TokenType::longlabel)) {
+            // Sweet, parse as optional Option (but with types, this time)
             prev_prev_term = prev_term;
             prev_term = term->token();
-            goto argument_optional;
+            goto definitions_optional_option;
 
         } else {
             // Not successfull
@@ -349,40 +666,199 @@ argument_rsquare:
 
 
 
-argument_optional:
-    {
-        // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+// definitions_body:
+//     {
+//         // Start by looking at the top of the stack
+//         PEEK(symbol, iter, n_symbols);
 
-        // To continue, we wait for the left square bracket to complete all this
-        Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal || term->type() == TokenType::l_square) {
-            // Success! Replace all those tokens with a Positional one
+//         // Do different things based on whether it is a terminal or not
+//         if (symbol->is_terminal) {
+//             // Do different actions based on the type of symbol
+//             Terminal* term = (Terminal*) symbol;
+//             DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+//             switch(term->type()) {
+//                 case TokenType::type:
+//                     // If we see a type token, that means that this was a TypeDefinition, so we can parse it as such
 
-            // Extend the debug information to the start of this node
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
-            debug.line2 = prev_prev_term->debug.line2;
-            debug.col2 = prev_prev_term->debug.col2;
+//                     // Compute the typedef's end and start debug info
+//                     debug.line2 = prev_term->debug.line2;
+//                     debug.col2 = prev_term->debug.col2;
 
-            // Replace the symbols on the stack
-            stack.replace(7 + variadic, new NonTerminal(
-                new ADLPositional(filenames, debug, prev_term->raw, (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
-            ));
-            return "optional_positional";
-            
+//                     // Replace the symbols on the stack
+//                     stack.replace(4, new NonTerminal(
+//                         new ADLTypeDef(filenames, debug, term->raw(), (ADLConfigs*) prev_nonterm)
+//                     ));
+//                     return "typedef";
 
-        } else {
-            // Not successfull
-            return "";
-        }
-    }
+//                 case TokenType::longlabel:
+//                 case TokenType::shortlabel:
+//                     // TBD
+//                     return "false";
+                
+//                 case TokenType::triple_dot:
+//                     // It's variadic! Store that it's variadic, and go on and check if there's a type
+//                     variadic = true;
+//                     goto argument_variadic;
+
+//                 default:
+//                     // Cannot do anything with this nonterminal
+//                     return "";
+//             }
+
+//         } else {
+//             // Do different actions based on the type of symbol
+//             NonTerminal* term = (NonTerminal*) symbol;
+//             if (term->type() == NodeType::types) {
+//                 // Parse as Positional or Optional, depending on which it is
+//                 prev_prev_nonterm = prev_nonterm;
+//                 prev_nonterm = term->node();
+//                 goto argument_types;
+//             }
+//             return "";
+
+//         }
+//     }
+
+
+
+// option_first:
+//     {
+        
+//     }
+
+
+
+// argument_variadic:
+//     {
+//         // Start by looking at the top of the stack
+//         PEEK(symbol, iter);
+
+//         // We always expect a type if we saw a variadic token
+//         NonTerminal* term = (NonTerminal*) symbol;
+//         if (!symbol->is_terminal && term->type() == NodeType::types) {
+//             // Parse as Positional or Optional, depending on which it is
+//             prev_prev_nonterm = prev_nonterm;
+//             prev_nonterm = term->node();
+//             goto argument_types;
+//         } else {
+//             // Not a types, so not for us
+//             return "";
+//         }
+//     }
+
+
+
+// argument_types:
+//     {
+//         // Start by looking at the top of the stack
+//         PEEK(symbol, iter);
+
+//         // Do different things based on whether it is a terminal or not
+//         if (symbol->is_terminal) {
+//             // Do different actions based on the type of symbol
+//             Terminal* term = (Terminal*) symbol;
+//             DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+//             switch(term->type()) {
+//                 case TokenType::longlabel:
+//                 case TokenType::shortlabel:
+//                     // It's an option
+//                     /* TBD */
+//                     return "";
+                
+//                 case TokenType::identifier:
+//                     // It's a positional
+
+//                     // Extend the debug information to the start of this node
+//                     debug.line2 = prev_term->debug.line2;
+//                     debug.col2 = prev_term->debug.col2;
+
+//                     // Replace the symbols on the stack
+//                     stack.replace(5 + variadic, new NonTerminal(
+//                         new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
+//                     ));
+//                     return "positional";
+                
+//                 case TokenType::r_square:
+//                     // Optional argument, but we don't know which yet
+//                     goto argument_rsquare;
+
+//                 default:
+//                     // Cannot do anything with this nonterminal
+//                     return "";
+//             }
+
+//         } else {
+//             // Do different actions based on the type of symbol
+//             NonTerminal* term = (NonTerminal*) symbol;
+//             if (term->type() == NodeType::types) {
+//                 // Parse as Positional or Optional, depending on which it is
+//                 prev_prev_nonterm = prev_nonterm;
+//                 prev_nonterm = term->node();
+//                 goto argument_types;
+//             }
+//             return "";
+
+//         }
+//     }
+
+
+
+// argument_rsquare:
+//     {
+//         // Start by looking at the top of the stack
+//         PEEK(symbol, iter);
+
+//         // To continue, this must be a normal identifier, shortlabel or longlabel
+//         Terminal* term = (Terminal*) symbol;
+//         if (symbol->is_terminal || (term->type() == TokenType::identifier ||
+//                                     term->type() == TokenType::shortlabel ||
+//                                     term->type() == TokenType::longlabel)) {
+//             // Set this token as the previous terminal, and then move on to the final state
+//             prev_prev_term = prev_term;
+//             prev_term = term->token();
+//             goto argument_optional;
+
+//         } else {
+//             // Not successfull
+//             return "";
+//         }
+//     }
+
+
+
+// argument_optional:
+//     {
+//         // Start by looking at the top of the stack
+//         PEEK(symbol, iter);
+
+//         // To continue, we wait for the left square bracket to complete all this
+//         Terminal* term = (Terminal*) symbol;
+//         if (symbol->is_terminal || term->type() == TokenType::l_square) {
+//             // Success! Replace all those tokens with a Positional one
+
+//             // Extend the debug information to the start of this node
+//             DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+//             debug.line2 = prev_prev_term->debug.line2;
+//             debug.col2 = prev_prev_term->debug.col2;
+
+//             // Replace the symbols on the stack
+//             stack.replace(7 + variadic, new NonTerminal(
+//                 new ADLPositional(filenames, debug, prev_term->raw, (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
+//             ));
+//             return "optional_positional";
+
+//         } else {
+//             // Not successfull
+//             return "";
+//         }
+//     }
 
 
 
 config_start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
@@ -402,7 +878,7 @@ config_start:
 config_values:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
@@ -430,7 +906,7 @@ config_values:
 reference_start:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
@@ -447,7 +923,6 @@ reference_start:
 
             // Create it, then remove the last node (the other will be handled by values merge)
             prev_nonterm = (ADLNode*) new ADLReference(filenames, debug, term->raw(), term->type(), prev_term->raw);
-            stack.remove(1);
 
             // Jump to merging with a possible ADLValues
             applied_rule = "reference";
@@ -464,7 +939,8 @@ reference_start:
 types_merge:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        int temp;
+        PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
@@ -472,9 +948,10 @@ types_merge:
         if (symbol->is_terminal && (term->type() == TokenType::identifier ||
                                     term->type() == TokenType::shortlabel ||
                                     term->type() == TokenType::longlabel ||
-                                    term->type() == TokenType::r_square)) {
+                                    term->type() == TokenType::r_square ||
+                                    term->type() == TokenType::l_square)) {
             // Create a new ADLTypes nonterminal
-            stack.replace(1, new NonTerminal(
+            stack.replace(n_symbols, new NonTerminal(
                 new ADLTypes(filenames, prev_term->debug, prev_term->raw)
             ));
             return "types-new";
@@ -488,7 +965,7 @@ types_merge:
             nterm->node<ADLTypes>()->debug.col2 = prev_term->debug.col2;
 
             // Remove it from the stack (deallocating the token as well) and we're done
-            stack.remove(1);
+            stack.remove(n_symbols);
             return "types-merge";
 
         } else {
@@ -502,14 +979,15 @@ types_merge:
 config_merge:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        int temp;
+        PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a configs node or not
         NonTerminal* term = (NonTerminal*) symbol;
         if (!symbol->is_terminal && term->type() == NodeType::configs) {
             // Merge this configs node and the one we parsed earlier together
             term->node<ADLConfigs>()->add_node(prev_nonterm);
-            stack.remove(3);
+            stack.remove(n_symbols);
 
             // Update the value's debug info though
             term->node<ADLConfigs>()->debug.line2 = prev_nonterm->debug.line2;
@@ -519,7 +997,7 @@ config_merge:
 
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
-            stack.replace(3, new NonTerminal(
+            stack.replace(n_symbols, new NonTerminal(
                 new ADLConfigs(filenames, prev_nonterm->debug, (ADLConfig*) prev_nonterm)
             ));
             return "config-new";
@@ -532,14 +1010,15 @@ config_merge:
 value_merge:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        int temp;
+        PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
         if (!symbol->is_terminal && term->type() == NodeType::values) {
             // Merge this value to the previously found Values
             term->node<ADLValues>()->add_node(prev_nonterm);
-            stack.remove(1);
+            stack.remove(n_symbols);
 
             // Update the value's debug info though
             term->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
@@ -548,7 +1027,7 @@ value_merge:
             return applied_rule + "-merge";
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
-            stack.replace(1, new NonTerminal(
+            stack.replace(n_symbols, new NonTerminal(
                 new ADLValues(filenames, prev_nonterm->debug, prev_nonterm)
             ));
             return applied_rule + "-new";
@@ -560,19 +1039,20 @@ value_merge:
 toplevel_merge:
     {
         // Start by looking at the top of the stack
-        PEEK(symbol, iter);
+        int temp;
+        PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
         if (!symbol->is_terminal && term->type() == NodeType::file) {
             // Merge this value to the previously found File node
             term->node<ADLFile>()->add_node(prev_nonterm);
-            stack.remove(1);
+            stack.remove(n_symbols);
             return "toplevel-merge";
             
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
-            stack.replace(1, new NonTerminal(
+            stack.replace(n_symbols, new NonTerminal(
                 new ADLFile(filenames, prev_nonterm)
             ));
             return "toplevel-new";
