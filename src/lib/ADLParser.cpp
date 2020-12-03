@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   03/12/2020, 18:04:19
+ *   03/12/2020, 23:27:51
  * Auto updated?
  *   Yes
  *
@@ -36,6 +36,7 @@
 #include "ADLSnippet.hpp"
 
 #include "SymbolStack.hpp"
+#include "ADLPreprocessor.hpp"
 #include "ADLParser.hpp"
 
 using namespace std;
@@ -233,7 +234,7 @@ definitions_body:
                     // It's the meta-construct; add it
                     {
                         // Collect the debug information for the new definition
-                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->debug().raw_line);
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
 
@@ -248,7 +249,7 @@ definitions_body:
                     // Alright, this is definitely a type definition
                     {
                         // Collect the debug information for the new definition
-                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->debug().raw_line);
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
 
@@ -393,7 +394,7 @@ definitions_types:
                     // It's a positional, and we can parse it immediately
                     {
                         // Collect the debug information for the new definition
-                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->debug().raw_line);
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
 
@@ -450,7 +451,7 @@ definitions_types_optional:
                         }
 
                         // Collect the debug information for the new definition
-                        DebugInfo debug(term->debug().line1, term->debug().col1, term->debug().raw_line);
+                        DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->debug().raw_line);
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
 
@@ -724,7 +725,7 @@ config_values:
             // If it's a configuration identifier, that must be the keyword, and thus we're done
 
             // Construct the debug information
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->raw());
             debug.line2 = prev_term->debug.line2;
             debug.col2 = prev_term->debug.col2;
 
@@ -758,7 +759,7 @@ reference_start:
             // OK! We got a complete reference! Create it, and then try to merge it with a previous values.
 
             // Create the debug information
-            DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
+            DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->raw());
             debug.line2 = prev_term->debug.line2;
             debug.col2 = prev_term->debug.col2;
 
@@ -888,16 +889,16 @@ toplevel_merge:
 
         // Do different things based on whether it is a terminal or not
         NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::file) {
+        if (!symbol->is_terminal && term->type() == NodeType::root) {
             // Merge this value to the previously found File node
-            term->node<ADLFile>()->add_node(prev_nonterm);
+            term->node<ADLTree>()->add_node(prev_nonterm);
             stack.remove(n_symbols);
             return "toplevel-merge";
             
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(n_symbols, new NonTerminal(
-                new ADLFile(filenames, prev_nonterm)
+                new ADLTree(prev_nonterm)
             ));
             return "toplevel-new";
             
@@ -935,9 +936,9 @@ void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack
 /***** PARSER CLASS *****/
 
 /* Parses a single file. Returns a single root node, from which the entire parsed tree is build. Does not immediately throw exceptions, but collects them in a vector which is then thrown. Use std::print_error on each of them to print them neatly. Warnings are always printed by the function, never thrown. */
-ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames) {
+ADLTree* ArgumentParser::Parser::parse(const std::string& filename) {
     // Let's create a Tokenizer for our file
-    Tokenizer in(filenames);
+    Preprocessor in(filename, {});
 
     // Initialize the stack
     SymbolStack stack;
@@ -950,7 +951,7 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
     bool changed = true;
     while (!in.eof() || changed) {
         // Check to see if we can match any grammar rule (reduce)
-        std::string applied_rule = reduce(filenames, lookahead, stack);
+        std::string applied_rule = reduce(in.breadcrumbs(), lookahead, stack);
         changed = !applied_rule.empty();
 
         // If we couldn't, then shift a new symbol if there are any left
@@ -977,9 +978,9 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
     #endif
 
     // Check if we parsed everything
-    if (stack.size() != 1 || stack[0]->is_terminal || ((NonTerminal*) stack[0])->type() != NodeType::file) {
+    if (stack.size() != 1 || stack[0]->is_terminal || ((NonTerminal*) stack[0])->type() != NodeType::root) {
         // Print errors to the user
-        analyze_errors(filenames, stack);
+        analyze_errors(in.breadcrumbs(), stack);
 
         // Free the stack
         for (size_t i = 0; i < stack.size(); i++) {
@@ -993,5 +994,5 @@ ADLFile* ArgumentParser::Parser::parse(const std::vector<std::string>& filenames
     }
 
     // If we were successfull, return the only symbol as ADLFile!
-    return ((NonTerminal*) stack[0])->node<ADLFile>();
+    return ((NonTerminal*) stack[0])->node<ADLTree>();
 }

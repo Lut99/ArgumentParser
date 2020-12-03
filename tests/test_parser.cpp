@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 14:30:28
  * Last edited:
- *   27/11/2020, 15:00:13
+ *   03/12/2020, 23:21:15
  * Auto updated?
  *   Yes
  *
@@ -29,14 +29,12 @@ int main(int argc, char** argv) {
 
     // Parse the file
     try {
-        ADLTree tree;
-
-        ADLFile* file = Parser::parse({ argv[1] });
-        if (file == nullptr) { return EXIT_FAILURE; }
-        tree.add_node(file);
+        ADLTree* tree = Parser::parse({ argv[1] });
+        if (tree == nullptr) { return EXIT_FAILURE; }
 
         // If successfull, print the tree!
-        tree.print(cout);
+        tree->print(cout);
+        delete tree;
 
         return EXIT_SUCCESS;
     } catch (Exceptions::ADLError& e) {

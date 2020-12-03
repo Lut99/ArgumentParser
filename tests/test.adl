@@ -6,11 +6,11 @@
  * efficient (or so we hope) parser.
  */
 
-#include <stdtypes.adl>
-#include "test_extern.adl"
+// #include stdtypes
+// #include "test_extern.adl"
 
-#define DEBUG
-#define DEBUG2
+// #define DEBUG
+// #define DEBUG2
 
 META {
     .auto_help (false);
@@ -27,7 +27,7 @@ META {
     .source "hello_world.cpp";
 }
 
-#ifdef DEBUG
+// #ifdef DEBUG
 <regex_test> {
     .name "Regex Test";
     .pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
@@ -35,7 +35,7 @@ META {
         return ++<1>++;
     }++;
 }
-#endif
+// #endif
 
 positional1 <int> {
     /* Common stuff */
@@ -61,14 +61,14 @@ variadic_positional <int>... {
     .index ---5.5;
 }
 
-#ifdef DEBUG
+// #ifdef DEBUG
 --option -o <int> {
     
 }
 
-#ifdef DEBUG2
+// #ifdef DEBUG2
 [--optional_option] <int> {
 
 }
-#endif
-#endif
+// #endif
+// #endif

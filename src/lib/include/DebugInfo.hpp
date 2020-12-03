@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 14:38:54
  * Last edited:
- *   26/11/2020, 16:09:46
+ *   03/12/2020, 21:42:38
  * Auto updated?
  *   Yes
  *
@@ -21,6 +21,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 namespace ArgumentParser {
     /* The LineSnippet struct is used to carry a piece of a line, noted which line and from where to where. */
@@ -47,6 +48,9 @@ namespace ArgumentParser {
 
     /* The DebugInfo struct keeps track of where a node or token came from. */
     struct DebugInfo {
+        /* Breadcrumb trail of filenames where this debug information points to. */
+        std::vector<std::string> filenames;
+
         /* The line number where this node or token started. */
         size_t line1;
         /* The column number where this node or token started. */
@@ -60,17 +64,17 @@ namespace ArgumentParser {
         LineSnippet raw_line;
 
         /* Constructor for the DebugInfo struct, which takes the line information and a raw line snippet. */
-        DebugInfo(size_t line1, size_t col1, size_t line2, size_t col2, const LineSnippet& raw_line) :
-            line1(line1), col1(col1), line2(line2), col2(col2), raw_line(raw_line)
+        DebugInfo(const std::vector<std::string>& filenames, size_t line1, size_t col1, size_t line2, size_t col2, const LineSnippet& raw_line) :
+            filenames(filenames), line1(line1), col1(col1), line2(line2), col2(col2), raw_line(raw_line)
         {}
         /* Constructor for the DebugInfo struct, which takes only the starting line information and a raw line snippet. */
-        DebugInfo(size_t line, size_t col, const LineSnippet& raw_line) :
-            line1(line), col1(col), line2(line), col2(col), raw_line(raw_line)
+        DebugInfo(const std::vector<std::string>& filenames, size_t line, size_t col, const LineSnippet& raw_line) :
+            filenames(filenames), line1(line), col1(col), line2(line), col2(col), raw_line(raw_line)
         {}
     };
 
     /* A static debuginfo for when a node does not have a direct origin. */
-    const static DebugInfo di_empty(0, 0, 0, 0, std::string(""));
+    const static DebugInfo di_empty({}, 0, 0, 0, 0, std::string(""));
 
 }
 

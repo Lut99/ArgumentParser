@@ -15,7 +15,7 @@ TEST=tests/
 # Required files
 AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
 AST = $(AST_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
-PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
+PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLPreprocessor.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
 
 # Prepare the list of includes and use that to extend the list of directories we need to make

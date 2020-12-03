@@ -4,7 +4,7 @@
  * Created:
  *   30/11/2020, 17:49:26
  * Last edited:
- *   03/12/2020, 14:55:20
+ *   03/12/2020, 18:18:28
  * Auto updated?
  *   Yes
  *
@@ -22,7 +22,7 @@
 
 #include "ADLLeaf.hpp"
 #include "NodeType.hpp"
-#include "ADLTokenizer.hpp"
+#include "TokenTypes.hpp"
 
 namespace ArgumentParser {
     /* The ADLReference class is used to represent a reference to another property. */

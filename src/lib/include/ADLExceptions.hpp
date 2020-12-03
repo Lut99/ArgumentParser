@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   01/12/2020, 12:33:21
+ *   03/12/2020, 22:53:46
  * Auto updated?
  *   Yes
  *
@@ -81,12 +81,11 @@ namespace ArgumentParser::Exceptions {
         const DebugInfo debug;
 
         /* Constructor for the ADLCompileError class, which takes:
-         *   - a list of files we tried to parse (breadcrumb-style)
          *   - a DebugInfo struct containing the location in the source file
          *   - [optional] a message
          */
-        ADLCompileError(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& message = "") :
-            ADLError(filenames, message),
+        ADLCompileError(const DebugInfo& debug, const std::string& message = "") :
+            ADLError(debug.filenames, message),
             debug(debug)
         {}
 
@@ -129,12 +128,11 @@ namespace ArgumentParser::Exceptions {
 
         /* Constructor for the ADLCompileWarning class, which takes:
          *   - the type of this warning
-         *   - a list of files we tried to parse (breadcrumb-style)
          *   - a DebugInfo struct containing the location in the source file
          *   - [optional] a message
          */
-        ADLCompileWarning(const std::string& type, const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& message = "") :
-            ADLWarning(type, filenames, message),
+        ADLCompileWarning(const std::string& type, const DebugInfo& debug, const std::string& message = "") :
+            ADLWarning(type, debug.filenames, message),
             debug(debug)
         {}
 

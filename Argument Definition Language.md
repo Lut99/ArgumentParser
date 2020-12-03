@@ -95,6 +95,11 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - semicolon (```SEMICOLON = ';'```)
 - the triple dot (```TDOT = '\.\.\.'```)
 
+Additionally, the Tokenizer is also used to identify preprocessor macros:
+```
+MACRO = '#[A-Za-z0-9-_]'
+```
+
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
 
@@ -215,5 +220,62 @@ To support defining arguments, the ADL also allows users to define their own typ
 typedef = TYPE LCURLY config RCURLY
 ```
 
-## 4. Closing thoughts
+## 4. Preprocessor Macros
+Like C or C++, the ADL has a concept of a preprocessor. In this case, the preprocessor forms an extra layer of abstraction on top of the Tokenizer but below the Parser. This way, the preprocessor needn't implement a new Tokenizer from scratch, but still allows the parser to get only to-be-parsed tokens. Right now, the preprocessor implements including other files and conditional compilation.
+
+### Including
+Like in normal programming languages, it may be very useful to re-use earlier created arguments, or to separate them in separate files for overview. To the end, the ```include```-macro or -directive has been added. Using this directive will "place" the file contents of the target file in the file where they are included. In reality, this is not really done by actually copy/pasting them, but the preprocessor simply opens another Tokenizer for the included file and drains that first before the previous Tokenizer is resumed. Since it's all in virtual memory, the Preprocessor also prevents double includes as it knows which already have been opened.
+
+The syntax to include a file is:
+```
+#include provided_file
+```
+or
+```
+#include "path_to_local_file"
+```
+The first case is used to include files baked in the compiler (see below), which usually just provide standard types for your parser to use. The second case is used to include your own files, and relies on your OS' path resolving to find the correct file.
+
+A list of standard files included in the compiler:
+- ```stdtypes```: Contains standard definitions for commonly used types. Includes definitions for signed & unsigned, 8-, 16-, 32- and 64-bit integers; single-precision and double-precision floating points; booleans; strings and single-letter characters.
+
+### Conditional compilation
+Sometimes, it's very useful to include an argument, but at other times it's better to exclude it. To this end, the ADL supports conditional compilation in a similar way as C does. One can specify a so-called define, which can then be used to include certain pieces of code in compilation or not. Additionally, ADL compilers should also allow users to give these beforehand as CLI-argument, to make conditional compilation even easier.
+
+Be aware that, unlike in C, the defines cannot be used for constants or any sort of expension; they are purely there to deterimine if a certain piece of code should be compiled or not. This is done because all of the ArgumentParser is done at compile time anyway, and such a system does not have performance bonusses over the referencing system already in present in the ADL.
+
+To define a new define in your file, use:
+```
+#define NAME
+```
+or
+```
+#def NAME
+```
+where ```NAME``` is a unique identifier for that define, consisting only of alphanumeric characters and underscores.
+
+Similarly, one can also choose to undefine a previously defined define:
+```
+#undefine NAME
+```
+or
+```
+#undef NAME
+```
+
+To compile a piece of code only when a certain defined is present, wrap it in the following two macros:
+```
+#ifdef NAME
+...
+#endif
+```
+where ```NAME``` is, again, a unique identifier for a define. One can also use the negation of the above macro to only compile code if a certain define is _not_ defined:
+```
+#ifndef NAME
+...
+#endif
+```
+Note that any of these macros may be nested in the if-macros, where it will be assumed that two outermost if/endif macros are a pair. Additionally, note that these macros only work as separate tokens; they cannot be used in strings or code snippets (this means you can use defines in your C++ code snippets that will be relevant for the C++-preprocessor instead of the ADL).
+
+## 5. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file to a semantically correct Abstract Syntax Tree. More information, especially on using the ADL in the context of the ArgumentParser, can be found in the online wiki [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.

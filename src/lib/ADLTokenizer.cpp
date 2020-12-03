@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   03/12/2020, 18:01:05
+ *   03/12/2020, 23:14:31
  * Auto updated?
  *   Yes
  *
@@ -49,7 +49,7 @@ using namespace ArgumentParser;
     ungetc((C), this->file);
 
 /* Parses given Token as a number (i.e., integral value) and returns it as a ValueToken. */
-Token* parse_number(const std::vector<std::string>& filenames, Token* token) {
+Token* parse_number(Token* token) {
     // Init some variables
     std::string raw = token->raw;
     long result = 0;
@@ -68,7 +68,7 @@ Token* parse_number(const std::vector<std::string>& filenames, Token* token) {
         if (modifier > 0) {
             // Check if it won't get out-of-bounds for the positive add
             if (!warned && result > (numeric_limits<long>::max() / 10.0) - value) {
-                Exceptions::print_warning(cerr, Exceptions::OverflowWarning(filenames, token->debug));
+                Exceptions::print_warning(cerr, Exceptions::OverflowWarning(token->debug));
                 warned = true;
             }
 
@@ -78,7 +78,7 @@ Token* parse_number(const std::vector<std::string>& filenames, Token* token) {
         } else {
             // Check if it won't get out-of-bounds for the negative add
             if (!warned && result < (numeric_limits<long>::min() / 10.0) + value) {
-                Exceptions::print_warning(cerr, Exceptions::UnderflowWarning(filenames, token->debug));
+                Exceptions::print_warning(cerr, Exceptions::UnderflowWarning(token->debug));
                 warned = true;
             }
 
@@ -93,7 +93,7 @@ Token* parse_number(const std::vector<std::string>& filenames, Token* token) {
 }
 
 /* Parses given Token as a decimal (i.e., floating-point value) and returns it as a ValueToken. */
-Token* parse_decimal(const std::vector<std::string>& filenames, Token* token) {
+Token* parse_decimal(Token* token) {
     // Init some variables
     std::string raw = token->raw;
     double result = 0;
@@ -110,7 +110,7 @@ Token* parse_decimal(const std::vector<std::string>& filenames, Token* token) {
         result = modifier * std::stod(raw);
     } catch (std::out_of_range& e) {
         // Print as the overflow warning
-        Exceptions::print_warning(cerr, Exceptions::FloatOverflowWarning(filenames, token->debug));
+        Exceptions::print_warning(cerr, Exceptions::FloatOverflowWarning(token->debug));
         result = std::numeric_limits<double>::max();
     }
 
@@ -191,11 +191,11 @@ ValueToken<T>* ValueToken<T>::copy() const { return new ValueToken<T>(*this); }
 
 /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
 Tokenizer::Tokenizer(const std::vector<std::string>& filenames) :
-    filenames(filenames),
     line(1),
     col(1),
     last_newline(0),
     done_tokenizing(false),
+    filenames(filenames),
     path(filenames[filenames.size() - 1])
 {
     // Try to open the file
@@ -210,13 +210,13 @@ Tokenizer::Tokenizer(const std::vector<std::string>& filenames) :
 
 /* Move constructor for the Tokenizer class. */
 Tokenizer::Tokenizer(Tokenizer&& other) :
-    filenames(other.filenames),
     file(other.file),
     line(other.line),
     col(other.col),
     last_newline(other.last_newline),
     done_tokenizing(other.done_tokenizing),
     temp(other.temp),
+    filenames(other.filenames),
     path(other.path)
 {
     // Set the other's file pointer to NULL
@@ -258,6 +258,7 @@ start:
         PEEK(c);
 
         // We can already deduce the line at this point, so put it in the result
+        result->debug.filenames = this->filenames;
         result->debug.raw_line = this->get_line();
 
         // Choose the correct path forward
@@ -365,6 +366,13 @@ start:
             result->debug.col2 = this->col;
             STORE(c);
             return result;
+        } else if (c == '#') {
+            // A macro!
+            result->type = TokenType::macro;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            ACCEPT(c);
+            goto macro_start;
         } else if (c == '\n') {
             // Increment the line and then try again
             ++this->line;
@@ -385,7 +393,7 @@ start:
             this->done_tokenizing = true;
             return result;
         } else {
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -473,10 +481,10 @@ dash_start:
             goto dash_dash;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalShortlabelException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalShortlabelException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyShortlabelException(this->filenames, DebugInfo(DebugInfo(this->line, this->col - 1, this->get_line())));
+            throw Exceptions::EmptyShortlabelException(DebugInfo(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line())));
         }
     }
 
@@ -502,10 +510,10 @@ dash_dash:
             goto number_start;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalLonglabelException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalLonglabelException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyLonglabelException(this->filenames, DebugInfo(DebugInfo(this->line, this->col - 1, this->get_line())));
+            throw Exceptions::EmptyLonglabelException(DebugInfo(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line())));
         }
     }
 
@@ -550,13 +558,15 @@ type_start:
             goto type_contd;
         } else if (is_whitespace(c) || c == EOF) {
             // Unterminated type definition
-            throw Exceptions::UnterminatedTypeException(this->filenames, result->debug);
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            throw Exceptions::UnterminatedTypeException(result->debug);
         } else if (c != '>') {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty type id
-            throw Exceptions::EmptyTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()));
+            throw Exceptions::EmptyTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()));
         }
     }
 
@@ -583,10 +593,12 @@ type_contd:
             return result;
         } else if (is_whitespace(c) || c == EOF) {
             // Unterminated type definition
-            throw Exceptions::UnterminatedTypeException(this->filenames, result->debug);
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            throw Exceptions::UnterminatedTypeException(result->debug);
         } else {
             // Illegal character
-            throw Exceptions::IllegalTypeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -614,10 +626,12 @@ string_start:
             goto string_start;
         } else if (c == EOF) {
             // Unterminated string
-            throw Exceptions::UnterminatedStringException(this->filenames, result->debug);
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            throw Exceptions::UnterminatedStringException(result->debug);
         } else {
             // Don't accept direct newlines
-            throw Exceptions::IllegalStringException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -635,7 +649,7 @@ string_escape:
             goto string_start;
         } else {
             // Non-readable character is escaped!
-            throw Exceptions::IllegalStringException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -653,10 +667,10 @@ number_start:
             goto number_contd;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalNegativeException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::IllegalNegativeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyNegativeException(this->filenames, DebugInfo(this->line, this->col - 1, this->get_line()));
+            throw Exceptions::EmptyNegativeException(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line()));
         }
     }
 
@@ -685,7 +699,7 @@ number_contd:
             REJECT(c);
 
             // Return with the parsed value
-            return parse_number(this->filenames, result);
+            return parse_number(result);
         }
     }
 
@@ -706,7 +720,7 @@ decimal_contd:
             result->debug.line2 = this->line;
             result->debug.col2 = this->col - 1;
             REJECT(c);
-            return parse_decimal(this->filenames, result);
+            return parse_decimal(result);
         }
     }
 
@@ -719,7 +733,7 @@ bool_start:
         while (true) {
             PEEK(c);
             if (is_whitespace(c) || c == EOF || c == ';') {
-                throw Exceptions::UnterminatedBooleanException(this->filenames, DebugInfo(result->debug.line1, result->debug.col1, this->line, this->col, result->debug.raw_line));
+                throw Exceptions::UnterminatedBooleanException(DebugInfo(this->filenames, result->debug.line1, result->debug.col1, this->line, this->col, result->debug.raw_line));
             } else if (c == ')') {
                 break;
             }
@@ -740,9 +754,9 @@ bool_start:
             ACCEPT(c);
             return ValueToken<bool>::promote(result, false);
         } else if (val.empty()) {
-            throw Exceptions::EmptyBooleanException(this->filenames, DebugInfo(this->line, this->col, this->get_line()));
+            throw Exceptions::EmptyBooleanException(DebugInfo(this->filenames, this->line, this->col, this->get_line()));
         } else {
-            throw Exceptions::IllegalBooleanException(this->filenames, result->debug, val);
+            throw Exceptions::IllegalBooleanException(result->debug, val);
         }
     }
 
@@ -760,7 +774,7 @@ snippet_start:
             goto snippet_pp;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -778,7 +792,7 @@ snippet_pp:
             goto snippet_code;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -908,7 +922,7 @@ snippet_multiline_start:
             goto snippet_multiline_start;
         } else if (c == EOF) {
             // Whoa! Reached unterminated comment!
-            throw Exceptions::UnterminatedMultilineException(filenames, result->debug);
+            throw Exceptions::UnterminatedMultilineException(result->debug);
         } else {
             // Simply skip this item
             STORE(c);
@@ -963,7 +977,7 @@ dot_start:
             goto config_dot;
         } else {
             // Didn't expect that
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -983,7 +997,7 @@ triple_dot_end:
             return result;
         } else {
             // Didn't expect that
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -1029,7 +1043,7 @@ comment_start:
             goto multiline_start;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
         }
     }
 
@@ -1072,7 +1086,7 @@ multiline_start:
             goto multiline_start;
         } else if (c == EOF) {
             // Whoa! Reached unterminated comment!
-            throw Exceptions::UnterminatedMultilineException(filenames, result->debug);
+            throw Exceptions::UnterminatedMultilineException(result->debug);
         } else {
             // Simply skip this item
             ACCEPT(c);
@@ -1100,6 +1114,33 @@ multiline_star:
             // We see any non-star, so go back to the multiline_start (but do put it back on the stream for newlines)
             REJECT(c);
             goto multiline_start;
+        }
+    }
+
+
+
+macro_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
+            // Keep parsing for this macro
+            STORE(c);
+            goto macro_start;
+        } else if (result->raw.size() == 0) {
+            // Empty macro
+            throw Exceptions::EmptyMacroException(DebugInfo(this->filenames, this->line, this->col, this->get_line()));
+        } else {
+            // We're done with this token
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            REJECT(c);
+            return result;
         }
     }
 
