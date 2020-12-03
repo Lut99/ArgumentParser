@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   01/12/2020, 12:50:10
+ *   03/12/2020, 14:20:40
  * Auto updated?
  *   Yes
  *
@@ -297,6 +297,12 @@ start:
             result->debug.line2 = this->col;
             ACCEPT(c);
             goto snippet_start;
+        } else if (c == '.') {
+            // Might be triple dot, could also be a config parameter
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            ACCEPT(c);
+            goto dot_start;
         } else if (c == '/') {
             // Comment
             ACCEPT(c);
@@ -331,14 +337,6 @@ start:
         } else if (c == '}') {
             // Simply return the appropriate token
             result->type = TokenType::r_curly;
-            result->debug.line1 = this->line;
-            result->debug.col1 = this->col;
-            result->debug.line2 = this->line;
-            result->debug.col2 = this->col;
-            STORE(c);
-            return result;
-        } else if (c == '.') {
-            result->type = TokenType::dot;
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
             result->debug.line2 = this->line;
@@ -886,6 +884,78 @@ snippet_multiline_star:
             // We see any non-star, so go back to the multiline_start (but do put it back on the stream for newlines)
             REJECT(c);
             goto snippet_multiline_start;
+        }
+    }
+
+
+
+dot_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '.') {
+            // It's a triple dot instead, so see if we can parse as such
+            result->type = TokenType::triple_dot;
+            result->raw.push_back('.');
+            STORE(c);
+            goto triple_dot_end;
+        } else if ((c >= 'a' && c <= 'z') ||
+                   (c >= 'A' && c <= 'Z') ||
+                   (c >= '0' && c <= '9') ||
+                    c == '_' || c == '-') {
+            // It's a configuration parameter!
+            result->type = TokenType::config;
+            STORE(c);
+            goto config_dot;
+        } else {
+            // Didn't expect that
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+        }
+    }
+
+
+
+triple_dot_end:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '.') {
+            // Alright! That's a succesfull triple dot!
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            STORE(c);
+            return result;
+        } else {
+            // Didn't expect that
+            throw Exceptions::UnexpectedCharException(this->filenames, DebugInfo(this->line, this->col, this->get_line()), c);
+        }
+    }
+
+
+
+config_dot:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
+            // It's still parsing as a config
+            STORE(c);
+            goto config_dot;
+        } else {
+            // Apparently, this is the end of the config token
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            REJECT(c);
+            return result;
         }
     }
 

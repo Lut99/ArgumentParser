@@ -32,9 +32,14 @@ The other identifier used for Options, the shortlabel (```SLABEL```), exists onl
 SLABEL = '-[A-Za-z0-9?]'
 ```
 
-Finally, the identifier used for types (```TYPE```) is defined as follows. It is wrapped in greater-than and less-than signs, and the identifier itself can exist out of at least one alphanumerical, underscore or dash character. In regex:
+Types also have their own identifiers (```TYPE```), which are defined as follows. The name is wrapped in greater-than and less-than signs, and the identifier itself can exist out of at least one alphanumerical, underscore or dash character. In regex:
 ```
 TYPE = '<[A-Za-z0-9_-]+>'
+```
+
+The final identifier occurring in the ADL are those for used to identify and set additional properties of arguments and types: the configuration identifiers (```CONFIG```). These identifiers are any alphanumerical character, underscore or dash, as long as its proceeded by a dot. In regex:
+```
+CONFIG = `\.[A-Za-z0-9_-]+`
 ```
 
 ### Values
@@ -82,8 +87,8 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - right square bracket (```RSQUARE = '\]'```)
 - left curly bracket (```LCURLY = '{'```)
 - right curly bracket (```RCURLY = '}'```)
-- single dot (```DOT = '\.'```)
 - semicolon (```SEMICOLON = ';'```)
+- the triple dot (```TDOT = '\.\.\.'```)
 
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
@@ -117,8 +122,8 @@ Some of the grammar rules are used throughout the ADL, and so we first define th
 
 The first common rule is the ```config```-rule, which is basically the body of an argument or a type. Specifically, it should accept any number of config parameters:
 ```
-config = config ID values SEMICOLON
-       = ID values SEMICOLON
+config = config CONFIG values SEMICOLON
+       = CONFIG values SEMICOLON
 ```
 The ```config```-rule makes use of the ```values```-rule, which is simply a list of value types (string, regex-expressions, integers or floats):
 ```
@@ -137,10 +142,10 @@ values = values STRING
 ```
 Note that there is the inclusion of the property-rule, which can be used to reference other fields of either types, positionals or options. The specific rule is given as:
 ```
-property = TYPE DOT ID
-         = ID DOT ID
-         = SLABEL DOT ID
-         = LLABEL DOT ID
+property = TYPE CONFIG
+         = ID CONFIG
+         = SLABEL CONFIG
+         = LLABEL CONFIG
 ```
 
 ### Argument definition

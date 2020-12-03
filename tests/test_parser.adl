@@ -6,20 +6,20 @@
  */
 
 <date> {
-    name "Date";
-    pattern <uint>.pattern "-" <uint>.pattern "-" <uint>.pattern;
+    .name "Date";
+    .pattern <uint>.pattern "-" <uint>.pattern "-" <uint>.pattern;
 }
 
 <hello_world> {
-    name "Hello, world!";
-    pattern r"[A-Za-z_]+";
-    source "hello_world.cpp";
+    .name "Hello, world!";
+    .pattern r"[A-Za-z_]+";
+    .source "hello_world.cpp";
 }
 
 <regex_test> {
-    name "Regex Test";
-    pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
-    source ++{
+    .name "Regex Test";
+    .pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
+    .source ++{
         return ++<1>++;
     }++;
 }
@@ -28,26 +28,26 @@ positional1 <int> {
     /* Common stuff */
     
     // Sets the category for the help string
-    category "Miscellaneous";
+    .category "Miscellaneous";
 
     // Sets the description for the help string
-    description "A new argumentparser,\nespecially for you... and me";
+    .description "A new argumentparser,\nespecially for you... and me";
     
     // Sets the default value - will be parsed at compile time
-    default "1";
+    .default "1";
 
 
 
     /* Positional-specific stuff */
 
     // Overrides the index derived from the order that the Positional is given
-    index 1;
+    .index 1;
 }
 
 [optional_positional] <int> {
-    index ---5.5;
+    .index ---5.5;
 }
 
-variadic_positional <int>... {
-    index ---5.5;
-}
+//variadic_positional <int>... {
+//    .index ---5.5;
+//}

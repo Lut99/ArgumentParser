@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/2/2020, 2:47:00 PM
+ *   03/12/2020, 14:29:48
  * Auto updated?
  *   Yes
  *
@@ -122,8 +122,8 @@ start:
                     applied_rule = "snippet";
                     goto value_merge;
                 
-                case TokenType::identifier:
-                    // Add only if preceded by a dot symbol
+                case TokenType::config:
+                    // Add only if preceded by an identifier of some sort
                     prev_term = term->token();
                     goto reference_start;
                 
@@ -379,8 +379,8 @@ config_values:
 
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal && term->type() == TokenType::identifier) {
-            // If it's a normal identifier, that must be the keyword, and thus we're done
+        if (symbol->is_terminal && term->type() == TokenType::config) {
+            // If it's a configuration identifier, that must be the keyword, and thus we're done
 
             // Construct the debug information
             DebugInfo debug(term->debug().line1, term->debug().col1, term->raw());
@@ -407,24 +407,6 @@ reference_start:
 
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal && term->type() == TokenType::dot) {
-            // Now we expect one of the identifiers
-            goto reference_dot;
-        } else {
-            // Not for us, apparently
-            return "";
-        }
-    }
-
-
-
-reference_dot:
-    {
-        // Start by looking at the top of the stack
-        PEEK(symbol, iter);
-
-        // Do different things based on whether it is a terminal or not
-        Terminal* term = (Terminal*) symbol;
         if (symbol->is_terminal && (term->type() == TokenType::identifier ||
                                     term->type() == TokenType::shortlabel ||
                                     term->type() == TokenType::longlabel ||
@@ -436,9 +418,9 @@ reference_dot:
             debug.line2 = prev_term->debug.line2;
             debug.col2 = prev_term->debug.col2;
 
-            // Create it, then remove the last two nodes (the other will be handled by values merge)
+            // Create it, then remove the last node (the other will be handled by values merge)
             prev_nonterm = (ADLNode*) new ADLReference(filenames, debug, term->raw(), prev_term->raw);
-            stack.remove(2);
+            stack.remove(1);
 
             // Jump to merging with a possible ADLValues
             applied_rule = "reference";
@@ -463,7 +445,7 @@ types_merge:
         if (symbol->is_terminal && (term->type() == TokenType::identifier ||
                                     term->type() == TokenType::shortlabel ||
                                     term->type() == TokenType::longlabel ||
-                                    term->type() == TokenType::r_square) && lookahead->type != TokenType::dot) {
+                                    term->type() == TokenType::r_square)) {
             // Create a new ADLTypes nonterminal
             stack.replace(1, new NonTerminal(
                 new ADLTypes(filenames, prev_term->debug, prev_term->raw)

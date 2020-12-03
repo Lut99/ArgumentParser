@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:24:34
  * Last edited:
- *   27/11/2020, 17:13:18
+ *   03/12/2020, 14:32:24
  * Auto updated?
  *   Yes
  *
@@ -35,8 +35,8 @@ ADLConfig::ADLConfig(const std::vector<std::string>& filenames, const DebugInfo&
 
 /* Prints the configuration as the parameter name, all values and then a semicolon to the given output stream. */
 std::ostream& ADLConfig::print(std::ostream& os) const {
-    // First, print the parameter name + space
-    os << this->param << ' ';
+    // First, print the dot + parameter name + space
+    os << '.' + this->param << ' ';
     // Then, print all values
     this->children[0]->print(os);
     // End with semicolon; done

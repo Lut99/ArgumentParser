@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   01/12/2020, 12:50:26
+ *   03/12/2020, 14:12:52
  * Auto updated?
  *   Yes
  *
@@ -288,18 +288,19 @@ namespace ArgumentParser {
         shortlabel = 1,
         longlabel = 2,
         type = 3,
-        string = 4,
-        number = 5,
-        decimal = 6,
-        l_square = 7,
-        r_square = 8,
-        l_curly = 9,
-        r_curly = 10,
-        semicolon = 11,
-        dot = 12,
-        regex = 13,
-        snippet = 14,
-        empty = 15
+        config = 4,
+        string = 5,
+        number = 6,
+        decimal = 7,
+        l_square = 8,
+        r_square = 9,
+        l_curly = 10,
+        r_curly = 11,
+        semicolon = 12,
+        triple_dot = 13,
+        regex = 14,
+        snippet = 15,
+        empty = 16
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -308,6 +309,7 @@ namespace ArgumentParser {
         "Shortlabel",
         "Longlabel",
         "Type",
+        "Config",
         "String",
         "Number",
         "Decimal",
@@ -316,7 +318,7 @@ namespace ArgumentParser {
         "LCurly",
         "RCurly",
         "Semicolon",
-        "Dot",
+        "TripleDot",
         "Regex",
         "Snippet",
         "Empty"
