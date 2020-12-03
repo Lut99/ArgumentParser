@@ -31,7 +31,7 @@ positional1 <int> {
     .category "Miscellaneous";
 
     // Sets the description for the help string
-    .description "A new argumentparser,\nespecially for you... and me";
+    .description "A new argumentparser,\nespecially for you and me";
     
     // Sets the default value - will be parsed at compile time
     .default "1";
@@ -48,6 +48,18 @@ positional1 <int> {
     .index ---5.5;
 }
 
-//variadic_positional <int>... {
-//    .index ---5.5;
-//}
+variadic_positional <int>... {
+    .index ---42.69;
+}
+
+--option -o <int> {
+    
+}
+
+[--optional_option] <int> {
+
+}
+
+--default_option [<int>] {
+    .default "5"
+}

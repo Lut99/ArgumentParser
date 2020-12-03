@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   03/12/2020, 14:29:48
+ *   03/12/2020, 15:12:07
  * Auto updated?
  *   Yes
  *
@@ -66,6 +66,8 @@ std::string reduce(const std::vector<std::string>& filenames, Token* lookahead, 
     ADLNode* prev_prev_nonterm;
     // Placeholder for any return-rules that might occur
     std::string applied_rule;
+    // Stores if the argument is variadic or not
+    bool variadic = false;
 
 start:
     {
@@ -216,12 +218,17 @@ definitions_body:
                     ));
                     return "typedef";
 
-                case TokenType::r_curly:
+                case TokenType::r_square:
                 case TokenType::longlabel:
                 case TokenType::shortlabel:
-                    // No types present and not a type itself, so it must be an optional
+                    // No types present and not a type itself, so it must be an Option
                     /* TBD */
                     return "";
+                
+                case TokenType::triple_dot:
+                    // It's variadic! Store that it's variadic, and go on and check if there's a type
+                    variadic = true;
+                    goto argument_variadic;
 
                 default:
                     // Cannot do anything with this nonterminal
@@ -239,6 +246,26 @@ definitions_body:
             }
             return "";
 
+        }
+    }
+
+
+
+argument_variadic:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter);
+
+        // We always expect a type if we saw a variadic token
+        NonTerminal* term = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && term->type() == NodeType::types) {
+            // Parse as Positional or Optional, depending on which it is
+            prev_prev_nonterm = prev_nonterm;
+            prev_nonterm = term->node();
+            goto argument_types;
+        } else {
+            // Not a types, so not for us
+            return "";
         }
     }
 
@@ -269,8 +296,8 @@ argument_types:
                     debug.col2 = prev_term->debug.col2;
 
                     // Replace the symbols on the stack
-                    stack.replace(5, new NonTerminal(
-                        new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, false, (ADLConfigs*) prev_prev_nonterm)
+                    stack.replace(5 + variadic, new NonTerminal(
+                        new ADLPositional(filenames, debug, term->raw(), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
                     ));
                     return "positional";
                 
@@ -338,8 +365,8 @@ argument_optional:
             debug.col2 = prev_prev_term->debug.col2;
 
             // Replace the symbols on the stack
-            stack.replace(7, new NonTerminal(
-                new ADLPositional(filenames, debug, prev_term->raw, (ADLTypes*) prev_nonterm, false, false, (ADLConfigs*) prev_prev_nonterm)
+            stack.replace(7 + variadic, new NonTerminal(
+                new ADLPositional(filenames, debug, prev_term->raw, (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
             ));
             return "optional_positional";
             
@@ -419,7 +446,7 @@ reference_start:
             debug.col2 = prev_term->debug.col2;
 
             // Create it, then remove the last node (the other will be handled by values merge)
-            prev_nonterm = (ADLNode*) new ADLReference(filenames, debug, term->raw(), prev_term->raw);
+            prev_nonterm = (ADLNode*) new ADLReference(filenames, debug, term->raw(), term->type(), prev_term->raw);
             stack.remove(1);
 
             // Jump to merging with a possible ADLValues
