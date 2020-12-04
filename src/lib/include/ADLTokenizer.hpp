@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   03/12/2020, 23:14:15
+ *   04/12/2020, 17:31:00
  * Auto updated?
  *   Yes
  *
@@ -413,7 +413,7 @@ namespace ArgumentParser {
         /* The path we are currently parsing. */
         const std::string path;
 
-        /* Constructor for the Tokenizer class, which takes the path to the file we should read. */
+        /* Constructor for the Tokenizer class, which takes the path to the file we should read (as the last path of a path of breadcrumbs). */
         Tokenizer(const std::vector<std::string>& filenames);
         /* The copy constructor for the Tokenizer class has been deleted, as it makes no sense to copy a stream (which the Tokenizer pretends to be). */
         Tokenizer(const Tokenizer& other) = delete;

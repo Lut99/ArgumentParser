@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   03/12/2020, 23:25:46
+ *   04/12/2020, 17:47:44
  * Auto updated?
  *   Yes
  *
@@ -22,8 +22,57 @@
 
 #include "ADLTokenizer.hpp"
 #include "TokenTypes.hpp"
+#include "ADLExceptions.hpp"
 
 namespace ArgumentParser {
+    namespace Exceptions {
+        /* Baseclass exception for all Preprocessor-related exceptions. */
+        class PreprocessorException: public ADLCompileError {
+        public:
+            /* Constructor for the PreprocessorException class, which takes a DebugInfo struct to locate this error in a source file and optionally a message. */
+            PreprocessorException(const DebugInfo& debug, const std::string& message = "") :
+                ADLCompileError(debug, message)
+            {}
+
+        };
+
+        /* Exception for when a macro-token is received, but we haven't implemented that particular token. */
+        class UnknownMacroException: public PreprocessorException {
+        public:
+            /* The name of the unknown macro that we got. */
+            std::string macro;
+
+            /* Constructor for the UnknownMacroException class, which takes a DebugInfo struct to locate this error in a source file and the unknown macro name. */
+            UnknownMacroException(const DebugInfo& debug, const std::string& macro) :
+                PreprocessorException(debug, "Encountered unknown macro '" + macro + "'."),
+                macro(macro)
+            {}
+
+        };
+        /* Exception for when a macro-token is followed by an unsupported value type for that macro, but we haven't implemented that particular token. */
+        class IllegalMacroValueException: public PreprocessorException {
+        public:
+            /* The name of the macro where the error occurred. */
+            std::string macro;
+            /* The type of the value we got. */
+            std::string given;
+            /* List of the allowed types. */
+            std::string expected;
+
+            /* Constructor for the IllegalMacroValueException class, which takes a DebugInfo struct to locate this error in a source file, a macro name where the error occurred, the name of the given type and the name(s) of the type(s) we expected. */
+            IllegalMacroValueException(const DebugInfo& debug, const std::string& macro_name, const std::string& given_type, const std::string& expected_type = "") :
+                PreprocessorException(debug, macro_name + "-macro can't be followed up by a " + given_type + (!expected_type.empty() ? (" (expected " + expected_type + ").") : ".")),
+                macro(macro_name),
+                given(given_type),
+                expected(expected_type)
+            {}
+
+        };
+
+    }
+
+
+
     /* The Preprocessor class is used to wrap around the ADLTokenizer and process things like includes and conditional compilation. */
     class Preprocessor {
     private:
@@ -38,7 +87,11 @@ namespace ArgumentParser {
         
         /* Keeps track if we're able to still get elements from the stream. */
         bool done_tokenizing;
+        /* Keeps track of all the paths we seen so far. */
+        std::vector<std::string> included_paths;
         
+        /* Resizes the internal tokenizers list by doubling its size. */
+        void resize();
         /* Used internally to get any tokens from the combined input stream. */
         Token* read_head(bool pop);
 

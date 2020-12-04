@@ -7,7 +7,7 @@
  */
 
 // #include stdtypes
-// #include "test_extern.adl"
+#include "tests/test_extern.adl"
 
 // #define DEBUG
 // #define DEBUG2

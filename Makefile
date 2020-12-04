@@ -39,8 +39,8 @@ default: all
 all: test_tokenizer
 
 clean:
-	find $(OBJ) -name "*.o" -type f -delete
-	rm -f $(BIN)/*.out
+	-find $(OBJ) -name "*.o" -type f -delete
+	-rm -f $(BIN)/*.out
 
 
 

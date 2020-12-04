@@ -1,0 +1,10 @@
+/* TEST NEXTED EXTERN.adl
+ *   by Lut99
+ *
+ * A test file containing a single definition to test nested external references.
+ */
+
+--external_external_option <string> {
+    .category "Very External";
+    .destription "This option is super duper external!";
+}
