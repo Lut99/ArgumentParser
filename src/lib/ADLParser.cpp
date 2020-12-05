@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/5/2020, 5:04:14 PM
+ *   12/5/2020, 5:59:31 PM
  * Auto updated?
  *   Yes
  *
@@ -181,17 +181,29 @@ definition_start:
         // Do different things based on whether it is a terminal or not
         if (symbol->is_terminal) {
             Terminal* term = (Terminal*) symbol;
-            if (term->type() == TokenType::l_curly) {
-                // That means no configuration parameter for this argument
-                prev_nonterm = nullptr;
-                goto definitions_body;
+            switch(term->type()) {
+                case TokenType::l_curly:
+                    // That means no configuration parameter for this argument
+                    prev_nonterm = nullptr;
+                    goto definitions_body;
+                
+                default:
+                    // Not a valid token, so ignore it
+                    return "";
+
             }
         } else {
             NonTerminal* nterm = (NonTerminal*) symbol;
-            if (nterm->type() == NodeType::configs) {
-                // If it's a list of configurations, we're on the good way!
-                prev_nonterm = nterm->node();
-                goto definition_configs;
+            switch(nterm->type()) {
+                case NodeType::configs:
+                    // If it's a list of configurations, we're on the good way!
+                    prev_nonterm = nterm->node();
+                    goto definition_configs;
+
+                default:
+                    // Not a valid token, so ignore it
+                    return "";
+
             }
         }
 
