@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   12/5/2020, 3:52:54 PM
+ *   12/5/2020, 5:42:20 PM
  * Auto updated?
  *   Yes
  *
@@ -77,6 +77,64 @@ namespace ArgumentParser {
             {}
 
         };
+        /* Exception for when an ifdef is not closed before the end of the file. */
+        class UnmatchedIfdefException: public PreprocessorException {
+        public:
+            /* Constructor for the UnmatchedIfdefException class, which only takes a DebugInfo struct s.t. we can link the error to a source file. */
+            UnmatchedIfdefException(const DebugInfo& debug) :
+                PreprocessorException(debug, "Encountered #ifdef without closing #endif.")
+            {}
+
+        };
+        /* Exception for when an ifndef is not closed before the end of the file. */
+        class UnmatchedIfndefException: public PreprocessorException {
+        public:
+            /* Constructor for the UnmatchedIfndefException class, which only takes a DebugInfo struct s.t. we can link the error to a source file. */
+            UnmatchedIfndefException(const DebugInfo& debug) :
+                PreprocessorException(debug, "Encountered #ifndef without closing #endif.")
+            {}
+
+        };
+        /* Exception for when an endif is given without starting ifdef or ifndef. */
+        class UnmatchedEndifException: public PreprocessorException {
+        public:
+            /* Constructor for the UnmatchedEndifException class, which only takes a DebugInfo struct s.t. we can link the error to a source file. */
+            UnmatchedEndifException(const DebugInfo& debug) :
+                PreprocessorException(debug, "Encountered #endif without starting #ifdef or #ifndef.")
+            {}
+
+        };
+
+
+
+        /* Baseclass for all the preprocessor warnings. */
+        class PreprocessorWarning: public ADLCompileWarning {
+        public:
+            /* Constructor for the PreprocessorWarning class, which takes the warning type, a DebugInfo struct to locate this error in a source file and optionally a message. */
+            PreprocessorWarning(const std::string& type, const DebugInfo& debug, const std::string& message = "") :
+                ADLCompileWarning(type, debug, message)
+            {}
+
+        };
+
+        /* Warning for when a variable is defined twice. */
+        class DuplicateDefineWarning: public PreprocessorWarning {
+        public:
+            /* Constructor for the DuplicateDefineWarning class, which takes a DebugInfo struct to link this error to a source file and the define that was a duplicate. */
+            DuplicateDefineWarning(const DebugInfo& debug, const std::string& define) :
+                PreprocessorWarning("duplicate-define", debug, "Define '" + define + "' is already defined.")
+            {}
+
+        };
+        /* Warning for when a define was attempted to be undefined, but it was never defined in the first place. */
+        class MissingDefineWarning: public PreprocessorWarning {
+        public:
+            /* Constructor for the MissingDefineWarning class, which takes a DebugInfo struct to link this error to a source file and the define that was missing. */
+            MissingDefineWarning(const DebugInfo& debug, const std::string& define) :
+                PreprocessorWarning("missing-define", debug, "Define '" + define + "' is not defined.")
+            {}
+
+        };
 
     }
 
@@ -98,11 +156,32 @@ namespace ArgumentParser {
         bool done_tokenizing;
         /* Keeps track of all the paths we seen so far. */
         std::vector<std::string> included_paths;
+        /* Keeps track of all defines currently present. */
+        std::vector<std::string> defines;
+        /* Keeps track of how many compileable and unclosed ifdefs we saw. */
+        size_t ifdefs;
         
         /* Resizes the internal tokenizers list by doubling its size. */
         void resize();
         /* Used internally to get any tokens from the combined input stream. */
         Token* read_head(bool pop);
+        /* Used to check if a given vector of strings contains the given string. */
+        static bool contains(const std::vector<std::string>& haystack, const std::string& needle);
+        /* Used to check if a given vector of strings contains the given string. Returns the index of the found result as the first argument. */
+        static bool contains(size_t& index, const std::vector<std::string>& haystack, const std::string& needle);
+
+        /* Handler for the include-macro. */
+        Token* include_handler(bool pop, Token* token);
+        /* Handler for the define-macro. */
+        Token* define_handler(bool pop, Token* token);
+        /* Handler for the undefine-macro. */
+        Token* undefine_handler(bool pop, Token* token);
+        /* Handler for the ifdef-macro. */
+        Token* ifdef_handler(bool pop, Token* token);
+        /* Handler for the ifndef-macro. */
+        Token* ifndef_handler(bool pop, Token* token);
+        /* Handler for the endif-macro. */
+        Token* endif_handler(bool pop, Token* token);
 
     public:
         /* Constructor for the Preprocessor class, which takes a filename to open and a vector containing all the defines from the CLI. */

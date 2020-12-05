@@ -1,10 +1,10 @@
-/* ADLPREPROCESSOR.cpp
+/* ADLADLPreprocessor.cpp
  *   by Lut99
  *
  * Created:
  *   03/12/2020, 21:52:46
  * Last edited:
- *   12/5/2020, 3:55:12 PM
+ *   12/5/2020, 5:49:24 PM
  * Auto updated?
  *   Yes
  *
@@ -36,13 +36,15 @@ using namespace ArgumentParser;
 
 
 
-/***** PREPROCESSOR CLASS *****/
+/***** ADLPreprocessor CLASS *****/
 
 /* Constructor for the Preprocessor class, which takes a filename to open and a vector containing all the defines from the CLI. */
 Preprocessor::Preprocessor(const std::string& filename, const std::vector<std::string>& defines) :
     length(1),
     max_length(1),
-    done_tokenizing(false)
+    done_tokenizing(false),
+    defines(defines),
+    ifdefs(0)
 {
     // Create space for at least one tokenizer
     this->tokenizers = new Tokenizer*[this->max_length];
@@ -59,7 +61,9 @@ Preprocessor::Preprocessor(Preprocessor&& other) :
     length(other.length),
     max_length(other.max_length),
     done_tokenizing(other.done_tokenizing),
-    included_paths(other.included_paths)
+    included_paths(other.included_paths),
+    defines(other.defines),
+    ifdefs(other.ifdefs)
 {
     // Set the other's pointers list to nullptr, as we don't want him to allocate this
     other.tokenizers = nullptr;
@@ -74,6 +78,293 @@ Preprocessor::~Preprocessor() {
         }
         delete[] this->tokenizers;
     }
+}
+
+
+
+/* Handler for the include-macro. */
+Token* Preprocessor::include_handler(bool pop, Token* token) {
+    // Get the next token (always pop, since it'll be a relevant value)
+    if (!pop) { this->current->pop(); }
+    delete token;
+    token = this->current->pop();
+
+    // Check if it's either a string (for local file search) or an identifier (for build-ins)
+    if (token->type == TokenType::string) {
+        #ifdef DEBUG
+        cout << "[ADLPreprocessor] Including local file '" << token->raw << "'" << endl;
+        #endif
+
+        // Only add a new tokenizer if we never seen it before
+        if (!this->contains(this->included_paths, token->raw)) {
+            // Try to open a Tokenizer at the given path
+            std::vector<std::string> new_filenames = this->current->filenames;
+            new_filenames.push_back(token->raw);
+            Tokenizer* new_tokenizer = new Tokenizer(new ifstream(token->raw), new_filenames);
+
+            // Set it as the current tokenizer & add to the list
+            this->current = new_tokenizer;
+            if (this->length >= this->max_length) { this->resize(); }
+            this->tokenizers[this->length++] = new_tokenizer;
+
+            // Don't forget to add the new path to the list of included paths
+            this->included_paths.push_back(token->raw);
+        }
+        #ifdef DEBUG
+        else {
+            cout << "[ADLPreprocessor]  > No need, '" << token->raw << "' already included" << endl;
+        }
+        #endif
+
+        // Use recursion to return the first token in that tokenizer
+        delete token;
+        return this->read_head(pop);
+
+    } else if (token->type == TokenType::identifier) {
+        #ifdef DEBUG
+        cout << "[ADLPreprocessor] Including system file '" << token->raw << "'" << endl;
+        #endif
+
+        // Only add a new tokenizer if we never seen it before
+        if (!this->contains(this->included_paths, token->raw)) {
+            // Check if the given identifier exists
+            size_t index = System::n_files;
+            std::stringstream sstr;
+            for (size_t i = 0; i < System::n_files; i++) {
+                if (token->raw == System::names[i]) {
+                    index = i;
+                }
+                if (i > 0) {
+                    if (i == System::n_files - 1) { sstr << " or "; }
+                    else { sstr << ", "; }
+                }
+                sstr << '\'' << System::names[i] << '\'';
+            }
+            if (index == System::n_files) {
+                // Not found; throw an error that it was an illegal system file
+                throw Exceptions::IllegalSysFileException(token->debug, token->raw, sstr.str());
+            }
+            
+            // Since it's valid, we add create a new tokenizer with the given string as input
+            std::vector<std::string> new_filenames = this->current->filenames;
+            new_filenames.push_back(token->raw);
+            Tokenizer* new_tokenizer = new Tokenizer(new stringstream(System::files[index]), new_filenames);
+
+            // Set it as the current tokenizer & add to the list
+            this->current = new_tokenizer;
+            if (this->length >= this->max_length) { this->resize(); }
+            this->tokenizers[this->length++] = new_tokenizer;
+
+            // Don't forget to add the new path to the list of included paths
+            this->included_paths.push_back(token->raw);
+        }
+        #ifdef DEBUG
+        else {
+            cout << "[ADLPreprocessor]  > No need, '" << token->raw << "' already included" << endl;
+        }
+        #endif
+
+        // Use recursion to return the first token in that tokenizer
+        delete token;
+        return this->read_head(pop);
+
+    } else {
+        throw Exceptions::IllegalMacroValueException(token->debug, "include", tokentype_names[(int) token->type], "string or build-in identifier");
+    }
+}
+
+/* Handler for the define-macro. */
+Token* Preprocessor::define_handler(bool pop, Token* token) {
+    // Check if the next token is an identifier
+    if (!pop) { this->current->pop(); }
+    delete token;
+    token = this->current->pop();
+    if (token->type != TokenType::identifier) {
+        throw Exceptions::IllegalMacroValueException(token->debug, "define", tokentype_names[(int) token->type], "define identifier");
+    }
+
+    #ifdef DEBUG
+    cout << "[ADLPreprocessor] Marking define '" << token->raw << "' as present..." << endl; 
+    #endif
+
+    // Check if we already included this one
+    if (this->contains(this->defines, token->raw)) {
+        Exceptions::print_warning(cerr, Exceptions::DuplicateDefineWarning(token->debug, token->raw));
+    } else {
+        // Add it to the internal list
+        this->defines.push_back(token->raw);
+    }
+
+    // Use recursion to return the next token
+    delete token;
+    return this->read_head(pop);
+}
+
+/* Handler for the undefine-macro. */
+Token* Preprocessor::undefine_handler(bool pop, Token* token) {
+    // Check if the next token is an identifier
+    if (!pop) { this->current->pop(); }
+    delete token;
+    token = this->current->pop();
+    if (token->type != TokenType::identifier) {
+        throw Exceptions::IllegalMacroValueException(token->debug, "undefine", tokentype_names[(int) token->type], "define identifier");
+    }
+
+    #ifdef DEBUG
+    cout << "[ADLPreprocessor] Removing define '" << token->raw << "' from list of present defines..." << endl; 
+    #endif
+
+    // Check if we can remove this one
+    size_t index;
+    if (!this->contains(index, this->defines, token->raw)) {
+        Exceptions::print_warning(cerr, Exceptions::MissingDefineWarning(token->debug, token->raw));
+    } else {
+        // Remove it from the internal list
+        for (size_t i = index; i < this->defines.size() - 1; i++) {
+            this->defines[i] = this->defines[i + 1];
+        }
+        this->defines.pop_back();
+    }
+
+    // Use recursion to return the next token
+    delete token;
+    return this->read_head(pop);
+}
+
+/* Handler for the ifdef-macro. */
+Token* Preprocessor::ifdef_handler(bool pop, Token* token) {
+    // Store the debug information of this macro for error handling
+    DebugInfo debug = token->debug;
+
+    // Check if the next token is an identifier
+    if (!pop) { this->current->pop(); }
+    delete token;
+    token = this->current->pop();
+    if (token->type != TokenType::identifier) {
+        throw Exceptions::IllegalMacroValueException(token->debug, "ifdef", tokentype_names[(int) token->type], "define identifier");
+    }
+
+    // Update the debug info with the identifier
+    debug.line2 = token->debug.line2;
+    debug.col2 = token->debug.col2;
+
+    #ifdef DEBUG
+    cout << "[ADLPreprocessor] Handling ifdef with define '" << token->raw << "'..." << endl; 
+    #endif
+
+    // Check if the token is present
+    if (this->contains(this->defines, token->raw)) {
+        // It is, so mark internally that we are now one deep in an if/else statement
+        ++this->ifdefs;
+
+        #ifdef DEBUG
+        cout << "[ADLPreprocessor]  > Compiling nested code" << endl; 
+        #endif
+    } else {
+        // It isn't, so skip until we see our endif
+        size_t ifdefs = 1;
+        while (ifdefs > 0) {
+            delete token;
+            token = this->current->pop();
+            if (token->type == TokenType::macro) {
+                if (token->raw == "ifdef") {
+                    ++ifdefs;
+                } else if (token->raw == "endif") {
+                    --ifdefs;
+                }
+            } else if (token->type == TokenType::empty) {
+                // Unclosed if-statement encountered!
+                throw Exceptions::UnmatchedIfdefException(debug);
+            }
+        }
+
+        #ifdef DEBUG
+        cout << "[ADLPreprocessor]  > Leaving nested code out" << endl; 
+        #endif
+
+        // We're now past the untaken if-block
+    }
+
+    // Then, recurse to find the next valid token
+    delete token;
+    return this->read_head(pop);
+}
+
+/* Handler for the ifndef-macro. */
+Token* Preprocessor::ifndef_handler(bool pop, Token* token) {
+    // Store the debug information of this macro for error handling
+    DebugInfo debug = token->debug;
+
+    // Check if the next token is an identifier
+    if (!pop) { this->current->pop(); }
+    delete token;
+    token = this->current->pop();
+    if (token->type != TokenType::identifier) {
+        throw Exceptions::IllegalMacroValueException(token->debug, "ifndef", tokentype_names[(int) token->type], "define identifier");
+    }
+
+    // Update the debug info with the identifier
+    debug.line2 = token->debug.line2;
+    debug.col2 = token->debug.col2;
+
+    #ifdef DEBUG
+    cout << "[ADLPreprocessor] Handling ifndef with define '" << token->raw << "'..." << endl; 
+    #endif
+
+    // Check if the token is present
+    if (this->contains(this->defines, token->raw)) {
+        // It isn't, so mark internally that we are now one deep in an if/else statement
+        ++this->ifdefs;
+
+        #ifdef DEBUG
+        cout << "[ADLPreprocessor]  > Leaving nested code out" << endl; 
+        #endif
+    } else {
+        // It is, so skip until we see our endif
+        size_t ifdefs = 1;
+        while (ifdefs > 0) {
+            delete token;
+            token = this->current->pop();
+            if (token->type == TokenType::macro) {
+                if (token->raw == "ifdef") {
+                    ++ifdefs;
+                } else if (token->raw == "endif") {
+                    --ifdefs;
+                }
+            } else if (token->type == TokenType::empty) {
+                // Unclosed if-statement encountered!
+                throw Exceptions::UnmatchedIfndefException(debug);
+            }
+        }
+
+        #ifdef DEBUG
+        cout << "[ADLPreprocessor]  > Compiling nested code" << endl; 
+        #endif
+
+        // We're now past the untaken if-block
+    }
+
+    // Then, recurse to find the next valid token
+    delete token;
+    return this->read_head(pop);
+}
+
+/* Handler for the endif-macro. */
+Token* Preprocessor::endif_handler(bool pop, Token* token) {
+    // Check if we have unmatched if-statements
+    if (this->ifdefs == 0) {
+        // We don't; unmatched endif
+        throw Exceptions::UnmatchedEndifException(token->debug);
+    }
+
+    #ifdef DEBUG
+    cout << "[ADLPreprocessor] Found endif for previous ifdef or ifndef" << endl; 
+    #endif
+
+    // Otherwise, mark one as closed and use recursion to return the next token
+    --this->ifdefs;
+    delete token;
+    return this->read_head(pop);
 }
 
 
@@ -101,102 +392,25 @@ Token* Preprocessor::read_head(bool pop) {
     Token* token;
     PEEK(token, this->current, pop)
 
-    #ifdef DEBUG
-    cout << "[PREPROCESSOR] Read token " << *token << " from file '" << this->current->filenames[this->current->filenames.size() - 1] << "'" << endl;
-    #endif
+    // #ifdef DEBUG
+    // cout << "[ADLPreprocessor] Read token " << *token << " from file '" << this->current->filenames[this->current->filenames.size() - 1] << "'" << endl;
+    // #endif
 
     // Do clever stuff
     if (token->type == TokenType::macro) {
         // Determine which macro
         if (token->raw == "include") {
-            // Get the next token (always pop, since it'll be a relevant value)
-            if (!pop) { this->current->pop(); }
-            delete token;
-            token = this->current->pop();
-
-            // Check if it's either a string (for local file search) or an identifier (for build-ins)
-            if (token->type == TokenType::string) {
-                #ifdef DEBUG
-                cout << "[PREPROCESSOR] Including local file '" << token->raw << "'" << endl;
-                #endif
-
-                // Only add a new tokenizer if we never seen it before
-                if (std::find(this->included_paths.begin(), this->included_paths.end(), token->raw) == this->included_paths.end()) {
-                    // Try to open a Tokenizer at the given path
-                    std::vector<std::string> new_filenames = this->current->filenames;
-                    new_filenames.push_back(token->raw);
-                    Tokenizer* new_tokenizer = new Tokenizer(new ifstream(token->raw), new_filenames);
-
-                    // Set it as the current tokenizer & add to the list
-                    this->current = new_tokenizer;
-                    if (this->length >= this->max_length) { this->resize(); }
-                    this->tokenizers[this->length++] = new_tokenizer;
-
-                    // Don't forget to add the new path to the list of included paths
-                    this->included_paths.push_back(token->raw);
-                }
-                #ifdef DEBUG
-                else {
-                    cout << "[PREPROCESSOR]  > No need, '" << token->raw << "' already included" << endl;
-                }
-                #endif
-
-                // Use recursion to return the first token in that tokenizer
-                delete token;
-                return this->read_head(pop);
-
-            } else if (token->type == TokenType::identifier) {
-                #ifdef DEBUG
-                cout << "[PREPROCESSOR] Including system file '" << token->raw << "'" << endl;
-                #endif
-
-                // Only add a new tokenizer if we never seen it before
-                if (std::find(this->included_paths.begin(), this->included_paths.end(), token->raw) == this->included_paths.end()) {
-                    // Check if the given identifier exists
-                    size_t index = System::n_files;
-                    std::stringstream sstr;
-                    for (size_t i = 0; i < System::n_files; i++) {
-                        if (token->raw == System::names[i]) {
-                            index = i;
-                        }
-                        if (i > 0) {
-                            if (i == System::n_files - 1) { sstr << " or "; }
-                            else { sstr << ", "; }
-                        }
-                        sstr << '\'' << System::names[i] << '\'';
-                    }
-                    if (index == System::n_files) {
-                        // Not found; throw an error that it was an illegal system file
-                        throw Exceptions::IllegalSysFileException(token->debug, token->raw, sstr.str());
-                    }
-                    
-                    // Since it's valid, we add create a new tokenizer with the given string as input
-                    std::vector<std::string> new_filenames = this->current->filenames;
-                    new_filenames.push_back(token->raw);
-                    Tokenizer* new_tokenizer = new Tokenizer(new stringstream(System::files[index]), new_filenames);
-
-                    // Set it as the current tokenizer & add to the list
-                    this->current = new_tokenizer;
-                    if (this->length >= this->max_length) { this->resize(); }
-                    this->tokenizers[this->length++] = new_tokenizer;
-
-                    // Don't forget to add the new path to the list of included paths
-                    this->included_paths.push_back(token->raw);
-                }
-                #ifdef DEBUG
-                else {
-                    cout << "[PREPROCESSOR]  > No need, '" << token->raw << "' already included" << endl;
-                }
-                #endif
-
-                // Use recursion to return the first token in that tokenizer
-                delete token;
-                return this->read_head(pop);
-
-            } else {
-                throw Exceptions::IllegalMacroValueException(token->debug, "include", tokentype_names[(int) token->type], "string or build-in identifier");
-            }
-
+            return this->include_handler(pop, token);
+        } else if (token->raw == "define" || token->raw == "def") {
+            return this->define_handler(pop, token);
+        } else if (token->raw == "undefine" || token->raw == "undef") {
+            return this->undefine_handler(pop, token);
+        } else if (token->raw == "ifdef") {
+            return this->ifdef_handler(pop, token);
+        } else if (token->raw == "ifndef") {
+            return this->ifndef_handler(pop, token);
+        } else if (token->raw == "endif") {
+            return this->endif_handler(pop, token);
         } else {
             throw Exceptions::UnknownMacroException(token->debug, token->raw);
         }
@@ -205,7 +419,7 @@ Token* Preprocessor::read_head(bool pop) {
         // This Tokenizer is depleted; check if we have more
         if (this->length > 1) {
             #ifdef DEBUG
-            cout << "[PREPROCESSOR] Done including file '" << token->raw << "', moving back to '" << this->tokenizers[this->length - 2]->filenames[this->tokenizers[this->length - 2]->filenames.size() - 1] << "'" << endl;
+            cout << "[ADLPreprocessor] Done including file '" << token->raw << "', moving back to '" << this->tokenizers[this->length - 2]->filenames[this->tokenizers[this->length - 2]->filenames.size() - 1] << "'" << endl;
             #endif
 
             // Destroy the depleted one and move one tokenizer back on the stack
@@ -218,7 +432,7 @@ Token* Preprocessor::read_head(bool pop) {
         } else {
             // We're really done
             #ifdef DEBUG
-            cout << "[PREPROCESSOR] Nothing more to tokenize." << endl;
+            cout << "[ADLPreprocessor] Nothing more to tokenize." << endl;
             #endif
             this->done_tokenizing = true;
         }
@@ -226,6 +440,25 @@ Token* Preprocessor::read_head(bool pop) {
 
     // Return the token
     return token;
+}
+
+/* Used to check if a given vector of strings contains the given string. */
+bool Preprocessor::contains(const std::vector<std::string>& haystack, const std::string& needle) {
+    for (size_t i = 0; i < haystack.size(); i++) {
+        if (haystack[i] == needle) { return true; }
+    }
+    return false;
+}
+
+/* Used to check if a given vector of strings contains the given string. Returns the index of the found result as the first argument. */
+bool Preprocessor::contains(size_t& index, const std::vector<std::string>& haystack, const std::string& needle) {
+    for (size_t i = 0; i < haystack.size(); i++) {
+        if (haystack[i] == needle) {
+            index = i;
+            return true;
+        }
+    }
+    return false;
 }
 
 

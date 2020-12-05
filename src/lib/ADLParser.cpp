@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   03/12/2020, 23:27:51
+ *   12/5/2020, 5:04:14 PM
  * Auto updated?
  *   Yes
  *
@@ -943,7 +943,7 @@ ADLTree* ArgumentParser::Parser::parse(const std::string& filename) {
     // Initialize the stack
     SymbolStack stack;
     #ifdef DEBUG
-    cout << "         " << stack << endl;
+    cout << "[   ADLParser   ] " << "         " << stack << endl;
     #endif
 
     // Parse as a shift-reduce parser - in every iteration, fetch a token and attempt to reduce the stack of tokens to a tree of nodes
@@ -964,7 +964,7 @@ ADLTree* ArgumentParser::Parser::parse(const std::string& filename) {
         }
 
         #ifdef DEBUG
-        cout << (!applied_rule.empty() ? "Reduce : " : "Shift  : ") << stack;
+        cout << "[   ADLParser   ] " << (!applied_rule.empty() ? "Reduce : " : "Shift  : ") << stack;
         if (!applied_rule.empty()) { cout << " // " << applied_rule; }
         cout << endl;
         #endif

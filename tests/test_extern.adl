@@ -4,10 +4,12 @@
  * A test file containing a single definition to test external references.
  */
 
+#ifdef DEBUG
 --external_option <string> {
     .category "External";
     .destription "This option is external!";
 }
+#endif
 
 #include "tests/test_nested_extern.adl"
 #include "tests/test_nested_extern.adl"

@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   03/12/2020, 23:21:44
+ *   12/5/2020, 5:00:41 PM
  * Auto updated?
  *   Yes
  *
@@ -36,7 +36,7 @@ ADLTree::ADLTree(ADLNode* toplevel) :
 std::ostream& ADLTree::print(std::ostream& os) const {
     // Print a header of the filename, making sure it has an even size
     std::string header = "============================================";
-    os << header << endl;
+    os << header << endl << endl;
 
     // Print each toplevel node, separated by newlines
     for (size_t i = 0; i < this->children.size(); i++) {
@@ -45,7 +45,7 @@ std::ostream& ADLTree::print(std::ostream& os) const {
     }
 
     // Print some form of footer with equal size of the header and we're done
-    return os << header << endl;
+    return os << endl << header << endl;
 }
 
 
