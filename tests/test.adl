@@ -6,7 +6,7 @@
  * efficient (or so we hope) parser.
  */
 
-// #include stdtypes
+#include stdtypes
 #include "tests/test_extern.adl"
 
 // #define DEBUG

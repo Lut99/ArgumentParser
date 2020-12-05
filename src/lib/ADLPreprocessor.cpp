@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 21:52:46
  * Last edited:
- *   04/12/2020, 18:06:14
+ *   12/5/2020, 3:55:12 PM
  * Auto updated?
  *   Yes
  *
@@ -15,8 +15,11 @@
 **/
 
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <algorithm>
 
+#include "ADLBaked.hpp"
 #include "ADLPreprocessor.hpp"
 
 using namespace std;
@@ -45,7 +48,7 @@ Preprocessor::Preprocessor(const std::string& filename, const std::vector<std::s
     this->tokenizers = new Tokenizer*[this->max_length];
 
     // Create a new Tokenizer for the first file
-    this->tokenizers[0] = new Tokenizer({ filename });
+    this->tokenizers[0] = new Tokenizer(new ifstream(filename), { filename });
     this->current = this->tokenizers[0];
 }
 
@@ -122,13 +125,12 @@ Token* Preprocessor::read_head(bool pop) {
                     // Try to open a Tokenizer at the given path
                     std::vector<std::string> new_filenames = this->current->filenames;
                     new_filenames.push_back(token->raw);
-                    Tokenizer* new_tokenizer = new Tokenizer(new_filenames);
+                    Tokenizer* new_tokenizer = new Tokenizer(new ifstream(token->raw), new_filenames);
 
                     // Set it as the current tokenizer & add to the list
                     this->current = new_tokenizer;
                     if (this->length >= this->max_length) { this->resize(); }
                     this->tokenizers[this->length++] = new_tokenizer;
-                    cout << "[PREPROCESSER] " << this->length << endl;
 
                     // Don't forget to add the new path to the list of included paths
                     this->included_paths.push_back(token->raw);
@@ -147,8 +149,50 @@ Token* Preprocessor::read_head(bool pop) {
                 #ifdef DEBUG
                 cout << "[PREPROCESSOR] Including system file '" << token->raw << "'" << endl;
                 #endif
-                
-                /* TBD */
+
+                // Only add a new tokenizer if we never seen it before
+                if (std::find(this->included_paths.begin(), this->included_paths.end(), token->raw) == this->included_paths.end()) {
+                    // Check if the given identifier exists
+                    size_t index = System::n_files;
+                    std::stringstream sstr;
+                    for (size_t i = 0; i < System::n_files; i++) {
+                        if (token->raw == System::names[i]) {
+                            index = i;
+                        }
+                        if (i > 0) {
+                            if (i == System::n_files - 1) { sstr << " or "; }
+                            else { sstr << ", "; }
+                        }
+                        sstr << '\'' << System::names[i] << '\'';
+                    }
+                    if (index == System::n_files) {
+                        // Not found; throw an error that it was an illegal system file
+                        throw Exceptions::IllegalSysFileException(token->debug, token->raw, sstr.str());
+                    }
+                    
+                    // Since it's valid, we add create a new tokenizer with the given string as input
+                    std::vector<std::string> new_filenames = this->current->filenames;
+                    new_filenames.push_back(token->raw);
+                    Tokenizer* new_tokenizer = new Tokenizer(new stringstream(System::files[index]), new_filenames);
+
+                    // Set it as the current tokenizer & add to the list
+                    this->current = new_tokenizer;
+                    if (this->length >= this->max_length) { this->resize(); }
+                    this->tokenizers[this->length++] = new_tokenizer;
+
+                    // Don't forget to add the new path to the list of included paths
+                    this->included_paths.push_back(token->raw);
+                }
+                #ifdef DEBUG
+                else {
+                    cout << "[PREPROCESSOR]  > No need, '" << token->raw << "' already included" << endl;
+                }
+                #endif
+
+                // Use recursion to return the first token in that tokenizer
+                delete token;
+                return this->read_head(pop);
+
             } else {
                 throw Exceptions::IllegalMacroValueException(token->debug, "include", tokentype_names[(int) token->type], "string or build-in identifier");
             }

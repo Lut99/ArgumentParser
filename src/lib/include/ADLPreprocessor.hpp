@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   04/12/2020, 17:47:44
+ *   12/5/2020, 3:52:54 PM
  * Auto updated?
  *   Yes
  *
@@ -65,6 +65,15 @@ namespace ArgumentParser {
                 macro(macro_name),
                 given(given_type),
                 expected(expected_type)
+            {}
+
+        };
+        /* Exception for when a system file is included that is not baked into this compiler. */
+        class IllegalSysFileException: public PreprocessorException {
+        public:
+            /* Constructor for the IllegalSysFileException class, which takes a DebugInfo struct linking this error to the source, the system file that was attempted to be included and a string describing those that can be included. */
+            IllegalSysFileException(const DebugInfo& debug, const std::string& given, const std::string& expected) :
+                PreprocessorException(debug, "Unknown system file '" + given + "' (this compiler only knows " + expected + ").")
             {}
 
         };

@@ -1,0 +1,161 @@
+/* STDTYPES.adl
+ *   by Lut99
+ *
+ * This file contains the often-used system types for the ADL. The types it
+ * adds are:
+ *  - 8-bit signed integers
+ *  - 8-bit unsigned integers
+ *  - 16-bit signed integers
+ *  - 16-bit unsigned integers
+ *  - 32-bit signed integers
+ *  - 32-bit unsigned integers
+ *  - 64-bit signed integers
+ *  - 64-bit unsigned integers
+ *  - single-precision (32-bit) floating-points
+ *  - double-precision (64-bit) floating-points
+ *  - booleans (true/false)
+ *  - strings (simply raw text)
+ *  - characters (single, readable character)
+ */
+
+
+/***** COMMON CODE *****/
+
+META {
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+
+
+/***** INTEGERS *****/
+
+/* Implements an 8-bit signed integer as ADL type. */
+<int8> {
+    .name "8-bit integer";
+    .pattern r"-?[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements an 8-bit unsigned integer as ADL type. */
+<uint8> {
+    .name "8-bit unsigned integer";
+    .pattern r"[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements a 16-bit signed integer as ADL type. */
+<int16> {
+    .name "16-bit integer";
+    .pattern r"-?[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements a 16-bit unsigned integer as ADL type. */
+<uint16> {
+    .name "16-bit unsigned integer";
+    .pattern r"[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements a 32-bit signed integer as ADL type. */
+<int32> {
+    .name "32-bit integer";
+    .pattern r"-?[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements a 32-bit unsigned integer as ADL type. */
+<uint32> {
+    .name "32-bit unsigned integer";
+    .pattern r"[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements a 64-bit signed integer as ADL type. */
+<int64> {
+    .name "64-bit integer";
+    .pattern r"-?[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Implements a 64-bit unsigned integer as ADL type. */
+<uint64> {
+    .name "64-bit unsigned integer";
+    .pattern r"[0-9]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+
+
+/***** FLOATING-POINT *****/
+
+/* 32-bit, single-precision floating-point. */
+<float> {
+    .name "Single-precision floating point";
+    .pattern r"-?[0-9]+\.";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* 64-bit, double-precision floating-point. */
+<double> {
+    .name "Double-precision floating point";
+    .pattern r"-?[0-9]+\.";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+
+
+/***** BOOLEANS *****/
+
+/* Boolean (true/false) value. */
+<bool> {
+    .name "Boolean";
+    .pattern r"(true)|(false)";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+
+
+/***** STRINGS *****/
+
+/* String (multi-character) value. */
+<string> {
+    .name "String";
+    .pattern r"[^]+";
+    .source ++{
+        /* TBD */
+    }++;
+}
+
+/* Char (single-character) value. */
+<char> {
+    .name "Character";
+    .pattern r"[^]";
+    .source ++{
+        /* TBD */
+    }++;
+}

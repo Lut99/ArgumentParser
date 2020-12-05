@@ -7,6 +7,7 @@ GXX_ARGS=-std=c++17 -O2 -Wall -Wextra
 # Folders
 SRC	=src
 LIB	=$(SRC)/lib
+ADLSYS=$(LIB)/adl
 INCL=$(LIB)/include
 BIN	=bin
 OBJ	=$(BIN)/obj
@@ -15,13 +16,15 @@ TEST=tests/
 # Required files
 AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
 AST = $(AST_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
-PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLPreprocessor.o $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(AST)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
+PREPROCESSOR = $(INCL)/adl/ADLBaked.hpp $(OBJ)/ADLPreprocessor.o $(TOKENIZER)
+PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(PREPROCESSOR) $(AST)
 
 # Prepare the list of includes and use that to extend the list of directories we need to make
 INCLUDE_DIRS = $(shell find $(INCL) -type d)
 INCLUDE = $(INCLUDE_DIRS:%=-I%)
 DIRS = $(BIN) $(OBJ) $(INCLUDE_DIRS:$(INCL)/%=$(OBJ)/%)
+ADL_SYSTEM = $(shell find $(ADLSYS) -name '*.adl')
 
 
 
@@ -33,14 +36,15 @@ endif
 
 
 ##### PHONY RULES #####
-.PHONY: default test_tokenizer all dirs clean
+.PHONY: default test_tokenizer test_parser bake_adl all dirs clean
 default: all
 
-all: test_tokenizer
+all: test_tokenizer test_parser bake_adl
 
 clean:
 	-find $(OBJ) -name "*.o" -type f -delete
 	-rm -f $(BIN)/*.out
+	-rm -f $(INCL)/adl/ADLBaked.hpp
 
 
 
@@ -60,6 +64,8 @@ $(OBJ)/AST/configs:
 	mkdir -p $@
 $(OBJ)/AST/types:
 	mkdir -p $@
+$(OBJ)/adl:
+	mkdir -p $@
 dirs: $(DIRS)
 
 
@@ -68,10 +74,11 @@ dirs: $(DIRS)
 
 $(OBJ)/%.o: $(LIB)/%.cpp | dirs
 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
-# $(OBJ)/AST/%.o: $(LIB)/AST/%.cpp | dirs
-# 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
-# $(OBJ)/AST/values/%.o: $(LIB)/AST/values/%.cpp | dirs
-# 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
+
+# Specialized rule for baking in the required system files
+$(INCL)/adl/ADLBaked.hpp: $(LIB)/adl/bakery.sh $(INCL)/adl/ADLBaked_template.hpp $(ADL_SYSTEM)
+	bash $^ $@
+bake_adl: $(INCL)/adl/ADLBaked.hpp
 
 
 

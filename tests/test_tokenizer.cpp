@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   26/11/2020, 15:17:58
+ *   12/5/2020, 3:41:33 PM
  * Auto updated?
  *   Yes
  *
@@ -14,6 +14,7 @@
 **/
 
 #include <iostream>
+#include <fstream>
 
 #include "ADLTokenizer.hpp"
 
@@ -23,31 +24,36 @@ using namespace ArgumentParser;
 
 int main() {
     // Open the test.adl file
-    Tokenizer tokenizer({ "tests/test.adl" });
+    try {
+        Tokenizer tokenizer(new std::ifstream("tests/test.adl"), { "tests/test.adl" });
 
-    size_t last_line = 0;
-    while (!tokenizer.eof()) {
-        // Get the token
-        Token* t;
-        try {
-            t = tokenizer.pop();
-        } catch (Exceptions::ADLCompileError& e) {
-            Exceptions::print_error(cerr, e);
-            exit(EXIT_FAILURE);
+        size_t last_line = 0;
+        while (!tokenizer.eof()) {
+            // Get the token
+            Token* t;
+            try {
+                t = tokenizer.pop();
+            } catch (Exceptions::ADLCompileError& e) {
+                Exceptions::print_error(cerr, e);
+                exit(EXIT_FAILURE);
+            }
+
+            // If the line changed, then go to a newline
+            if (last_line != t->debug.line1) {
+                last_line = t->debug.line1;
+                cout << endl;
+            } else {
+                cout << " ";
+            }
+
+            // Write it
+            cout << *t;
+
+            // Deallocate the token
+            delete t;
         }
-
-        // If the line changed, then go to a newline
-        if (last_line != t->debug.line1) {
-            last_line = t->debug.line1;
-            cout << endl;
-        } else {
-            cout << " ";
-        }
-
-        // Write it
-        cout << *t;
-
-        // Deallocate the token
-        delete t;
+    } catch(Exceptions::ADLError& e) {
+        Exceptions::print_error(cerr, e);
+        return EXIT_FAILURE;
     }
 }

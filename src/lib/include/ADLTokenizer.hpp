@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   04/12/2020, 17:31:00
+ *   12/5/2020, 2:38:46 PM
  * Auto updated?
  *   Yes
  *
@@ -16,10 +16,10 @@
 #ifndef ADL_TOKENIZER_HPP
 #define ADL_TOKENIZER_HPP
 
+#include <istream>
 #include <ostream>
 #include <string>
 #include <vector>
-#include <cstdio>
 #include <cstring>
 #include <exception>
 #include <unordered_map>
@@ -388,8 +388,8 @@ namespace ArgumentParser {
     /* The Tokenizer class can be used to open a file and read it token-by-token. Might throw any of the abovely-defined exceptions if syntax errors occur. */
     class Tokenizer {
     private:
-        /* The file from which we will read the tokens. */
-        FILE* file;
+        /* Pointer to the istream from which we read characters. */
+        std::istream* file;
         /* Counter used internally over the line numbers. */
         size_t line;
         /* Counter used internall over the column numbers. */
@@ -413,8 +413,8 @@ namespace ArgumentParser {
         /* The path we are currently parsing. */
         const std::string path;
 
-        /* Constructor for the Tokenizer class, which takes the path to the file we should read (as the last path of a path of breadcrumbs). */
-        Tokenizer(const std::vector<std::string>& filenames);
+        /* Constructor for the Tokenizer class, which takes an input stream and a path of file breadcrumbs telling the Tokenizer from where it's reading. */
+        Tokenizer(std::istream* stream, const std::vector<std::string>& filenames);
         /* The copy constructor for the Tokenizer class has been deleted, as it makes no sense to copy a stream (which the Tokenizer pretends to be). */
         Tokenizer(const Tokenizer& other) = delete;
         /* Move constructor for the Tokenizer class. */

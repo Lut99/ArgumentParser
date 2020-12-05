@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   03/12/2020, 23:14:31
+ *   12/5/2020, 3:39:11 PM
  * Auto updated?
  *   Yes
  *
@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 #include "ADLTokenizer.hpp"
 
@@ -32,8 +33,8 @@ using namespace ArgumentParser;
 
 /* Shortcut for fetching the head character of the internal stream. */
 #define PEEK(C) \
-    (C) = fgetc(this->file); \
-    if ((C) == EOF && ferror(this->file)) { throw Exceptions::FileReadError(this->filenames, errno); }
+    (C) = this->file->get(); \
+    if ((C) == EOF && this->file->bad()) { throw Exceptions::FileReadError(this->filenames, errno); }
 
 /* Shortcut for accepting a token and storing it. */
 #define STORE(C) \
@@ -46,7 +47,7 @@ using namespace ArgumentParser;
 
 /* Rejects a token from the stream, by putting it back. */
 #define REJECT(C) \
-    ungetc((C), this->file);
+    this->file->putback((C));
 
 /* Parses given Token as a number (i.e., integral value) and returns it as a ValueToken. */
 Token* parse_number(Token* token) {
@@ -189,19 +190,19 @@ ValueToken<T>* ValueToken<T>::copy() const { return new ValueToken<T>(*this); }
 
 /***** TOKENIZER CLASS *****/
 
-/* Constructor for the Tokenizer class, which takes the path to the file we should read. */
-Tokenizer::Tokenizer(const std::vector<std::string>& filenames) :
-    line(1),
+
+/* Constructor for the Tokenizer class, which takes an input stream and a path of file breadcrumbs telling the Tokenizer from where it's reading. */
+Tokenizer::Tokenizer(std::istream* stream, const std::vector<std::string>& filenames) :
+    file(stream),
     col(1),
     last_newline(0),
     done_tokenizing(false),
     filenames(filenames),
     path(filenames[filenames.size() - 1])
 {
-    // Try to open the file
-    this->file = fopen(this->path.c_str(), "r");
-    if (this->file == NULL) {
-        throw Exceptions::FileOpenError(this->filenames, errno);   
+    // Check if opening the file succeeded
+    if (dynamic_cast<ifstream*>(stream) && !((ifstream*) stream)->is_open()) {
+        throw Exceptions::FileOpenError(filenames, errno);
     }
 
     // Reserve space for at least one token on the stream
@@ -220,7 +221,7 @@ Tokenizer::Tokenizer(Tokenizer&& other) :
     path(other.path)
 {
     // Set the other's file pointer to NULL
-    other.file = NULL;
+    other.file = nullptr;
 
     // Also clear the other's list of tokens
     other.temp.clear();
@@ -229,7 +230,7 @@ Tokenizer::Tokenizer(Tokenizer&& other) :
 /* Destructor for the Tokenizer class. */
 Tokenizer::~Tokenizer() {
     // Close the file
-    if (this->file != NULL) { fclose(this->file); }
+    if (this->file != nullptr) { delete this->file; }
 
     // Deallocate the temporary tokens
     for (size_t i = 0; i < this->temp.size(); i++) {
@@ -377,7 +378,7 @@ start:
             // Increment the line and then try again
             ++this->line;
             this->col = 1;
-            this->last_newline = ftell(this->file);
+            this->last_newline = this->file->tellg();
             goto start;
         } else if (is_whitespace(c)) {
             // Re-try
@@ -917,7 +918,7 @@ snippet_multiline_start:
             // Skip, but do update the line counters
             this->col = 1;
             this->line++;
-            this->last_newline = ftell(this->file);
+            this->last_newline = this->file->tellg();
             result->raw.push_back(c);
             goto snippet_multiline_start;
         } else if (c == EOF) {
@@ -1082,7 +1083,7 @@ multiline_start:
             // Skip, but do update the line counters
             this->col = 1;
             this->line++;
-            this->last_newline = ftell(this->file);
+            this->last_newline = this->file->tellg();
             goto multiline_start;
         } else if (c == EOF) {
             // Whoa! Reached unterminated comment!
@@ -1149,23 +1150,24 @@ macro_start:
 /* Reads the entire, given line from the internal file, used for error messaging. */
 LineSnippet Tokenizer::get_line() {
     // Store the current file position
-    long cursor = ftell(this->file);
+    long cursor = this->file->tellg();
 
     // Restore the file stream indicator to the most recent newline
-    fseek(this->file, this->last_newline, SEEK_SET);
+    this->file->seekg(this->last_newline);
 
     // We are now at the start of the correct line; read until we encounter EOF or newline
     std::stringstream sstr;
     while (true) {
-        char c = fgetc(this->file);
+        char c;
+        this->file->get(c);
         sstr << c;
-        if (c == '\n' || (c == EOF && feof(this->file))) {
+        if (c == '\n' || (c == EOF && this->file->eof())) {
             // Restore the initial file position and return
-            fseek(this->file, cursor, SEEK_SET);
+            this->file->seekg(cursor);
             break;
-        } else if (c == EOF && ferror(this->file)) {
+        } else if (c == EOF && this->file->fail()) {
             // Restore the initial file position and return an empty one
-            fseek(this->file, cursor, SEEK_SET);
+            this->file->seekg(cursor);
             return std::string();
         }
     }
