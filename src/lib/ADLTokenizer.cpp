@@ -1,10 +1,10 @@
 /* ADLTOKENIZER.cpp
- *   by Anonymous
+ *   by Lut99
  *
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   12/5/2020, 3:39:11 PM
+ *   12/5/2020, 5:52:15 PM
  * Auto updated?
  *   Yes
  *

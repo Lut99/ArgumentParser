@@ -1,10 +1,10 @@
 /* ADLTOKENIZER.hpp
- *   by Anonymous
+ *   by Lut99
  *
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   12/5/2020, 2:38:46 PM
+ *   12/5/2020, 5:52:10 PM
  * Auto updated?
  *   Yes
  *
