@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   03/12/2020, 23:12:19
+ *   06/12/2020, 13:51:46
  * Auto updated?
  *   Yes
  *
@@ -35,6 +35,46 @@ namespace ArgumentParser {
             {}
 
         };
+
+        /* Exception for when a starting curly bracket is missing. */
+        class MissingLCurlyError: public ParseError {
+        public:
+            /* Constructor for the the MissingLCurlyError class, which takes a debug info struct for where we expected the lcurly to be. */
+            MissingLCurlyError(const DebugInfo& debug) :
+                ParseError(debug, "Expected a left curly bracket to start the definition body.")
+            {}
+
+            /* Copies the MissingLCurlyError polymorphically. */
+            virtual MissingLCurlyError* copy() const { return new MissingLCurlyError(*this); }
+
+        };
+        /* Exception for when a semicolon is missing. */
+        class MissingSemicolonError: public ParseError {
+        public:
+            /* Constructor for the the MissingSemicolonError class, which takes a debug info struct for where we expected the semicolon to be. */
+            MissingSemicolonError(const DebugInfo& debug) :
+                ParseError(debug, "Expected a semicolon to end a property definition.")
+            {}
+
+            /* Copies the MissingSemicolonError polymorphically. */
+            virtual MissingSemicolonError* copy() const { return new MissingSemicolonError(*this); }
+
+        };
+
+        /* Exception for when a property definition is found without values. */
+        class EmptyConfigError: public ParseError {
+        public:
+            /* Constructor for the the EmptyConfigError class, which takes a debug info struct to the config parameter. */
+            EmptyConfigError(const DebugInfo& debug) :
+                ParseError(debug, "Property definition cannot be empty; specify at least one value.")
+            {}
+
+            /* Copies the EmptyConfigError polymorphically. */
+            virtual EmptyConfigError* copy() const { return new EmptyConfigError(*this); }
+
+        };
+
+
 
         /* Baseclass exception for all Parser-related warnings. */
         class ParseWarning : public ADLCompileWarning {

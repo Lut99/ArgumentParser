@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   12/5/2020, 5:42:20 PM
+ *   06/12/2020, 13:53:12
  * Auto updated?
  *   Yes
  *
@@ -48,6 +48,9 @@ namespace ArgumentParser {
                 macro(macro)
             {}
 
+            /* Copies the UnknownMacroException polymorphically. */
+            virtual UnknownMacroException* copy() const { return new UnknownMacroException(*this); }
+
         };
         /* Exception for when a macro-token is followed by an unsupported value type for that macro, but we haven't implemented that particular token. */
         class IllegalMacroValueException: public PreprocessorException {
@@ -67,6 +70,9 @@ namespace ArgumentParser {
                 expected(expected_type)
             {}
 
+            /* Copies the IllegalMacroValueException polymorphically. */
+            virtual IllegalMacroValueException* copy() const { return new IllegalMacroValueException(*this); }
+
         };
         /* Exception for when a system file is included that is not baked into this compiler. */
         class IllegalSysFileException: public PreprocessorException {
@@ -75,6 +81,9 @@ namespace ArgumentParser {
             IllegalSysFileException(const DebugInfo& debug, const std::string& given, const std::string& expected) :
                 PreprocessorException(debug, "Unknown system file '" + given + "' (this compiler only knows " + expected + ").")
             {}
+
+            /* Copies the IllegalSysFileException polymorphically. */
+            virtual IllegalSysFileException* copy() const { return new IllegalSysFileException(*this); }
 
         };
         /* Exception for when an ifdef is not closed before the end of the file. */
@@ -85,6 +94,9 @@ namespace ArgumentParser {
                 PreprocessorException(debug, "Encountered #ifdef without closing #endif.")
             {}
 
+            /* Copies the UnmatchedIfdefException polymorphically. */
+            virtual UnmatchedIfdefException* copy() const { return new UnmatchedIfdefException(*this); }
+
         };
         /* Exception for when an ifndef is not closed before the end of the file. */
         class UnmatchedIfndefException: public PreprocessorException {
@@ -94,6 +106,9 @@ namespace ArgumentParser {
                 PreprocessorException(debug, "Encountered #ifndef without closing #endif.")
             {}
 
+            /* Copies the UnmatchedIfndefException polymorphically. */
+            virtual UnmatchedIfndefException* copy() const { return new UnmatchedIfndefException(*this); }
+
         };
         /* Exception for when an endif is given without starting ifdef or ifndef. */
         class UnmatchedEndifException: public PreprocessorException {
@@ -102,6 +117,9 @@ namespace ArgumentParser {
             UnmatchedEndifException(const DebugInfo& debug) :
                 PreprocessorException(debug, "Encountered #endif without starting #ifdef or #ifndef.")
             {}
+
+            /* Copies the UnmatchedEndifException polymorphically. */
+            virtual UnmatchedEndifException* copy() const { return new UnmatchedEndifException(*this); }
 
         };
 
@@ -125,6 +143,9 @@ namespace ArgumentParser {
                 PreprocessorWarning("duplicate-define", debug, "Define '" + define + "' is already defined.")
             {}
 
+            /* Copies the DuplicateDefineWarning polymorphically. */
+            virtual DuplicateDefineWarning* copy() const { return new DuplicateDefineWarning(*this); }
+
         };
         /* Warning for when a define was attempted to be undefined, but it was never defined in the first place. */
         class MissingDefineWarning: public PreprocessorWarning {
@@ -133,6 +154,9 @@ namespace ArgumentParser {
             MissingDefineWarning(const DebugInfo& debug, const std::string& define) :
                 PreprocessorWarning("missing-define", debug, "Define '" + define + "' is not defined.")
             {}
+
+            /* Copies the MissingDefineWarning polymorphically. */
+            virtual MissingDefineWarning* copy() const { return new MissingDefineWarning(*this); }
 
         };
 

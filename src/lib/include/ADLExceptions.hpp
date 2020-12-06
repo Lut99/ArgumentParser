@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   03/12/2020, 22:53:46
+ *   06/12/2020, 14:01:28
  * Auto updated?
  *   Yes
  *
@@ -56,6 +56,9 @@ namespace ArgumentParser::Exceptions {
         /* Implementation for std::exception's what() function, so that it's compatible with C++'s uncaught-exception handling. */
         virtual const char* what() const noexcept { return this->message.c_str(); }
 
+        /* Copies the exception polymorphically. */
+        virtual ADLException* copy() const = 0;
+
     };
 
 
@@ -105,15 +108,6 @@ namespace ArgumentParser::Exceptions {
             type(type)
         {}
 
-        /* Pretty-prints this Exception as warning. */
-        virtual std::ostream& write(std::ostream& os) const {
-            // Just print the file, 'warning' the message and the warning type, since we don't have any more information
-            for (size_t i = 0; i < this->filenames.size() - 1; i++) {
-                os << "\033[1m" << this->filenames[i] << ":\033[0m" << std::endl << "--> ";
-            }
-            return os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ": \033[35mwarning:\033[0m " << this->message << " [\033[35;1m-W" << this->type << "\033[0m]" << std::endl;
-        }
-
     };
 
     /* Baseclass exception for all non-recoverable errors that are specific to a certain position within a file. */
@@ -140,10 +134,78 @@ namespace ArgumentParser::Exceptions {
 
 
 
-    /* Creates a pretty string for a derived ADLError class. */
-    std::ostream& print_error(std::ostream& os, const ADLError& e);
-    /* Creates a pretty string for a derived ADLWarning class. */
-    std::ostream& print_warning(std::ostream& os, const ADLWarning& e);
+    /* Exception that stores additional information to accompany an error or warning. Always references a particular place in a source file. */
+    class ADLNote: public ADLException {
+    public:
+        /* The debug information of this warning. */
+        const DebugInfo debug;
+
+        /* Constructor for the ADLNote class, which takes a DebugInfo struct to link the location of this error in a source file and a message making the note. */
+        ADLNote(const DebugInfo& debug, const std::string& message) :
+            ADLException(debug.filenames, message),
+            debug(debug)
+        {}
+        
+        /* Copies the ADLNote polymorphically. */
+        virtual ADLNote* copy() const;
+
+    };
+
+
+
+    /* Class that is used to group and then neatly print all exceptions and warnings in the ADL compiler. */
+    class ExceptionHandler {
+    private:
+        /* Pointer to the list of all stored exceptions. */
+        ADLException** exceptions;
+        /* Number of exceptions stored in this handler. */
+        size_t length;
+        /* Maximum number of exception we allocated space for. */
+        size_t max_length;
+
+        /* Resizes the internal array, by doubling its size. */
+        void resize();
+
+        /* Creates a pretty string for a derived ADLError class. */
+        static std::ostream& print_error(std::ostream& os, const ADLError& e);
+        /* Creates a pretty string for a derived ADLWarning class. */
+        static std::ostream& print_warning(std::ostream& os, const ADLWarning& e);
+        /* Creates a pretty string for a derived ADLNote class. */
+        static std::ostream& print_note(std::ostream& os, const ADLNote& e);
+
+    public:
+        /* Default constructor for the ExceptionHandler class, which optionally takes the initial size of the internal array. */
+        ExceptionHandler(size_t initial_capacity=4);
+        /* Copy constructor for the ExceptionHandler class. */
+        ExceptionHandler(const ExceptionHandler& other);
+        /* Move constructor for the ExceptionHandler class. */
+        ExceptionHandler(ExceptionHandler&& other);
+        /* Destructor for the ExceptionHandler class. */
+        ~ExceptionHandler();
+
+        /* Adds a new exception to the handler. Any other exceptions are expected to be derivatives of the ADLNote exceptions, and are thus used to elaborate some on existing errors. */
+        template <class... NOTES>
+        void add_exception(const ADLException& except, NOTES...);
+        /* Returns a constant reference to the i'th exception in this handler. */
+        inline const ADLException& operator[](size_t i) const { return *(this->exceptions[i]); }
+        /* Returns the number of exceptions currently stored in this handler. */
+        inline size_t size() const { return this->length; }
+        
+        /* Neatly prints all exceptions in this ExceptionHandler. */
+        friend std::ostream& operator<<(std::ostream& os, const ExceptionHandler& except);
+
+        /* Copy assignment operator for the ExceptionHandler class. */
+        inline ExceptionHandler& operator=(const ExceptionHandler& other) { return *this = ExceptionHandler(other); }
+        /* Move assignment operator for the ExceptionHandler class. */
+        ExceptionHandler& operator=(ExceptionHandler&& other);
+        /* Swap operator for the ExceptionHandler class. */
+        friend void swap(ExceptionHandler& eh1, ExceptionHandler& eh2);
+
+    };
+    /* Neatly prints all exceptions in this ExceptionHandler. */
+    std::ostream& operator<<(std::ostream& os, const ExceptionHandler& except);
+    /* Swap operator for the ExceptionHandler class. */
+    void swap(ExceptionHandler& eh1, ExceptionHandler& eh2);
 
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   12/5/2020, 5:52:10 PM
+ *   06/12/2020, 13:56:51
  * Auto updated?
  *   Yes
  *
@@ -53,6 +53,9 @@ namespace ArgumentParser {
                 err_no(err_no)
             {}
 
+            /* Copies the IOError polymorphically. */
+            virtual IOError* copy() const { return new IOError(*this); }
+
         };
         /* Exception for when a file could not be opened. */
         class FileOpenError : public IOError {
@@ -62,6 +65,9 @@ namespace ArgumentParser {
                 IOError(filenames, err_no, "Could not open file: " + std::string(std::strerror(err_no)))
             {}
 
+            /* Copies the FileOpenError polymorphically. */
+            virtual FileOpenError* copy() const { return new FileOpenError(*this); }
+
         };
         /* Exception for when a read error occurred. */
         class FileReadError : public IOError {
@@ -70,6 +76,9 @@ namespace ArgumentParser {
             FileReadError(const std::vector<std::string>& filenames, const int err_no) :
                 IOError(filenames, err_no, "Could not read from file: " + std::string(std::strerror(err_no)))
             {}
+
+            /* Copies the FileReadError polymorphically. */
+            virtual FileReadError* copy() const { return new FileReadError(*this); }
 
         };
 
@@ -97,6 +106,9 @@ namespace ArgumentParser {
                 c(c)
             {}
 
+            /* Copies the UnexpectedCharException polymorphically. */
+            virtual UnexpectedCharException* copy() const { return new UnexpectedCharException(*this); }
+
         };
         /* Exception for when a single dash isn't followed by an expected character. */
         class EmptyShortlabelException: public SyntaxError {
@@ -105,6 +117,9 @@ namespace ArgumentParser {
             EmptyShortlabelException(const DebugInfo& debug) :
                 SyntaxError(debug, "Encountered empty shortlabel.")
             {}
+
+            /* Copies the EmptyShortlabelException polymorphically. */
+            virtual EmptyShortlabelException* copy() const { return new EmptyShortlabelException(*this); }
 
         };
         /* Exception for when a dash isn't empty, but isn't followed by an expected character either. */
@@ -119,6 +134,9 @@ namespace ArgumentParser {
                 c(c)
             {}
 
+            /* Copies the IllegalShortlabelException polymorphically. */
+            virtual IllegalShortlabelException* copy() const { return new IllegalShortlabelException(*this); }
+
         };
         /* Exception for when a double dash isn't followed by an expected character. */
         class EmptyLonglabelException: public SyntaxError {
@@ -127,6 +145,9 @@ namespace ArgumentParser {
             EmptyLonglabelException(const DebugInfo& debug) :
                 SyntaxError(debug,  "Encountered empty longlabel.")
             {}
+
+            /* Copies the EmptyLonglabelException polymorphically. */
+            virtual EmptyLonglabelException* copy() const { return new EmptyLonglabelException(*this); }
 
         };
         /* Exception for when a dash isn't empty, but isn't followed by an expected character either. */
@@ -141,6 +162,9 @@ namespace ArgumentParser {
                 c(c)
             {}
 
+            /* Copies the IllegalLonglabelException polymorphically. */
+            virtual IllegalLonglabelException* copy() const { return new IllegalLonglabelException(*this); }
+
         };
         /* Exception for when a triple dash isn't followed by an expected character. */
         class EmptyNegativeException: public SyntaxError {
@@ -149,6 +173,9 @@ namespace ArgumentParser {
             EmptyNegativeException(const DebugInfo& debug) :
                 SyntaxError(debug, "Encountered negative sign without value.")
             {}
+
+            /* Copies the EmptyNegativeException polymorphically. */
+            virtual EmptyNegativeException* copy() const { return new EmptyNegativeException(*this); }
 
         };
         /* Exception for when a dash isn't empty, but isn't followed by an expected character either. */
@@ -163,6 +190,9 @@ namespace ArgumentParser {
                 c(c)
             {}
 
+            /* Copies the IllegalNegativeException polymorphically. */
+            virtual IllegalNegativeException* copy() const { return new IllegalNegativeException(*this); }
+
         };
         /* Exception for when a triple dash isn't followed by an expected character. */
         class EmptyTypeException: public SyntaxError {
@@ -171,6 +201,9 @@ namespace ArgumentParser {
             EmptyTypeException(const DebugInfo& debug) :
                 SyntaxError(debug, "Encountered empty type identifier.")
             {}
+
+            /* Copies the EmptyTypeException polymorphically. */
+            virtual EmptyTypeException* copy() const { return new EmptyTypeException(*this); }
 
         };
         /* Exception for when a type contains illegal characters. */
@@ -185,6 +218,9 @@ namespace ArgumentParser {
                 c(c)
             {}
 
+            /* Copies the IllegalTypeException polymorphically. */
+            virtual IllegalTypeException* copy() const { return new IllegalTypeException(*this); }
+
         };
         /* Exception for when boolean brackets () are given but nothing is in them. */
         class EmptyBooleanException: public SyntaxError {
@@ -194,6 +230,9 @@ namespace ArgumentParser {
                 SyntaxError(debug, "Encountered empty boolean value.")
             {}
   
+            /* Copies the EmptyBooleanException polymorphically. */
+            virtual EmptyBooleanException* copy() const { return new EmptyBooleanException(*this); }
+
         };
         /* Exception for when boolean brackets () are given but neither 'true' nor 'false' is in them. */
         class IllegalBooleanException: public SyntaxError {
@@ -207,6 +246,9 @@ namespace ArgumentParser {
                 value(value)
             {}
   
+            /* Copies the IllegalBooleanException polymorphically. */
+            virtual IllegalBooleanException* copy() const { return new IllegalBooleanException(*this); }
+
         };
         /* Exception for when an illegal character is parsed while parsing strings. */
         class IllegalStringException: public SyntaxError {
@@ -229,6 +271,9 @@ namespace ArgumentParser {
                 c(c)
             {}
 
+            /* Copies the IllegalStringException polymorphically. */
+            virtual IllegalStringException* copy() const { return new IllegalStringException(*this); }
+
         };
         /* Exception for when a macro contains no characters. */
         class EmptyMacroException: public SyntaxError {
@@ -237,6 +282,9 @@ namespace ArgumentParser {
             EmptyMacroException(const DebugInfo& debug) :
                 SyntaxError(debug, "Encountered macro without name.")
             {}
+
+            /* Copies the EmptyMacroException polymorphically. */
+            virtual EmptyMacroException* copy() const { return new EmptyMacroException(*this); }
 
         };
 
@@ -248,6 +296,9 @@ namespace ArgumentParser {
                 SyntaxError(debug, "Unterminated type identifier encountered.")
             {}
 
+            /* Copies the UnterminatedTypeException polymorphically. */
+            virtual UnterminatedTypeException* copy() const { return new UnterminatedTypeException(*this); }
+
         };
         /* Exception for when a string value is unterminated. Contains a nested exception that contains an extra note. */
         class UnterminatedStringException: public SyntaxError {
@@ -256,6 +307,9 @@ namespace ArgumentParser {
             UnterminatedStringException(const DebugInfo& debug) :
                 SyntaxError(debug, "Unterminated string encountered.")
             {}
+
+            /* Copies the UnterminatedStringException polymorphically. */
+            virtual UnterminatedStringException* copy() const { return new UnterminatedStringException(*this); }
 
         };
         /* Exception for when a boolean is unterminated. Contains a nested exception that contains an extra note. */
@@ -266,6 +320,9 @@ namespace ArgumentParser {
                 SyntaxError(debug, "Unterminated boolean value encountered.")
             {}
 
+            /* Copies the UnterminatedBooleanException polymorphically. */
+            virtual UnterminatedBooleanException* copy() const { return new UnterminatedBooleanException(*this); }
+
         };
         /* Exception for when a multi-line comment is unterminated. Contains a nested exception that contains an extra note. */
         class UnterminatedMultilineException: public SyntaxError {
@@ -274,6 +331,9 @@ namespace ArgumentParser {
             UnterminatedMultilineException(const DebugInfo& debug) :
                 SyntaxError(debug, "Unterminated multi-comment encountered.")
             {}
+
+            /* Copies the UnterminatedMultilineException polymorphically. */
+            virtual UnterminatedMultilineException* copy() const { return new UnterminatedMultilineException(*this); }
 
         };
 
@@ -299,6 +359,9 @@ namespace ArgumentParser {
                 OutOfRangeWarning(debug, "Overflow of integral constant (larger than " + std::to_string(std::numeric_limits<long>::max()) + ")")
             {}
 
+            /* Copies the OverflowWarning polymorphically. */
+            virtual OverflowWarning* copy() const { return new OverflowWarning(*this); }
+
         };
         /* Exception that is thrown when a given floating-point number overflows. */
         class FloatOverflowWarning: public OutOfRangeWarning {
@@ -308,6 +371,9 @@ namespace ArgumentParser {
                 OutOfRangeWarning(debug, "Overflow of decimal constant (larger than " + std::to_string(std::numeric_limits<double>::max()) + ")")
             {}
 
+            /* Copies the FloatOverflowWarning polymorphically. */
+            virtual FloatOverflowWarning* copy() const { return new FloatOverflowWarning(*this); }
+
         };
         /* Exception that is thrown when a given number underflows (i.e., it's smaller than T::min()). */
         class UnderflowWarning: public OutOfRangeWarning {
@@ -316,6 +382,9 @@ namespace ArgumentParser {
             UnderflowWarning(const DebugInfo& debug) :
                 OutOfRangeWarning(debug, "Underflow of integral constant (smaller than " + std::to_string(std::numeric_limits<long>::min()) + ")")
             {}
+
+            /* Copies the UnderflowWarning polymorphically. */
+            virtual UnderflowWarning* copy() const { return new UnderflowWarning(*this); }
 
         };
     }

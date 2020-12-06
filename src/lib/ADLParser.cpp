@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/5/2020, 5:59:31 PM
+ *   06/12/2020, 13:27:50
  * Auto updated?
  *   Yes
  *
@@ -187,9 +187,13 @@ definition_start:
                     prev_nonterm = nullptr;
                     goto definitions_body;
                 
+                case TokenType::config:
+                    // Found config without matching values or semicolon
+                    throw Exceptions::EmptyConfigError(term->debug());
+                
                 default:
-                    // Not a valid token, so ignore it
-                    return "";
+                    // In every other case, we assume there to be a missing left curly
+                    throw Exceptions::MissingLCurlyError(DebugInfo(term->debug().filenames, term->debug().line2, term->debug().col2 + 1, term->debug().raw_line));
 
             }
         } else {
@@ -199,16 +203,17 @@ definition_start:
                     // If it's a list of configurations, we're on the good way!
                     prev_nonterm = nterm->node();
                     goto definition_configs;
+                
+                case NodeType::values:
+                    // Missing semicolon
+                    throw Exceptions::MissingSemicolonError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line));
 
                 default:
-                    // Not a valid token, so ignore it
-                    return "";
+                    // In every other case, we assume there to be a missing left curly
+                    throw Exceptions::MissingLCurlyError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line));
 
             }
         }
-
-        // If we didn't jump, we failed
-        return "";
     }
 
 
