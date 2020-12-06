@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   12/5/2020, 5:52:15 PM
+ *   06/12/2020, 18:40:02
  * Auto updated?
  *   Yes
  *
@@ -69,7 +69,7 @@ Token* parse_number(Token* token) {
         if (modifier > 0) {
             // Check if it won't get out-of-bounds for the positive add
             if (!warned && result > (numeric_limits<long>::max() / 10.0) - value) {
-                Exceptions::print_warning(cerr, Exceptions::OverflowWarning(token->debug));
+                Exceptions::log(Exceptions::OverflowWarning(token->debug));
                 warned = true;
             }
 
@@ -79,7 +79,7 @@ Token* parse_number(Token* token) {
         } else {
             // Check if it won't get out-of-bounds for the negative add
             if (!warned && result < (numeric_limits<long>::min() / 10.0) + value) {
-                Exceptions::print_warning(cerr, Exceptions::UnderflowWarning(token->debug));
+                Exceptions::log(Exceptions::UnderflowWarning(token->debug));
                 warned = true;
             }
 
@@ -111,7 +111,7 @@ Token* parse_decimal(Token* token) {
         result = modifier * std::stod(raw);
     } catch (std::out_of_range& e) {
         // Print as the overflow warning
-        Exceptions::print_warning(cerr, Exceptions::FloatOverflowWarning(token->debug));
+        Exceptions::log(Exceptions::FloatOverflowWarning(token->debug));
         result = std::numeric_limits<double>::max();
     }
 

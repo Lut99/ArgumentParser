@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   06/12/2020, 14:01:28
+ *   06/12/2020, 18:41:38
  * Auto updated?
  *   Yes
  *
@@ -56,6 +56,9 @@ namespace ArgumentParser::Exceptions {
         /* Implementation for std::exception's what() function, so that it's compatible with C++'s uncaught-exception handling. */
         virtual const char* what() const noexcept { return this->message.c_str(); }
 
+        /* Function that prints the error to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const = 0;
+
         /* Copies the exception polymorphically. */
         virtual ADLException* copy() const = 0;
 
@@ -70,6 +73,9 @@ namespace ArgumentParser::Exceptions {
         ADLError(const std::vector<std::string>& filenames, const std::string& message = "") :
             ADLException(filenames, message)
         {}
+
+        /* Function that prints the error to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
 
     };
 
@@ -92,6 +98,9 @@ namespace ArgumentParser::Exceptions {
             debug(debug)
         {}
 
+        /* Function that prints the compilation error to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
+
     };
 
 
@@ -107,6 +116,9 @@ namespace ArgumentParser::Exceptions {
             ADLException(filenames, message),
             type(type)
         {}
+
+        /* Function that prints the warning to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
 
     };
 
@@ -130,6 +142,9 @@ namespace ArgumentParser::Exceptions {
             debug(debug)
         {}
 
+        /* Function that prints the compilation warning to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
+
     };
 
 
@@ -149,6 +164,9 @@ namespace ArgumentParser::Exceptions {
         /* Copies the ADLNote polymorphically. */
         virtual ADLNote* copy() const;
 
+        /* Function that prints the note to the given output stream. */
+        virtual std::ostream& print(std::ostream& os) const;
+
     };
 
 
@@ -166,12 +184,11 @@ namespace ArgumentParser::Exceptions {
         /* Resizes the internal array, by doubling its size. */
         void resize();
 
-        /* Creates a pretty string for a derived ADLError class. */
-        static std::ostream& print_error(std::ostream& os, const ADLError& e);
-        /* Creates a pretty string for a derived ADLWarning class. */
-        static std::ostream& print_warning(std::ostream& os, const ADLWarning& e);
-        /* Creates a pretty string for a derived ADLNote class. */
-        static std::ostream& print_note(std::ostream& os, const ADLNote& e);
+        /* Private function that prints a note to the parser and then throws the given main error. */
+        void add_note(const ADLNote& note);
+        /* Private function that recursively adds extra notes to the parser. */
+        template <class... NOTES>
+        void add_note(const ADLNote& note, NOTES... rest);
 
     public:
         /* Default constructor for the ExceptionHandler class, which optionally takes the initial size of the internal array. */
@@ -183,9 +200,12 @@ namespace ArgumentParser::Exceptions {
         /* Destructor for the ExceptionHandler class. */
         ~ExceptionHandler();
 
-        /* Adds a new exception to the handler. Any other exceptions are expected to be derivatives of the ADLNote exceptions, and are thus used to elaborate some on existing errors. */
+        /* Adds a new exception to the handler. */
+        void Throw(const ADLException& except);
+        /* Adds a new exception to the handler, which accompanying notes to add to this exception. */
         template <class... NOTES>
-        void add_exception(const ADLException& except, NOTES...);
+        void Throw(const ADLException& except, NOTES... notes);
+        
         /* Returns a constant reference to the i'th exception in this handler. */
         inline const ADLException& operator[](size_t i) const { return *(this->exceptions[i]); }
         /* Returns the number of exceptions currently stored in this handler. */
@@ -206,6 +226,11 @@ namespace ArgumentParser::Exceptions {
     std::ostream& operator<<(std::ostream& os, const ExceptionHandler& except);
     /* Swap operator for the ExceptionHandler class. */
     void swap(ExceptionHandler& eh1, ExceptionHandler& eh2);
+
+
+
+    /* Static error handler, which can be used to write errors to from the entire parser. */
+    static ExceptionHandler error_handler;
 
 }
 

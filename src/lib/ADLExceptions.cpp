@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   06/12/2020, 14:02:48
+ *   06/12/2020, 18:40:34
  * Auto updated?
  *   Yes
  *
@@ -21,10 +21,239 @@ using namespace ArgumentParser;
 using namespace ArgumentParser::Exceptions;
 
 
+/***** ADLERROR CLASS *****/
+
+/* Function that prints the error to the given output stream. */
+std::ostream& ADLError::print(std::ostream& os) const {
+    // Always print the possible list of breadcrumbs first
+    for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+        os << "\033[1m" << this->filenames[i] << ":\033[0m" << endl << "--> ";
+    }
+
+    // Then, we can also always print the filename itself
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":";
+    
+    // Continue with the error & the message
+    os << " \033[31merror: \033[0m" << this->message << endl;
+
+    // Done
+    return os;
+}
+
+
+
+
+
+/***** ADLCOMPILEERROR CLASS *****/
+
+/* Function that prints the compilation error to the given output stream. */
+std::ostream& ADLCompileError::print(std::ostream& os) const {
+    const DebugInfo& debug = this->debug;
+
+    // Always print the possible list of breadcrumbs first
+    for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+        os << "\033[1m" << this->filenames[i] << ":\033[0m" << endl << "--> ";
+    }
+
+    // Then, we can also always print the filename itself
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[31merror: \033[0m" << this->message << endl;
+
+    // Print the line number + spacing
+    std::string strline = std::to_string(debug.line1);
+    for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
+    os << strline;
+    os << " | ";
+
+    // Print the raw_line, with the correct characters in red
+    const std::string& sraw = debug.raw_line.snippet;
+    size_t line_i = debug.line1;
+    bool red_mode = false;
+    for (size_t i = 0; i < sraw.size(); i++) {
+        // If we're at the correct pos in the string, write the red-marker
+        if (line_i == debug.line1 && i + 1 == debug.col1) {
+            os << "\033[31;1m";
+            red_mode = true;
+        }
+
+        // Write the character, possibly doing neat newline padding
+        os << sraw[i];
+        if (i < sraw.size() - 1 && sraw[i] == '\n') {
+            if (red_mode) { os << "\033[0m"; }
+            os << "      | ";
+            if (red_mode) { os << "\033[31;1m"; }
+        }
+
+        // If we're at the correct pos in the string, go back to white text
+        if (line_i == debug.line2 && i + 1 == debug.col2) {
+            os << "\033[0m";
+            red_mode = false;
+        }
+    }
+    // Add a newline if the last character wasn't
+    if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
+
+    // Next, write the same but with spaces and wiggly bits
+    os << "      | ";
+    for (size_t i = 1; i < debug.col1; i++) { os << ' '; }
+    // Write enough '^'s
+    os << "\033[31;1m";
+    for (size_t i = 0; i < debug.col2 - debug.col1 + 1; i++) { os << '^'; }
+    os << "\033[0m" << endl;
+
+    // Done
+    return os;
+}
+
+
+
+
+
+/***** ADLWARNING CLASS *****/
+
+/* Function that prints the warning to the given output stream. */
+std::ostream& ADLWarning::print(std::ostream& os) const {
+    // Always print the possible list of breadcrumbs first
+    for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+        os << "\033[1m" << this->filenames[i] << ":\033[0m" << endl << "--> ";
+    }
+
+    // Then, we can also always print the filename itself
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m-W" << this->type << "\033[0m]" << endl;
+
+    // Done
+    return os;
+}
+
+
+
+
+
+/***** ADLCOMPILEWARNING CLASS *****/
+
+/* Function that prints the compilation warning to the given output stream. */
+std::ostream& ADLCompileWarning::print(std::ostream& os) const {
+    const DebugInfo& debug = this->debug;
+
+    // Always print the possible list of breadcrumbs first
+    for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+        os << "\033[1m" << this->filenames[i] << ":\033[0m" << endl << "--> ";
+    }
+
+    // Then, we can also always print the filename itself
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m-W" << this->type << "\033[0m]" << endl;
+
+    // Print the line number + spacing
+    std::string strline = std::to_string(debug.line1);
+    for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
+    os << strline;
+    os << " | ";
+
+    // Print the raw_line, with the correct characters in red
+    const std::string& sraw = debug.raw_line.snippet;
+    size_t line_i = debug.line1;
+    bool red_mode = false;
+    for (size_t i = 0; i < sraw.size(); i++) {
+        // If we're at the correct pos in the string, write the red-marker
+        if (line_i == debug.line1 && i + 1 == debug.col1) {
+            os << "\033[35;1m";
+            red_mode = true;
+        }
+
+        // Write the character, possibly doing neat newline padding
+        os << sraw[i];
+        if (i < sraw.size() - 1 && sraw[i] == '\n') {
+            if (red_mode) { os << "\033[0m"; }
+            os << "      | ";
+            if (red_mode) { os << "\033[35;1m"; }
+        }
+
+        // If we're at the correct pos in the string, go back to white text
+        if (line_i == debug.line2 && i + 1 == debug.col2) {
+            os << "\033[0m";
+            red_mode = false;
+        }
+    }
+    // Add a newline if the last character wasn't
+    if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
+
+    // Next, write the same but with spaces and wiggly bits
+    os << "      | ";
+    for (size_t i = 1; i < debug.col1; i++) { os << ' '; }
+    // Write enough '^'s
+    os << "\033[35;1m";
+    for (size_t i = 0; i < debug.col2 - debug.col1 + 1; i++) { os << '^'; }
+    os << "\033[0m" << endl;
+
+    // Done
+    return os;
+}
+
+
+
+
+
 /***** ADLNOTE CLASS *****/
 
 /* Copies the ADLNote polymorphically. */
 ADLNote* ADLNote::copy() const { return new ADLNote(*this); }
+
+/* Function that prints the note to the given output stream. */
+std::ostream& ADLNote::print(std::ostream& os) const {
+    const DebugInfo& debug = this->debug;
+
+    // Always print the possible list of breadcrumbs first
+    for (size_t i = 0; i < this->filenames.size() - 1; i++) {
+        os << "\033[1m" << this->filenames[i] << ":\033[0m" << endl << "--> ";
+    }
+
+    // Then, we can also always print the filename itself
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[36mnote: \033[0m" << this->message << endl;
+
+    // Print the line number + spacing
+    std::string strline = std::to_string(debug.line1);
+    for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
+    os << strline;
+    os << " | ";
+
+    // Print the raw_line, with the correct characters in cyan
+    const std::string& sraw = debug.raw_line.snippet;
+    size_t line_i = debug.line1;
+    bool red_mode = false;
+    for (size_t i = 0; i < sraw.size(); i++) {
+        // If we're at the correct pos in the string, write the red-marker
+        if (line_i == debug.line1 && i + 1 == debug.col1) {
+            os << "\033[36;1m";
+            red_mode = true;
+        }
+
+        // Write the character, possibly doing neat newline padding
+        os << sraw[i];
+        if (i < sraw.size() - 1 && sraw[i] == '\n') {
+            if (red_mode) { os << "\033[0m"; }
+            os << "      | ";
+            if (red_mode) { os << "\033[36;1m"; }
+        }
+
+        // If we're at the correct pos in the string, go back to white text
+        if (line_i == debug.line2 && i + 1 == debug.col2) {
+            os << "\033[0m";
+            red_mode = false;
+        }
+    }
+    // Add a newline if the last character wasn't
+    if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
+
+    // Next, write the same but with spaces and wiggly bits
+    os << "      | ";
+    for (size_t i = 1; i < debug.col1; i++) { os << ' '; }
+    // Write enough '^'s
+    os << "\033[36;1m";
+    for (size_t i = 0; i < debug.col2 - debug.col1 + 1; i++) { os << '^'; }
+    os << "\033[0m" << endl;
+
+    // We're done!
+    return os;
+}
 
 
 
@@ -83,213 +312,85 @@ void ExceptionHandler::resize() {
     size_t new_max_length = this->max_length * 2;
     ADLException** new_exceptions = new ADLException*[new_max_length];
 
-    /* TBD */
+    // Move all the elements over
+    for (size_t i = 0; i < this->length; i++) {
+        new_exceptions[i] = this->exceptions[i];
+    }
+
+    // Replace the existing lists
+    delete this->exceptions;
+    this->max_length = new_max_length;
+    this->exceptions = new_exceptions;
 }
 
 
 
-/* Creates a pretty string for a derived ADLError class. */
-std::ostream& ExceptionHandler::print_error(std::ostream& os, const Exceptions::ADLError& e) {
-    bool is_derived = dynamic_cast<ADLCompileError const*>(&e);
+/* Private function that adds a single note to the parser. */
+void ExceptionHandler::add_note(const ADLNote& note) {
+    // Check if there is enough space left
+    if (this->length >= this->max_length) { this->resize(); }
 
-    // Always print the possible list of breadcrumbs first
-    for (size_t i = 0; i < e.filenames.size() - 1; i++) {
-        os << "\033[1m" << e.filenames[i] << ":\033[0m" << endl << "--> ";
+    // Add the node only
+    this->exceptions[this->length++] = note.copy();
+}
+
+/* Private function that recursively adds extra notes to the parser. */
+template <class... NOTES>
+void ExceptionHandler::add_note(const ADLNote& note, NOTES... rest) {
+    // Add a single node
+    this->add_note(note);
+
+    // Add the rest with the rest of the recursion
+    this->add_note(notes...);
+}
+
+
+
+/* Adds a new exception to the handler. */
+void ExceptionHandler::Throw(const ADLException& except) {
+    // Check if there is enough space left
+    if (this->length >= this->max_length) { this->resize(); }
+
+    // Add the exception only
+    this->exceptions[this->length++] = except.copy();
+}
+
+/* Adds a new exception to the handler, which accompanying notes to add to this exception. */
+template <class... NOTES>
+void ExceptionHandler::Throw(const ADLException& except, NOTES... notes) {
+    // First, add this exception
+    this->add_exception(except);
+
+    // Then, add any nodes using the internal recursion
+    this->add_note(notes...);
+}
+
+
+
+/* Neatly prints all exceptions in this ExceptionHandler. */
+std::ostream& Exceptions::operator<<(std::ostream& os, const ExceptionHandler& handler) {
+    // Simply print each of the exceptions
+    for (size_t i = 0; i < handler.length; i++) {
+        handler.exceptions[i]->print(os);
     }
 
-    // Then, we can also always print the filename itself
-    os << "\033[1m" << e.filenames[e.filenames.size() - 1] << ":";
-    // If we are actually a Compile error, append the line & column number
-    if (is_derived) {
-        const ADLCompileError& ce = (const ADLCompileError&) e;
-        os << ce.debug.line1 << ":" << ce.debug.col1  << ":";
-    }
-    // Continue with the error & the message
-    os << " \033[31merror: \033[0m" << e.message << endl;
-
-    // Next, if we're derived, append the raw line and the indicator where it went wrong
-    if (is_derived) {
-        // Cast to the derived class
-        const ADLCompileError& ce = (const ADLCompileError&) e;
-        const DebugInfo& debug = ce.debug;
-
-        // Print the line number + spacing
-        std::string strline = std::to_string(debug.line1);
-        for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
-        os << strline;
-        os << " | ";
-
-        // Print the raw_line, with the correct characters in red
-        const std::string& sraw = debug.raw_line.snippet;
-        size_t line_i = debug.line1;
-        bool red_mode = false;
-        for (size_t i = 0; i < sraw.size(); i++) {
-            // If we're at the correct pos in the string, write the red-marker
-            if (line_i == debug.line1 && i + 1 == debug.col1) {
-                os << "\033[31;1m";
-                red_mode = true;
-            }
-
-            // Write the character, possibly doing neat newline padding
-            os << sraw[i];
-            if (i < sraw.size() - 1 && sraw[i] == '\n') {
-                if (red_mode) { os << "\033[0m"; }
-                os << "      | ";
-                if (red_mode) { os << "\033[31;1m"; }
-            }
-
-            // If we're at the correct pos in the string, go back to white text
-            if (line_i == debug.line2 && i + 1 == debug.col2) {
-                os << "\033[0m";
-                red_mode = false;
-            }
-        }
-        // Add a newline if the last character wasn't
-        if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
-
-        // Next, write the same but with spaces and wiggly bits
-        os << "      | ";
-        for (size_t i = 1; i < debug.col1; i++) { os << ' '; }
-        // Write enough '^'s
-        os << "\033[31;1m";
-        for (size_t i = 0; i < debug.col2 - debug.col1 + 1; i++) { os << '^'; }
-        os << "\033[0m" << endl;
-    }
-
-    // Done
+    // When all is done, return the stream
     return os;
 }
 
-/* Creates a pretty string for a derived ADLWarning class. */
-std::ostream& ExceptionHandler::print_warning(std::ostream& os, const Exceptions::ADLWarning& e) {
-    bool is_derived = dynamic_cast<ADLCompileWarning const*>(&e);
 
-    // Always print the possible list of breadcrumbs first
-    for (size_t i = 0; i < e.filenames.size() - 1; i++) {
-        os << "\033[1m" << e.filenames[i] << ":\033[0m" << endl << "--> ";
-    }
 
-    // Then, we can also always print the filename itself
-    os << "\033[1m" << e.filenames[e.filenames.size() - 1] << ":";
-    // If we are actually a Compile warning, append the line & column number
-    if (is_derived) {
-        const ADLCompileWarning& ce = (const ADLCompileWarning&) e;
-        os << ce.debug.line1 << ":" << ce.debug.col1  << ":";
-    }
-    // Continue with the warning & the message
-    os << " \033[35mwarning: \033[0m" << e.message << " [\033[35;1m-W" << e.type << "\033[0m]" << endl;
-
-    // Next, if we're derived, append the raw line and the indicator where it went wrong
-    if (is_derived) {
-        // Cast to the derived class
-        const ADLCompileWarning& ce = (const ADLCompileWarning&) e;
-        const DebugInfo& debug = ce.debug;
-
-        // Print the line number + spacing
-        std::string strline = std::to_string(debug.line1);
-        for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
-        os << strline;
-        os << " | ";
-
-        // Print the raw_line, with the correct characters in red
-        const std::string& sraw = debug.raw_line.snippet;
-        size_t line_i = debug.line1;
-        bool red_mode = false;
-        for (size_t i = 0; i < sraw.size(); i++) {
-            // If we're at the correct pos in the string, write the red-marker
-            if (line_i == debug.line1 && i + 1 == debug.col1) {
-                os << "\033[35;1m";
-                red_mode = true;
-            }
-
-            // Write the character, possibly doing neat newline padding
-            os << sraw[i];
-            if (i < sraw.size() - 1 && sraw[i] == '\n') {
-                if (red_mode) { os << "\033[0m"; }
-                os << "      | ";
-                if (red_mode) { os << "\033[35;1m"; }
-            }
-
-            // If we're at the correct pos in the string, go back to white text
-            if (line_i == debug.line2 && i + 1 == debug.col2) {
-                os << "\033[0m";
-                red_mode = false;
-            }
-        }
-        // Add a newline if the last character wasn't
-        if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
-
-        // Next, write the same but with spaces and wiggly bits
-        os << "      | ";
-        for (size_t i = 1; i < debug.col1; i++) { os << ' '; }
-        // Write enough '^'s
-        os << "\033[35;1m";
-        for (size_t i = 0; i < debug.col2 - debug.col1 + 1; i++) { os << '^'; }
-        os << "\033[0m" << endl;
-    }
-
-    // Done
-    return os;
+/* Move assignment operator for the ExceptionHandler class. */
+ExceptionHandler& ExceptionHandler::operator=(ExceptionHandler&& other) {
+    if (this != &other) { swap(*this, other); }
+    return *this;
 }
 
-/* Creates a pretty string for a derived ADLNote class. */
-std::ostream& ExceptionHandler::print_note(std::ostream& os, const ADLNote& e) {
-    const DebugInfo& debug = e.debug;
+/* Swap operator for the ExceptionHandler class. */
+void Exceptions::swap(ExceptionHandler& eh1, ExceptionHandler& eh2) {
+    using std::swap;
 
-    // Always print the possible list of breadcrumbs first
-    for (size_t i = 0; i < e.filenames.size() - 1; i++) {
-        os << "\033[1m" << e.filenames[i] << ":\033[0m" << endl << "--> ";
-    }
-
-    // Then, we can also always print the filename itself
-    os << "\033[1m" << e.filenames[e.filenames.size() - 1] << ":";
-    // If we are actually a Compile warning, append the line & column number
-    os << debug.line1 << ":" << debug.col1  << ":";
-    // Continue with the note & the message
-    os << " \033[36mnote: \033[0m" << e.message << endl;
-
-    // Print the line number + spacing
-    std::string strline = std::to_string(debug.line1);
-    for (size_t i = strline.size(); i < 5; i++) { os << ' '; }
-    os << strline;
-    os << " | ";
-
-    // Print the raw_line, with the correct characters in cyan
-    const std::string& sraw = debug.raw_line.snippet;
-    size_t line_i = debug.line1;
-    bool red_mode = false;
-    for (size_t i = 0; i < sraw.size(); i++) {
-        // If we're at the correct pos in the string, write the red-marker
-        if (line_i == debug.line1 && i + 1 == debug.col1) {
-            os << "\033[36;1m";
-            red_mode = true;
-        }
-
-        // Write the character, possibly doing neat newline padding
-        os << sraw[i];
-        if (i < sraw.size() - 1 && sraw[i] == '\n') {
-            if (red_mode) { os << "\033[0m"; }
-            os << "      | ";
-            if (red_mode) { os << "\033[36;1m"; }
-        }
-
-        // If we're at the correct pos in the string, go back to white text
-        if (line_i == debug.line2 && i + 1 == debug.col2) {
-            os << "\033[0m";
-            red_mode = false;
-        }
-    }
-    // Add a newline if the last character wasn't
-    if (sraw[sraw.size() - 1] != '\n') { os << '\n'; }
-
-    // Next, write the same but with spaces and wiggly bits
-    os << "      | ";
-    for (size_t i = 1; i < debug.col1; i++) { os << ' '; }
-    // Write enough '^'s
-    os << "\033[36;1m";
-    for (size_t i = 0; i < debug.col2 - debug.col1 + 1; i++) { os << '^'; }
-    os << "\033[0m" << endl;
-
-    // We're done!
-    return os;
+    swap(eh1.exceptions, eh2.exceptions);
+    swap(eh1.length, eh2.length);
+    swap(eh1.max_length, eh2.max_length);
 }
