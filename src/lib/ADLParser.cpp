@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   06/12/2020, 13:27:50
+ *   07/12/2020, 21:43:01
  * Auto updated?
  *   Yes
  *
@@ -189,11 +189,13 @@ definition_start:
                 
                 case TokenType::config:
                     // Found config without matching values or semicolon
-                    throw Exceptions::EmptyConfigError(term->debug());
+                    Exceptions::log(Exceptions::EmptyConfigError(term->debug()));
+                    return "";
                 
                 default:
                     // In every other case, we assume there to be a missing left curly
-                    throw Exceptions::MissingLCurlyError(DebugInfo(term->debug().filenames, term->debug().line2, term->debug().col2 + 1, term->debug().raw_line));
+                    Exceptions::log(Exceptions::MissingLCurlyError(DebugInfo(term->debug().filenames, term->debug().line2, term->debug().col2 + 1, term->debug().raw_line)));
+                    return "";
 
             }
         } else {
@@ -206,11 +208,13 @@ definition_start:
                 
                 case NodeType::values:
                     // Missing semicolon
-                    throw Exceptions::MissingSemicolonError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line));
+                    Exceptions::log(Exceptions::MissingSemicolonError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line)));
+                    return "";
 
                 default:
                     // In every other case, we assume there to be a missing left curly
-                    throw Exceptions::MissingLCurlyError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line));
+                    Exceptions::log(Exceptions::MissingLCurlyError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line)));
+                    return "";
 
             }
         }
@@ -223,17 +227,29 @@ definition_configs:
         // Start by looking at the top of the stack
         PEEK(symbol, iter, n_symbols);
 
+        // Prepare a Debug struct to put the correct error location in
+        DebugInfo debug = di_empty;
+
         // Do different things based on whether it is a terminal or not
         Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal && term->type() == TokenType::l_curly) {
-            // Yes! Very good! Now continue
-            goto definitions_body;
-            
-        } else {
-            // Not what we're looking for
-            return "";
+        if (symbol->is_terminal) {
+            std::cout << term->debug().line1 << ':' << *term << std::endl;
+            if (term->type() == TokenType::l_curly) {
+                // Yes! Very good! Now continue
+                goto definitions_body;
 
+            } else {
+                // Read the debug as terminal
+                debug = term->debug();
+            }
+        } else {
+            // Read the debug as nonterminal
+            debug = ((NonTerminal*) symbol)->debug();
         }
+
+        // If here, it wasn't an LCurly
+        Exceptions::log(Exceptions::MissingLCurlyError(debug));
+        return "";
     }
 
 

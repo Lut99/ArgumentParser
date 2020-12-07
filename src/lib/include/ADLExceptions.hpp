@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   06/12/2020, 18:41:38
+ *   07/12/2020, 20:51:06
  * Auto updated?
  *   Yes
  *
@@ -16,6 +16,7 @@
 #ifndef ADL_EXCEPTIONS_HPP
 #define ADL_EXCEPTIONS_HPP
 
+#include <iostream>
 #include <exception>
 #include <string>
 #include <vector>
@@ -188,11 +189,24 @@ namespace ArgumentParser::Exceptions {
         void add_note(const ADLNote& note);
         /* Private function that recursively adds extra notes to the parser. */
         template <class... NOTES>
-        void add_note(const ADLNote& note, NOTES... rest);
+        void add_note(const ADLNote& note, NOTES... rest) {
+            // Note the note in our internal list, resizing as needed
+            if (this->length >= this->max_length) { this->resize(); }
+            this->exceptions[this->length++] = note.copy();
+    
+            // Don't forget to print it
+            if (this->print_on_add) { note.print(std::cerr); }
+
+            // Add the rest with the rest of the recursion
+            this->add_note(rest...);
+        }
 
     public:
-        /* Default constructor for the ExceptionHandler class, which optionally takes the initial size of the internal array. */
-        ExceptionHandler(size_t initial_capacity=4);
+        /* Stores whether or not we should print each exception when we add it. */
+        bool print_on_add;
+        
+        /* Default constructor for the ExceptionHandler class, which optionally takes whether or not exceptions should be printed immediately and the initial size of the internal array. */
+        ExceptionHandler(bool print_on_add = true, size_t initial_capacity=4);
         /* Copy constructor for the ExceptionHandler class. */
         ExceptionHandler(const ExceptionHandler& other);
         /* Move constructor for the ExceptionHandler class. */
@@ -201,10 +215,23 @@ namespace ArgumentParser::Exceptions {
         ~ExceptionHandler();
 
         /* Adds a new exception to the handler. */
-        void Throw(const ADLException& except);
+        ExceptionHandler& log(const ADLException& except);
         /* Adds a new exception to the handler, which accompanying notes to add to this exception. */
         template <class... NOTES>
-        void Throw(const ADLException& except, NOTES... notes);
+        ExceptionHandler& log(const ADLException& except, NOTES... notes) {
+            // Log the exception in our internal list
+            if (this->length >= this->max_length) { this->resize(); }
+            this->exceptions[this->length++] = except.copy();
+    
+            // Don't forget to print it
+            if (this->print_on_add) { except.print(std::cerr); }
+
+            // Then, use the notes recursion to add each note
+            this->add_note(notes...);
+
+            // When done, return ourselves so we may potentially be thrown
+            return *this;
+        }
         
         /* Returns a constant reference to the i'th exception in this handler. */
         inline const ADLException& operator[](size_t i) const { return *(this->exceptions[i]); }
@@ -231,6 +258,14 @@ namespace ArgumentParser::Exceptions {
 
     /* Static error handler, which can be used to write errors to from the entire parser. */
     static ExceptionHandler error_handler;
+
+
+    
+    /* Shortcut for the handler's log function. */
+    inline ExceptionHandler& log(const ADLException& except) { return error_handler.log(except); }
+    /* Shortcut for the handler's log function (with note support). */
+    template <class... NOTES>
+    inline ExceptionHandler& log(const ADLException& except, NOTES... notes) { return error_handler.log(except, notes...); }
 
 }
 

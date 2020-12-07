@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   12/5/2020, 3:41:33 PM
+ *   07/12/2020, 21:06:11
  * Auto updated?
  *   Yes
  *
@@ -31,29 +31,26 @@ int main() {
         while (!tokenizer.eof()) {
             // Get the token
             Token* t;
-            try {
-                t = tokenizer.pop();
-            } catch (Exceptions::ADLCompileError& e) {
-                Exceptions::print_error(cerr, e);
-                exit(EXIT_FAILURE);
-            }
+            t = tokenizer.pop();
 
             // If the line changed, then go to a newline
-            if (last_line != t->debug.line1) {
-                last_line = t->debug.line1;
+            bool at_least_one = false;
+            while (last_line < t->debug.line1) {
+                ++last_line;
+                at_least_one = true;
                 cout << endl;
-            } else {
+            }
+            if (at_least_one) {
                 cout << " ";
             }
 
             // Write it
-            cout << *t;
+            cout << t->debug.line1 << ":" << t->debug.col1 << ":" << *t;
 
             // Deallocate the token
             delete t;
         }
-    } catch(Exceptions::ADLError& e) {
-        Exceptions::print_error(cerr, e);
+    } catch(Exceptions::ExceptionHandler& e) {
         return EXIT_FAILURE;
     }
 }

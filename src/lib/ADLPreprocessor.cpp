@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 21:52:46
  * Last edited:
- *   12/5/2020, 5:49:24 PM
+ *   07/12/2020, 21:14:25
  * Auto updated?
  *   Yes
  *
@@ -142,7 +142,9 @@ Token* Preprocessor::include_handler(bool pop, Token* token) {
             }
             if (index == System::n_files) {
                 // Not found; throw an error that it was an illegal system file
-                throw Exceptions::IllegalSysFileException(token->debug, token->raw, sstr.str());
+                Exceptions::log(Exceptions::IllegalSysFileException(token->debug, token->raw, sstr.str()));
+                // Use recursion to find the next token instead
+                return this->read_head(pop);
             }
             
             // Since it's valid, we add create a new tokenizer with the given string as input
@@ -169,7 +171,9 @@ Token* Preprocessor::include_handler(bool pop, Token* token) {
         return this->read_head(pop);
 
     } else {
-        throw Exceptions::IllegalMacroValueException(token->debug, "include", tokentype_names[(int) token->type], "string or build-in identifier");
+        Exceptions::log(Exceptions::IllegalMacroValueException(token->debug, "include", tokentype_names[(int) token->type], "string or build-in identifier"));
+        // Use recursion to find the next token instead
+        return this->read_head(pop);
     }
 }
 
@@ -180,7 +184,9 @@ Token* Preprocessor::define_handler(bool pop, Token* token) {
     delete token;
     token = this->current->pop();
     if (token->type != TokenType::identifier) {
-        throw Exceptions::IllegalMacroValueException(token->debug, "define", tokentype_names[(int) token->type], "define identifier");
+        Exceptions::log(Exceptions::IllegalMacroValueException(token->debug, "define", tokentype_names[(int) token->type], "define identifier"));
+        // Use recursion to find the next token instead
+        return this->read_head(pop);
     }
 
     #ifdef DEBUG
@@ -189,7 +195,7 @@ Token* Preprocessor::define_handler(bool pop, Token* token) {
 
     // Check if we already included this one
     if (this->contains(this->defines, token->raw)) {
-        Exceptions::print_warning(cerr, Exceptions::DuplicateDefineWarning(token->debug, token->raw));
+        Exceptions::log(Exceptions::DuplicateDefineWarning(token->debug, token->raw));
     } else {
         // Add it to the internal list
         this->defines.push_back(token->raw);
@@ -207,7 +213,9 @@ Token* Preprocessor::undefine_handler(bool pop, Token* token) {
     delete token;
     token = this->current->pop();
     if (token->type != TokenType::identifier) {
-        throw Exceptions::IllegalMacroValueException(token->debug, "undefine", tokentype_names[(int) token->type], "define identifier");
+        Exceptions::log(Exceptions::IllegalMacroValueException(token->debug, "undefine", tokentype_names[(int) token->type], "define identifier"));
+        // Use recursion to find the next token instead
+        return this->read_head(pop);
     }
 
     #ifdef DEBUG
@@ -217,7 +225,7 @@ Token* Preprocessor::undefine_handler(bool pop, Token* token) {
     // Check if we can remove this one
     size_t index;
     if (!this->contains(index, this->defines, token->raw)) {
-        Exceptions::print_warning(cerr, Exceptions::MissingDefineWarning(token->debug, token->raw));
+        Exceptions::log(Exceptions::MissingDefineWarning(token->debug, token->raw));
     } else {
         // Remove it from the internal list
         for (size_t i = index; i < this->defines.size() - 1; i++) {
@@ -241,7 +249,9 @@ Token* Preprocessor::ifdef_handler(bool pop, Token* token) {
     delete token;
     token = this->current->pop();
     if (token->type != TokenType::identifier) {
-        throw Exceptions::IllegalMacroValueException(token->debug, "ifdef", tokentype_names[(int) token->type], "define identifier");
+        Exceptions::log(Exceptions::IllegalMacroValueException(token->debug, "ifdef", tokentype_names[(int) token->type], "define identifier"));
+        // Use recursion to find the next token instead
+        return this->read_head(pop);
     }
 
     // Update the debug info with the identifier
@@ -274,7 +284,9 @@ Token* Preprocessor::ifdef_handler(bool pop, Token* token) {
                 }
             } else if (token->type == TokenType::empty) {
                 // Unclosed if-statement encountered!
-                throw Exceptions::UnmatchedIfdefException(debug);
+                Exceptions::log(Exceptions::UnmatchedIfdefException(debug));
+                // Use recursion to find the next token instead
+                return this->read_head(pop);
             }
         }
 
@@ -300,7 +312,9 @@ Token* Preprocessor::ifndef_handler(bool pop, Token* token) {
     delete token;
     token = this->current->pop();
     if (token->type != TokenType::identifier) {
-        throw Exceptions::IllegalMacroValueException(token->debug, "ifndef", tokentype_names[(int) token->type], "define identifier");
+        Exceptions::log(Exceptions::IllegalMacroValueException(token->debug, "ifndef", tokentype_names[(int) token->type], "define identifier"));
+        // Use recursion to find the next token instead
+        return this->read_head(pop);
     }
 
     // Update the debug info with the identifier
@@ -333,7 +347,9 @@ Token* Preprocessor::ifndef_handler(bool pop, Token* token) {
                 }
             } else if (token->type == TokenType::empty) {
                 // Unclosed if-statement encountered!
-                throw Exceptions::UnmatchedIfndefException(debug);
+                Exceptions::log(Exceptions::UnmatchedIfndefException(debug));
+                // Use recursion to find the next token instead
+                return this->read_head(pop);
             }
         }
 
@@ -354,7 +370,9 @@ Token* Preprocessor::endif_handler(bool pop, Token* token) {
     // Check if we have unmatched if-statements
     if (this->ifdefs == 0) {
         // We don't; unmatched endif
-        throw Exceptions::UnmatchedEndifException(token->debug);
+        Exceptions::log(Exceptions::UnmatchedEndifException(token->debug));
+        // Use recursion to find the next token instead
+        return this->read_head(pop);
     }
 
     #ifdef DEBUG
@@ -412,7 +430,9 @@ Token* Preprocessor::read_head(bool pop) {
         } else if (token->raw == "endif") {
             return this->endif_handler(pop, token);
         } else {
-            throw Exceptions::UnknownMacroException(token->debug, token->raw);
+            Exceptions::log(Exceptions::UnknownMacroException(token->debug, token->raw));
+            // Use recursion to find the next token instead
+            return this->read_head(pop);
         }
 
     } else if (token->type == TokenType::empty) {

@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   06/12/2020, 18:40:34
+ *   07/12/2020, 20:48:51
  * Auto updated?
  *   Yes
  *
@@ -261,10 +261,11 @@ std::ostream& ADLNote::print(std::ostream& os) const {
 
 /***** EXCEPTIONHANDLER CLASS *****/
 
-/* Default constructor for the ExceptionHandler class, which optionally takes the initial size of the internal array. */
-ExceptionHandler::ExceptionHandler(size_t initial_capacity) :
+/* Default constructor for the ExceptionHandler class, which optionally takes whether or not exceptions should be printed immediately and the initial size of the internal array. */
+ExceptionHandler::ExceptionHandler(bool print_on_add, size_t initial_capacity) :
     length(0),
-    max_length(initial_capacity)
+    max_length(initial_capacity),
+    print_on_add(print_on_add)
 {
     // Reserve space for the initial capacity
     this->exceptions = new ADLException*[this->max_length];
@@ -273,7 +274,8 @@ ExceptionHandler::ExceptionHandler(size_t initial_capacity) :
 /* Copy constructor for the ExceptionHandler class. */
 ExceptionHandler::ExceptionHandler(const ExceptionHandler& other) :
     length(other.length),
-    max_length(other.max_length)
+    max_length(other.max_length),
+    print_on_add(other.print_on_add)
 {
     // Allocate a new exceptions list
     this->exceptions = new ADLException*[this->max_length];
@@ -287,7 +289,8 @@ ExceptionHandler::ExceptionHandler(const ExceptionHandler& other) :
 ExceptionHandler::ExceptionHandler(ExceptionHandler&& other) :
     exceptions(other.exceptions),
     length(other.length),
-    max_length(other.max_length)
+    max_length(other.max_length),
+    print_on_add(other.print_on_add)
 {
     // Set the other's value to nullptr to prevent it from deallocating the exceptions
     other.exceptions = nullptr;
@@ -327,42 +330,27 @@ void ExceptionHandler::resize() {
 
 /* Private function that adds a single note to the parser. */
 void ExceptionHandler::add_note(const ADLNote& note) {
-    // Check if there is enough space left
+    // Note the note in our internal list, resizing as needed
     if (this->length >= this->max_length) { this->resize(); }
-
-    // Add the node only
     this->exceptions[this->length++] = note.copy();
-}
-
-/* Private function that recursively adds extra notes to the parser. */
-template <class... NOTES>
-void ExceptionHandler::add_note(const ADLNote& note, NOTES... rest) {
-    // Add a single node
-    this->add_note(note);
-
-    // Add the rest with the rest of the recursion
-    this->add_note(notes...);
+    
+    // Don't forget to print it
+    if (this->print_on_add) { note.print(cerr); }
 }
 
 
 
 /* Adds a new exception to the handler. */
-void ExceptionHandler::Throw(const ADLException& except) {
-    // Check if there is enough space left
+ExceptionHandler& ExceptionHandler::log(const ADLException& except) {
+    // Log the exception in our internal list
     if (this->length >= this->max_length) { this->resize(); }
-
-    // Add the exception only
     this->exceptions[this->length++] = except.copy();
-}
 
-/* Adds a new exception to the handler, which accompanying notes to add to this exception. */
-template <class... NOTES>
-void ExceptionHandler::Throw(const ADLException& except, NOTES... notes) {
-    // First, add this exception
-    this->add_exception(except);
+    // Don't forget to print it
+    if (this->print_on_add) { except.print(cerr); }
 
-    // Then, add any nodes using the internal recursion
-    this->add_note(notes...);
+    // When done, return ourselves so we may potentially be thrown
+    return *this;
 }
 
 
@@ -393,4 +381,5 @@ void Exceptions::swap(ExceptionHandler& eh1, ExceptionHandler& eh2) {
     swap(eh1.exceptions, eh2.exceptions);
     swap(eh1.length, eh2.length);
     swap(eh1.max_length, eh2.max_length);
+    swap(eh1.print_on_add, eh2.print_on_add);
 }

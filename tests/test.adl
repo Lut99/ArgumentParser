@@ -12,6 +12,7 @@
 #include stdtypes
 #include "tests/test_extern.adl"
 
+
 META {
     .auto_help (false);
 }
@@ -32,6 +33,7 @@ META {
     .name "Regex Test";
     .pattern <uint>.pattern r"-\.\/" <uint>.pattern r"-\.\/" <uint>.pattern;
     .source ++{
+        // Haha, this shouldn't cause errors! }++
         return ++<1>++;
     }++;
 }

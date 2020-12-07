@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 14:30:28
  * Last edited:
- *   03/12/2020, 23:21:15
+ *   07/12/2020, 21:12:44
  * Auto updated?
  *   Yes
  *
@@ -37,8 +37,7 @@ int main(int argc, char** argv) {
         delete tree;
 
         return EXIT_SUCCESS;
-    } catch (Exceptions::ADLError& e) {
-        Exceptions::print_error(cerr, e);
+    } catch (Exceptions::ExceptionHandler& e) {
         return EXIT_FAILURE;
     }
 }

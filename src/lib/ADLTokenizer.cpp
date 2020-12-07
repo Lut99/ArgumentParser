@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   06/12/2020, 18:40:02
+ *   07/12/2020, 21:30:31
  * Auto updated?
  *   Yes
  *
@@ -31,10 +31,24 @@ using namespace ArgumentParser;
 #define is_whitespace(C) \
     ((C) == ' ' || (C) == '\t' || (C) == '\r' || (C) == '\n')
 
+/* Macro that scans through the tokenizer's input stream until a whitespace is encountered, then it goes back to start. */
+#define RETRY_AT_WHITESPACE() \
+    ACCEPT(c); \
+    while (true) { \
+        char c; \
+        PEEK(c); \
+        if (is_whitespace(c)) { \
+            REJECT(c); \
+            goto start; \
+        } else { \
+            ACCEPT(c); \
+        } \
+    }
+
 /* Shortcut for fetching the head character of the internal stream. */
 #define PEEK(C) \
     (C) = this->file->get(); \
-    if ((C) == EOF && this->file->bad()) { throw Exceptions::FileReadError(this->filenames, errno); }
+    if ((C) == EOF && this->file->bad()) { throw Exceptions::log(Exceptions::FileReadError(this->filenames, errno)); }
 
 /* Shortcut for accepting a token and storing it. */
 #define STORE(C) \
@@ -194,6 +208,7 @@ ValueToken<T>* ValueToken<T>::copy() const { return new ValueToken<T>(*this); }
 /* Constructor for the Tokenizer class, which takes an input stream and a path of file breadcrumbs telling the Tokenizer from where it's reading. */
 Tokenizer::Tokenizer(std::istream* stream, const std::vector<std::string>& filenames) :
     file(stream),
+    line(1),
     col(1),
     last_newline(0),
     done_tokenizing(false),
@@ -202,7 +217,9 @@ Tokenizer::Tokenizer(std::istream* stream, const std::vector<std::string>& filen
 {
     // Check if opening the file succeeded
     if (dynamic_cast<ifstream*>(stream) && !((ifstream*) stream)->is_open()) {
-        throw Exceptions::FileOpenError(filenames, errno);
+        throw Exceptions::log(
+            Exceptions::FileOpenError(filenames, errno)
+        );
     }
 
     // Reserve space for at least one token on the stream
@@ -249,6 +266,10 @@ Token* Tokenizer::read_head() {
         return result;
     }
 
+    // Prepare additional debug struct used for multi-comment error handling
+    DebugInfo debug = di_empty;
+    debug.filenames = this->filenames;
+
     // Otherwise, parse from the stream
     char c;
     Token* result = new Token();
@@ -259,6 +280,7 @@ start:
         PEEK(c);
 
         // We can already deduce the line at this point, so put it in the result
+        result->raw.clear();
         result->debug.filenames = this->filenames;
         result->debug.raw_line = this->get_line();
 
@@ -319,7 +341,9 @@ start:
             ACCEPT(c);
             goto dot_start;
         } else if (c == '/') {
-            // Comment
+            // Comment start; note its location for multi-line debugging
+            debug.line1 = this->line;
+            debug.col1 = this->col;
             ACCEPT(c);
             goto comment_start;
         } else if (c == '[') {
@@ -394,7 +418,11 @@ start:
             this->done_tokenizing = true;
             return result;
         } else {
-            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            // Log the exception, and then move on to a newline
+            Exceptions::log(
+                Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -482,10 +510,17 @@ dash_start:
             goto dash_dash;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalShortlabelException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalShortlabelException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyShortlabelException(DebugInfo(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line())));
+            Exceptions::log(
+                Exceptions::EmptyShortlabelException(DebugInfo(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line())))
+            );
+            ACCEPT(c);
+            goto start;
         }
     }
 
@@ -511,10 +546,17 @@ dash_dash:
             goto number_start;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalLonglabelException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalLonglabelException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         } else {
             // Let the user know we encountered an empty option
-            throw Exceptions::EmptyLonglabelException(DebugInfo(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line())));
+            Exceptions::log(
+                Exceptions::EmptyLonglabelException(DebugInfo(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line())))
+            );
+            ACCEPT(c);
+            goto start;
         }
     }
 
@@ -561,13 +603,22 @@ type_start:
             // Unterminated type definition
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            throw Exceptions::UnterminatedTypeException(result->debug);
+            Exceptions::log(
+                Exceptions::UnterminatedTypeException(result->debug)
+            );
         } else if (c != '>') {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         } else {
             // Let the user know we encountered an empty type id
-            throw Exceptions::EmptyTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()));
+            Exceptions::log(
+                Exceptions::EmptyTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()))
+            );
+            ACCEPT(c);
+            goto start;
         }
     }
 
@@ -596,10 +647,15 @@ type_contd:
             // Unterminated type definition
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            throw Exceptions::UnterminatedTypeException(result->debug);
+            Exceptions::log(
+                Exceptions::UnterminatedTypeException(result->debug)
+            );
         } else {
             // Illegal character
-            throw Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -625,14 +681,28 @@ string_start:
             // Simply add the value and continue parsing
             STORE(c);
             goto string_start;
-        } else if (c == EOF) {
-            // Unterminated string
-            result->debug.line2 = this->line;
-            result->debug.col2 = this->col;
-            throw Exceptions::UnterminatedStringException(result->debug);
+        } else if (c == '\n' || c == EOF) {
+            // Unterminated string; do some debug magic and log it
+            result->debug.line2 = result->debug.line1;
+            result->debug.col2 = result->debug.col1;
+            Exceptions::ExceptionHandler& eh = Exceptions::log(
+                Exceptions::UnterminatedStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line())),
+                Exceptions::ADLNote(result->debug, "String started here.")
+            );
+            
+            // If we didn't see an EOF, continue trying; otherwise just throw and be done with it
+            if (c == '\n') {
+                ACCEPT(c);
+                goto start;
+            } else {
+                throw eh;
+            }
         } else {
             // Don't accept direct newlines
-            throw Exceptions::IllegalStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -650,7 +720,11 @@ string_escape:
             goto string_start;
         } else {
             // Non-readable character is escaped!
-            throw Exceptions::IllegalStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            ACCEPT(c);
+            goto start;
         }
     }
 
@@ -668,10 +742,17 @@ number_start:
             goto number_contd;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
-            throw Exceptions::IllegalNegativeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::IllegalNegativeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         } else {
-            // Let the user know we encountered an empty option
-            throw Exceptions::EmptyNegativeException(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line()));
+            // Let the user know we encountered an empty number
+            Exceptions::log(
+                Exceptions::EmptyNegativeException(DebugInfo(this->filenames, this->line, this->col - 1, this->get_line()))
+            );
+            ACCEPT(c);
+            goto start;
         }
     }
 
@@ -734,7 +815,11 @@ bool_start:
         while (true) {
             PEEK(c);
             if (is_whitespace(c) || c == EOF || c == ';') {
-                throw Exceptions::UnterminatedBooleanException(DebugInfo(this->filenames, result->debug.line1, result->debug.col1, this->line, this->col, result->debug.raw_line));
+                Exceptions::log(
+                    Exceptions::UnterminatedBooleanException(DebugInfo(this->filenames, result->debug.line1, result->debug.col1, this->line, this->col, result->debug.raw_line))
+                );
+                ACCEPT(c);
+                goto start;
             } else if (c == ')') {
                 break;
             }
@@ -755,9 +840,16 @@ bool_start:
             ACCEPT(c);
             return ValueToken<bool>::promote(result, false);
         } else if (val.empty()) {
-            throw Exceptions::EmptyBooleanException(DebugInfo(this->filenames, this->line, this->col, this->get_line()));
+            Exceptions::log(
+                Exceptions::EmptyBooleanException(DebugInfo(this->filenames, this->line, this->col, this->get_line()))
+            );
+            ACCEPT(c);
+            goto start;
         } else {
-            throw Exceptions::IllegalBooleanException(result->debug, val);
+            Exceptions::log(
+                Exceptions::IllegalBooleanException(result->debug, val)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -775,7 +867,10 @@ snippet_start:
             goto snippet_pp;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -793,7 +888,10 @@ snippet_pp:
             goto snippet_code;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -810,9 +908,18 @@ snippet_code:
             STORE(c);
             goto snippet_bracket;
         } else if (c == '/') {
-            // Go into any of the comment modes
-            ACCEPT(c);
+            // Go into any of the comment modes, noting the current position
+            debug.line1 = this->line;
+            debug.col1 = this->col;
+            STORE(c);
             goto snippet_comment_start;
+        } else if (c == '\n') {
+            // Store, but also increment the line counter
+            ++this->line;
+            this->col = 1;
+            this->last_newline = this->file->tellg();
+            result->raw.push_back(c);
+            goto snippet_code;
         } else {
             // Add to the token's value and keep parsing more snippet
             STORE(c);
@@ -849,9 +956,12 @@ snippet_end:
         // Choose the correct path forward
         if (c == '+') {
             // Done! Remove the last two values as these turned out to be obsolute, then return
+            result->raw.pop_back();
+            result->raw.pop_back();
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            result->debug.raw_line = this->get_line();
             ACCEPT(c);
-            result->raw.pop_back();
-            result->raw.pop_back();
             return result;
         } else {
             // It was nothing, keep on parsing it as usual
@@ -873,7 +983,10 @@ snippet_comment_start:
             STORE(c);
             goto snippet_singleline_start;
         } else if (c == '*') {
-            // Treat it as a multi-line comment
+            // Treat it as a multi-line comment, further noting its start
+            debug.line2 = this->line;
+            debug.col2 = this->col;
+            debug.raw_line = this->get_line();
             STORE(c);
             goto snippet_multiline_start;
         } else {
@@ -923,7 +1036,10 @@ snippet_multiline_start:
             goto snippet_multiline_start;
         } else if (c == EOF) {
             // Whoa! Reached unterminated comment!
-            throw Exceptions::UnterminatedMultilineException(result->debug);
+            throw Exceptions::log(
+                Exceptions::UnterminatedMultilineException(DebugInfo(this->filenames, this->line, this->col, this->get_line())),
+                Exceptions::ADLNote(debug, "C++ multi-line comment started here.")
+            );
         } else {
             // Simply skip this item
             STORE(c);
@@ -978,7 +1094,10 @@ dot_start:
             goto config_dot;
         } else {
             // Didn't expect that
-            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -998,7 +1117,10 @@ triple_dot_end:
             return result;
         } else {
             // Didn't expect that
-            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -1039,12 +1161,18 @@ comment_start:
             ACCEPT(c);
             goto singleline_start;
         } else if (c == '*') {
-            // Multi-line comment
+            // Multi-line comment, further noting the start of it
+            debug.line2 = this->line;
+            debug.col2 = this->col;
+            debug.raw_line = this->get_line();
             ACCEPT(c);
             goto multiline_start;
         } else {
             // Otherwise, it doesn't make a lot of sense, so error
-            throw Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c);
+            Exceptions::log(
+                Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
+            );
+            RETRY_AT_WHITESPACE();
         }
     }
 
@@ -1087,7 +1215,10 @@ multiline_start:
             goto multiline_start;
         } else if (c == EOF) {
             // Whoa! Reached unterminated comment!
-            throw Exceptions::UnterminatedMultilineException(result->debug);
+            throw Exceptions::log(
+                Exceptions::UnterminatedMultilineException(DebugInfo(this->filenames, this->line, this->col, this->get_line())),
+                Exceptions::ADLNote(debug, "Multi-line comment started here.")
+            );
         } else {
             // Simply skip this item
             ACCEPT(c);
@@ -1135,7 +1266,11 @@ macro_start:
             goto macro_start;
         } else if (result->raw.size() == 0) {
             // Empty macro
-            throw Exceptions::EmptyMacroException(DebugInfo(this->filenames, this->line, this->col, this->get_line()));
+            Exceptions::log(
+                Exceptions::EmptyMacroException(DebugInfo(this->filenames, this->line, this->col, this->get_line()))
+            );
+            REJECT(c);
+            goto start;
         } else {
             // We're done with this token
             result->debug.line2 = this->line;
