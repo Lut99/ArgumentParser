@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   12/2/2020, 2:47:12 PM
+ *   08/12/2020, 20:50:27
  * Auto updated?
  *   Yes
  *
@@ -19,9 +19,6 @@
 #ifndef ADL_DECIMAL_HPP
 #define ADL_DECIMAL_HPP
 
-#include <string>
-#include <vector>
-
 #include "ADLLeaf.hpp"
 #include "NodeType.hpp"
 
@@ -31,8 +28,8 @@ namespace ArgumentParser {
         /* The floating-point value to store. */
         double value;
 
-        /* Constructor for the ADLDecimal class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
-        ADLDecimal(const std::vector<std::string>& filenames, const DebugInfo& debug, double value);
+        /* Constructor for the ADLDecimal class, which takes a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
+        ADLDecimal(const DebugInfo& debug, double value);
 
         /* Prints the decimal to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

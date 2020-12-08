@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 5:55:52 PM
  * Last edited:
- *   12/1/2020, 6:32:49 PM
+ *   08/12/2020, 20:48:06
  * Auto updated?
  *   Yes
  *
@@ -36,8 +36,8 @@ namespace ArgumentParser {
         /* Stores whether or not this Positional is variadic. */
         bool variadic;
 
-        /* Constructor for the ADLPositional, which takes a breadcrumb trail of files, a DebugInfo struct linking this node to the source code, the identifier of this Positional, a list of types that make up this Positional as ADLTypes, whether or not this Positional is optional, whether or not this Positional is variadic and optionally a list of configuration parameters for this Positional as ADLConfigs. */
-        ADLPositional(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& id, ADLTypes* types, bool is_optional, bool is_variadic, ADLConfigs* configs = nullptr);
+        /* Constructor for the ADLPositional, which takes a DebugInfo struct linking this node to the source code, the identifier of this Positional, a list of types that make up this Positional as ADLTypes, whether or not this Positional is optional, whether or not this Positional is variadic and optionally a list of configuration parameters for this Positional as ADLConfigs. */
+        ADLPositional(const DebugInfo& debug, const std::string& id, ADLTypes* types, bool is_optional, bool is_variadic, ADLConfigs* configs = nullptr);
 
         /* Prints thePositional definition and all its configuration parameters to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

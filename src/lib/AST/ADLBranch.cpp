@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:39:35
  * Last edited:
- *   26/11/2020, 16:34:57
+ *   08/12/2020, 20:44:33
  * Auto updated?
  *   Yes
  *
@@ -24,16 +24,16 @@ using namespace ArgumentParser;
 
 /***** ADLBRANCH CLASS *****/
 
-/* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, a DebugInfo struct linking this node to a location in the source file and optionally a NodeType denoting all accepted children types. */
-ADLBranch::ADLBranch(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug, NodeType whitelist) :
-    ADLNode(type, filenames, debug),
+/* Constructor for the ADLBranch class, which takes the type of the derived node, a DebugInfo struct linking this node to a location in the source file and optionally a NodeType denoting all accepted children types. */
+ADLBranch::ADLBranch(NodeType type, const DebugInfo& debug, NodeType whitelist) :
+    ADLNode(type, debug),
     has_max(false),
     whitelist(whitelist)
 {}
 
-/* Constructor for the ADLBranch class, which takes the type of the derived node, a breadcrumb trail of filenames, a DebugInfo struct linking this node to a location in the source file, the maximum number of children to allow and optionally a NodeType denoting all accepted children types. */
-ADLBranch::ADLBranch(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug, size_t max, NodeType whitelist) :
-    ADLNode(type, filenames, debug),
+/* Constructor for the ADLBranch class, which takes the type of the derived node, a DebugInfo struct linking this node to a location in the source file, the maximum number of children to allow and optionally a NodeType denoting all accepted children types. */
+ADLBranch::ADLBranch(NodeType type, const DebugInfo& debug, size_t max, NodeType whitelist) :
+    ADLNode(type, debug),
     has_max(true),
     max(max),
     whitelist(whitelist)

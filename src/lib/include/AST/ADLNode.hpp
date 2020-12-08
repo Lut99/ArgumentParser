@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   27/11/2020, 16:47:33
+ *   08/12/2020, 20:43:44
  * Auto updated?
  *   Yes
  *
@@ -35,8 +35,6 @@ namespace ArgumentParser {
     public:
         /* The type of the node. */
         const NodeType type;
-        /* The breadcrumb of files where the node was parsed from. */
-        const std::vector<std::string> filenames;
         /* The debug information noting where this node originates from. */
         DebugInfo debug;
 
@@ -44,8 +42,8 @@ namespace ArgumentParser {
         ADLNode* parent;
 
 
-        /* Constructor for the ADLNode, which takes the type of the node, a breadcrumb of filenames where the node originates and the debug information of where this nodes originates. */
-        ADLNode(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug);
+        /* Constructor for the ADLNode, which takes the type of the node and the debug information of where this nodes originates. */
+        ADLNode(NodeType type, const DebugInfo& debug);
         /* Virtual destructor for the ADLNode class, which doesn't do a lot yet. */
         virtual ~ADLNode() = default;
 

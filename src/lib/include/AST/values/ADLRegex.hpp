@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:09:45
  * Last edited:
- *   27/11/2020, 14:54:44
+ *   08/12/2020, 20:51:30
  * Auto updated?
  *   Yes
  *
@@ -21,7 +21,6 @@
 #define ADL_REGEX_HPP
 
 #include <string>
-#include <vector>
 
 #include "ADLLeaf.hpp"
 #include "NodeType.hpp"
@@ -33,8 +32,8 @@ namespace ArgumentParser {
         /* Raw value stored in this ADLRegex. */
         std::string value;
 
-        /* Constructor for the ADLRegex class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the raw regex value. */
-        ADLRegex(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& value);
+        /* Constructor for the ADLRegex class, which takes a DebugInfo struct linking this node to a location in the source file and the raw regex value. */
+        ADLRegex(const DebugInfo& debug, const std::string& value);
 
         /* Prints the regex expression to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

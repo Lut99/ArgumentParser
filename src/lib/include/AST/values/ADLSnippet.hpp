@@ -4,7 +4,7 @@
  * Created:
  *   01/12/2020, 12:54:00
  * Last edited:
- *   01/12/2020, 12:57:40
+ *   08/12/2020, 20:51:46
  * Auto updated?
  *   Yes
  *
@@ -20,7 +20,6 @@
 #define ADL_SNIPPET_HPP
 
 #include <string>
-#include <vector>
 #include <ostream>
 
 #include "ADLLeaf.hpp"
@@ -33,8 +32,8 @@ namespace ArgumentParser {
         /* The raw C++-sourcecode that this node wraps. */
         std::string code;
 
-        /* Constructor for the ADLSnippet class, which takes a breadcrumb trail of filenames, a DebugInfo struct linking the node back to the source file and the C++-code that this node wraps. */
-        ADLSnippet(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& code);
+        /* Constructor for the ADLSnippet class, which takes a DebugInfo struct linking the node back to the source file and the C++-code that this node wraps. */
+        ADLSnippet(const DebugInfo& debug, const std::string& code);
 
         /* Prints the code snippet to the given output stream. For readability, the code itself isn't pasted (as that's less relevant for parsing anyway). */
         virtual std::ostream& print(std::ostream& os) const;

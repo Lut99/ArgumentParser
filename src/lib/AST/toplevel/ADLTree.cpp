@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   12/5/2020, 5:00:41 PM
+ *   08/12/2020, 20:48:14
  * Auto updated?
  *   Yes
  *
@@ -24,7 +24,7 @@ using namespace ArgumentParser;
 
 /* Constructor for the ADLTree class, which only optionally takes a toplevel node. */
 ADLTree::ADLTree(ADLNode* toplevel) :
-    ADLBranch(NodeType::root, {}, di_empty, nt_toplevel)
+    ADLBranch(NodeType::root, di_empty, nt_toplevel)
 {
     // Add the node if it isn't NULL
     if (toplevel != nullptr) { this->add_node(toplevel); }

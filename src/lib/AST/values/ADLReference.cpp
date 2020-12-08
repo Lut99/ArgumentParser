@@ -4,7 +4,7 @@
  * Created:
  *   30/11/2020, 17:49:49
  * Last edited:
- *   03/12/2020, 14:57:16
+ *   08/12/2020, 20:51:01
  * Auto updated?
  *   Yes
  *
@@ -21,9 +21,9 @@ using namespace ArgumentParser;
 
 /***** ADLREFERENCE CLASS *****/
 
-/* Constructor for the ADLReference class, which takes a breadcrumb trial of filenames, debug information about the node's origin, the type, positional or option to reference, which of those type we reference, and the field to reference. */
-ADLReference::ADLReference(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& id, TokenType reference_type, const std::string& property) :
-    ADLLeaf(NodeType::reference, filenames, debug),
+/* Constructor for the ADLReference class, which takes debug information about the node's origin, the type, positional or option to reference, which of those type we reference, and the field to reference. */
+ADLReference::ADLReference(const DebugInfo& debug, const std::string& id, TokenType reference_type, const std::string& property) :
+    ADLLeaf(NodeType::reference, debug),
     id(id),
     type(reference_type),
     property(property)

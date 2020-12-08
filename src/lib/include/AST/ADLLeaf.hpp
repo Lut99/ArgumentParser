@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:26:44
  * Last edited:
- *   26/11/2020, 15:33:56
+ *   08/12/2020, 20:44:52
  * Auto updated?
  *   Yes
  *
@@ -32,8 +32,8 @@ namespace ArgumentParser {
         virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
 
     public:
-        /* Constructor for the ADLLeaf, which takes the type of the derived file, a breadcrumb trail of filenames and a DebugInfo struct containing the information where this node came from. */
-        ADLLeaf(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug);
+        /* Constructor for the ADLLeaf, which takes the type of the derived file and a DebugInfo struct containing the information where this node came from. */
+        ADLLeaf(NodeType type, const DebugInfo& debug);
         /* Virtual destructor for the ADLLeaf class, which is just the default one but virtual. */
         virtual ~ADLLeaf() = default;
 

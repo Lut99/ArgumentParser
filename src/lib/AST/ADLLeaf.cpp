@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:33:54
  * Last edited:
- *   26/11/2020, 16:34:31
+ *   08/12/2020, 20:45:02
  * Auto updated?
  *   Yes
  *
@@ -21,9 +21,9 @@ using namespace ArgumentParser;
 
 /***** ADLLEAF CLASS *****/
 
-/* Constructor for the ADLLeaf, which takes the type of the derived file, a breadcrumb trail of filenames and a DebugInfo struct containing the information where this node came from. */
-ADLLeaf::ADLLeaf(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug) :
-    ADLNode(type, filenames, debug)
+/* Constructor for the ADLLeaf, which takes the type of the derived file and a DebugInfo struct containing the information where this node came from. */
+ADLLeaf::ADLLeaf(NodeType type, const DebugInfo& debug) :
+    ADLNode(type, debug)
 {}
 
 

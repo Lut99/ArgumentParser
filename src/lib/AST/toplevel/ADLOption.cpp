@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 16:15:55
  * Last edited:
- *   03/12/2020, 17:05:09
+ *   08/12/2020, 20:47:28
  * Auto updated?
  *   Yes
  *
@@ -20,9 +20,9 @@ using namespace ArgumentParser;
 
 /***** ADLOPTION CLASS *****/
 
-/* Constructor for the ADLOption class, which takes a breadcrumb trail of files, a DebugInfo struct linking this node to the source code, the shortlabel for this Option (empty to disable), the longlabel of this Option (empty to disable), an optional list of types that make up this Option as ADLTypes, optionally a list of configuration parameters for this Positional as ADLConfigs, whether or not this Option is optional, whether or not this Option's type may be omitted and whether or not this Positional is variadic. */
-ADLOption::ADLOption(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& shortlabel, const std::string& longlabel, ADLTypes* types, ADLConfigs* configs, bool is_optional, bool type_is_optional, bool is_variadic) :
-    ADLBranch(NodeType::option, filenames, debug, 2, NodeType::types | NodeType::configs),
+/* Constructor for the ADLOption class, which takes a DebugInfo struct linking this node to the source code, the shortlabel for this Option (empty to disable), the longlabel of this Option (empty to disable), an optional list of types that make up this Option as ADLTypes, optionally a list of configuration parameters for this Positional as ADLConfigs, whether or not this Option is optional, whether or not this Option's type may be omitted and whether or not this Positional is variadic. */
+ADLOption::ADLOption(const DebugInfo& debug, const std::string& shortlabel, const std::string& longlabel, ADLTypes* types, ADLConfigs* configs, bool is_optional, bool type_is_optional, bool is_variadic) :
+    ADLBranch(NodeType::option, debug, 2, NodeType::types | NodeType::configs),
     shortlabel(shortlabel),
     longlabel(longlabel),
     optional(is_optional),

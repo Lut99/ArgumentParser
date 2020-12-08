@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:02:13
  * Last edited:
- *   03/12/2020, 18:03:01
+ *   08/12/2020, 20:50:00
  * Auto updated?
  *   Yes
  *
@@ -31,8 +31,8 @@ namespace ArgumentParser {
         /* The floating-point value to store. */
         double value;
 
-        /* Constructor for the ADLBoolean class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
-        ADLBoolean(const std::vector<std::string>& filenames, const DebugInfo& debug, bool value);
+        /* Constructor for the ADLBoolean class, which takes a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
+        ADLBoolean(const DebugInfo& debug, bool value);
 
         /* Prints the decimal to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

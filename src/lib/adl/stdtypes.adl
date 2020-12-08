@@ -21,7 +21,7 @@
 
 /***** COMMON CODE *****/
 
-META {
+meta {
     .source ++{
         /* TBD */
     }++;

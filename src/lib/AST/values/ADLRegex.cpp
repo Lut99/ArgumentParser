@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:09:41
  * Last edited:
- *   27/11/2020, 14:56:22
+ *   08/12/2020, 20:51:22
  * Auto updated?
  *   Yes
  *
@@ -25,9 +25,9 @@ using namespace ArgumentParser;
 
 /***** ADLREGEX CLASS *****/
 
-/* Constructor for the ADLRegex class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the raw regex value. */
-ADLRegex::ADLRegex(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& value) :
-    ADLLeaf(NodeType::regex, filenames, debug),
+/* Constructor for the ADLRegex class, which takes a DebugInfo struct linking this node to a location in the source file and the raw regex value. */
+ADLRegex::ADLRegex(const DebugInfo& debug, const std::string& value) :
+    ADLLeaf(NodeType::regex, debug),
     value(value)
 {}
 

@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 17:29:00
  * Last edited:
- *   03/12/2020, 17:31:17
+ *   08/12/2020, 20:56:22
  * Auto updated?
  *   Yes
  *
@@ -22,9 +22,9 @@ using namespace ArgumentParser;
 
 /***** ADLMETA CLASS *****/
 
-/* Constructor for the ADLMeta class, which takes a breadcrumb trail of filenames, debug information linking this node back to the source file and optionally properties to store in the meta namespace. */
-ADLMeta::ADLMeta(const std::vector<std::string>& filenames, const DebugInfo& debug, ADLConfigs* configs) :
-    ADLBranch(NodeType::meta, filenames, debug, 1, NodeType::configs)
+/* Constructor for the ADLMeta class, which takes debug information linking this node back to the source file and optionally properties to store in the meta namespace. */
+ADLMeta::ADLMeta(const DebugInfo& debug, ADLConfigs* configs) :
+    ADLBranch(NodeType::meta, debug, 1, NodeType::configs)
 {
     // Only add the configs if they're not nullptrs
     if (configs != nullptr) { this->add_node((ADLNode*) configs); }
@@ -32,7 +32,7 @@ ADLMeta::ADLMeta(const std::vector<std::string>& filenames, const DebugInfo& deb
 
 /* Prints all the toplevel properties, reflecting the AST structure. */
 std::ostream& ADLMeta::print(std::ostream& os) const {
-    os << "META {";
+    os << "meta {";
 
     // Print each of the configuration parameters, if any, preceded by a space
     if (this->children.size() == 1) {

@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:24:34
  * Last edited:
- *   03/12/2020, 14:32:24
+ *   08/12/2020, 20:45:27
  * Auto updated?
  *   Yes
  *
@@ -22,9 +22,9 @@ using namespace ArgumentParser;
 
 /***** ADLCONFIG CLASS *****/
 
-/* Constructor for the ADLConfig class, which takes a breadcrumb trail of filenames, debug information on the node's origin, the name of the parameter configured and a list of values as ADLValues. */
-ADLConfig::ADLConfig(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& param, ADLValues* values) :
-    ADLBranch(NodeType::config, filenames, debug, 1, NodeType::values),
+/* Constructor for the ADLConfig class, which takes debug information on the node's origin, the name of the parameter configured and a list of values as ADLValues. */
+ADLConfig::ADLConfig(const DebugInfo& debug, const std::string& param, ADLValues* values) :
+    ADLBranch(NodeType::config, debug, 1, NodeType::values),
     param(param)
 {
     // Add the values node

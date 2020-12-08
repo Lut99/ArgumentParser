@@ -13,7 +13,7 @@
 #include "tests/test_extern.adl"
 
 
-META {
+meta {
     .auto_help (false);
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 6:12:33 PM
  * Last edited:
- *   12/2/2020, 2:29:42 PM
+ *   08/12/2020, 20:49:02
  * Auto updated?
  *   Yes
  *
@@ -21,9 +21,9 @@ using namespace ArgumentParser;
 
 /***** ADLTYPES CLASS *****/
 
-/* Constructor for the ADLTypes class, which takes a breadcrumb trail of files, a DebugInfo struct that links this node to the source file and optionally already one type identifier (as raw value). */
-ADLTypes::ADLTypes(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& type_id) :
-    ADLLeaf(NodeType::types, filenames, debug)
+/* Constructor for the ADLTypes class, which takes a DebugInfo struct that links this node to the source file and optionally already one type identifier (as raw value). */
+ADLTypes::ADLTypes(const DebugInfo& debug, const std::string& type_id) :
+    ADLLeaf(NodeType::types, debug)
 {
     // Only add the string if it isn't empty
     if (!type_id.empty()) { this->ids.push_back(type_id); }

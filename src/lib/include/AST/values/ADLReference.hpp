@@ -4,7 +4,7 @@
  * Created:
  *   30/11/2020, 17:49:26
  * Last edited:
- *   03/12/2020, 18:18:28
+ *   08/12/2020, 20:51:11
  * Auto updated?
  *   Yes
  *
@@ -17,7 +17,6 @@
 #define ADL_REFERENCE_HPP
 
 #include <string>
-#include <vector>
 #include <ostream>
 
 #include "ADLLeaf.hpp"
@@ -35,8 +34,8 @@ namespace ArgumentParser {
         /* The field we reference in that type or argument. */
         std::string property;
 
-        /* Constructor for the ADLReference class, which takes a breadcrumb trial of filenames, debug information about the node's origin, the type, positional or option to reference, which of those type we reference, and the field to reference. */
-        ADLReference(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& id, TokenType reference_type, const std::string& property);
+        /* Constructor for the ADLReference class, which takes debug information about the node's origin, the type, positional or option to reference, which of those type we reference, and the field to reference. */
+        ADLReference(const DebugInfo& debug, const std::string& id, TokenType reference_type, const std::string& property);
 
         /* Prints the reference to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

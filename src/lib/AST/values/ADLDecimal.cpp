@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:14:03
  * Last edited:
- *   12/2/2020, 2:47:18 PM
+ *   08/12/2020, 20:50:14
  * Auto updated?
  *   Yes
  *
@@ -24,9 +24,9 @@ using namespace ArgumentParser;
 
 /***** ADLDECIMAL CLASS *****/
 
-/* Constructor for the ADLDecimal class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
-ADLDecimal::ADLDecimal(const std::vector<std::string>& filenames, const DebugInfo& debug, double value) :
-    ADLLeaf(NodeType::number, filenames, debug),
+/* Constructor for the ADLDecimal class, which takes a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
+ADLDecimal::ADLDecimal(const DebugInfo& debug, double value) :
+    ADLLeaf(NodeType::number, debug),
     value(value)
 {}
 

@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:13:03
  * Last edited:
- *   27/11/2020, 14:54:50
+ *   08/12/2020, 20:50:49
  * Auto updated?
  *   Yes
  *
@@ -19,9 +19,6 @@
 #ifndef ADL_NUMBER_HPP
 #define ADL_NUMBER_HPP
 
-#include <string>
-#include <vector>
-
 #include "ADLLeaf.hpp"
 #include "NodeType.hpp"
 
@@ -31,8 +28,8 @@ namespace ArgumentParser {
         /* The integral value to store. */
         long value;
 
-        /* Constructor for the ADLNumber class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
-        ADLNumber(const std::vector<std::string>& filenames, const DebugInfo& debug, long value);
+        /* Constructor for the ADLNumber class, which takes a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
+        ADLNumber(const DebugInfo& debug, long value);
 
         /* Prints the number to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:39:22
  * Last edited:
- *   26/11/2020, 16:35:35
+ *   08/12/2020, 20:43:40
  * Auto updated?
  *   Yes
  *
@@ -20,10 +20,9 @@ using namespace ArgumentParser;
 
 /***** ADLNODE CLASS *****/
 
-/* Constructor for the ADLNode, which takes the type of the node, a breadcrumb of filenames where the node originates and the debug information of where this nodes originates. */
-ADLNode::ADLNode(NodeType type, const std::vector<std::string>& filenames, const DebugInfo& debug) :
+/* Constructor for the ADLNode, which takes the type of the node and the debug information of where this nodes originates. */
+ADLNode::ADLNode(NodeType type, const DebugInfo& debug) :
     type(type),
-    filenames(filenames),
     debug(debug)
 {}
 

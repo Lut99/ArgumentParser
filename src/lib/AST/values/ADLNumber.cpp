@@ -4,7 +4,7 @@
  * Created:
  *   25/11/2020, 16:14:03
  * Last edited:
- *   27/11/2020, 14:56:53
+ *   08/12/2020, 20:50:38
  * Auto updated?
  *   Yes
  *
@@ -24,9 +24,9 @@ using namespace ArgumentParser;
 
 /***** ADLNUMBER CLASS *****/
 
-/* Constructor for the ADLNumber class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
-ADLNumber::ADLNumber(const std::vector<std::string>& filenames, const DebugInfo& debug, long value) :
-    ADLLeaf(NodeType::number, filenames, debug),
+/* Constructor for the ADLNumber class, which takes a DebugInfo struct linking this node to a location in the source file and the value this node represents. */
+ADLNumber::ADLNumber(const DebugInfo& debug, long value) :
+    ADLLeaf(NodeType::number, debug),
     value(value)
 {}
 

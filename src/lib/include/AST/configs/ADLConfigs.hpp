@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:16:52
  * Last edited:
- *   27/11/2020, 16:32:44
+ *   08/12/2020, 20:46:07
  * Auto updated?
  *   Yes
  *
@@ -16,9 +16,6 @@
 #ifndef ADL_CONFIGS_HPP
 #define ADL_CONFIGS_HPP
 
-#include <string>
-#include <vector>
-
 #include "ADLBranch.hpp"
 #include "ADLConfig.hpp"
 #include "NodeType.hpp"
@@ -27,8 +24,8 @@ namespace ArgumentParser {
     /* The ADLConfigs class acts as an array that stores individual ADLConfig nodes. */
     class ADLConfigs: public ADLBranch {
     public:
-        /* Constructor for the ADLConfigs class, which takes a breadcrumb trail of filenames, debug information on this node's origin and an ADLConfig node. */
-        ADLConfigs(const std::vector<std::string>& filenames, const DebugInfo& debug, ADLConfig* config);
+        /* Constructor for the ADLConfigs class, which takes debug information on this node's origin and an ADLConfig node. */
+        ADLConfigs(const DebugInfo& debug, ADLConfig* config);
 
         /* Prints the all the internal configuration parameters as a list to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

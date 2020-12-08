@@ -4,7 +4,7 @@
  * Created:
  *   24/11/2020, 23:19:31
  * Last edited:
- *   27/11/2020, 14:54:25
+ *   08/12/2020, 20:52:05
  * Auto updated?
  *   Yes
  *
@@ -18,7 +18,6 @@
 #define ADL_STRING_HPP
 
 #include <string>
-#include <vector>
 
 #include "ADLLeaf.hpp"
 #include "NodeType.hpp"
@@ -30,8 +29,8 @@ namespace ArgumentParser {
         /* Raw value stored in this ADLString. */
         std::string value;
 
-        /* Constructor for the ADLString class, which takes a breadcrumb trail of filenames where this node originated from, a DebugInfo struct linking this node to a location in the source file and the raw string value. */
-        ADLString(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& value);
+        /* Constructor for the ADLString class, which takes a DebugInfo struct linking this node to a location in the source file and the raw string value. */
+        ADLString(const DebugInfo& debug, const std::string& value);
 
         /* Prints the string to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

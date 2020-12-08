@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:03:08
  * Last edited:
- *   27/11/2020, 16:18:21
+ *   08/12/2020, 20:48:33
  * Auto updated?
  *   Yes
  *
@@ -32,8 +32,8 @@ namespace ArgumentParser {
         /* The identifier of this type definition, which can later be referenced again. */
         std::string id;
 
-        /* Constructor for the ADLTypeDef class, which takes a breadcrumb trail of files, debug information about the node's origin, the type definition's identifier and optionally an ADLConfigs node. */
-        ADLTypeDef(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& id, ADLConfigs* configs = nullptr);
+        /* Constructor for the ADLTypeDef class, which takes debug information about the node's origin, the type definition's identifier and optionally an ADLConfigs node. */
+        ADLTypeDef(const DebugInfo& debug, const std::string& id, ADLConfigs* configs = nullptr);
 
         /* Prints the type definition and all its configuration parameters to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

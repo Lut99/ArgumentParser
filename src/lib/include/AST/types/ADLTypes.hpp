@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 6:12:29 PM
  * Last edited:
- *   12/1/2020, 6:32:45 PM
+ *   08/12/2020, 20:48:54
  * Auto updated?
  *   Yes
  *
@@ -17,7 +17,6 @@
 #define ADL_TYPES_HPP
 
 #include <string>
-#include <vector>
 #include <ostream>
 
 #include "ADLLeaf.hpp"
@@ -30,8 +29,8 @@ namespace ArgumentParser {
         /* Lists the internal list of type identifiers that this node wraps. */
         std::vector<std::string> ids;
 
-        /* Constructor for the ADLTypes class, which takes a breadcrumb trail of files, a DebugInfo struct that links this node to the source file and optionally already one type identifier (as raw value). */
-        ADLTypes(const std::vector<std::string>& filenames, const DebugInfo& debug, const std::string& type_id = "");
+        /* Constructor for the ADLTypes class, which takes a DebugInfo struct that links this node to the source file and optionally already one type identifier (as raw value). */
+        ADLTypes(const DebugInfo& debug, const std::string& type_id = "");
 
         /* Prints the list of identifiers to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;
