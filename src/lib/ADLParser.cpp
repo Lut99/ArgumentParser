@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   07/12/2020, 21:43:01
+ *   08/12/2020, 17:20:44
  * Auto updated?
  *   Yes
  *
@@ -265,7 +265,13 @@ definitions_body:
             switch(term->type()) {
                 case TokenType::identifier:
                     // It's the meta-construct; add it
-                    {
+                    {  
+                        // ...IF it has the correct identifier; otherwise, we treat it as Positional without types
+                        if (term->raw() != "meta") {
+                            Exceptions::log(Exceptions::MissingTypesException(term->debug()));
+                            return "";
+                        }
+
                         // Collect the debug information for the new definition
                         DebugInfo debug(term->debug().filenames, term->debug().line1, term->debug().col1, term->debug().raw_line);
                         debug.line2 = prev_term->debug.line2;

@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:16:59
  * Last edited:
- *   03/12/2020, 23:08:30
+ *   08/12/2020, 17:29:39
  * Auto updated?
  *   Yes
  *
@@ -33,18 +33,19 @@ namespace ArgumentParser {
         decimal = 7,
         boolean = 8,
         regex = 9,
-        snippet = 10,
+        reference = 10,
+        snippet = 11,
 
-        l_square = 11,
-        r_square = 12,
-        l_curly = 13,
-        r_curly = 14,
-        semicolon = 15,
-        triple_dot = 16,
+        l_square = 12,
+        r_square = 13,
+        l_curly = 14,
+        r_curly = 15,
+        semicolon = 16,
+        triple_dot = 17,
 
-        macro = 17,
+        macro = 18,
 
-        empty = 18,
+        empty = 19,
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -61,6 +62,7 @@ namespace ArgumentParser {
         "Decimal",
         "Boolean",
         "Regex",
+        "Reference",
         "Snippet",
 
         "LSquare",

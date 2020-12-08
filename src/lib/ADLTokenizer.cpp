@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   07/12/2020, 21:30:31
+ *   08/12/2020, 17:45:37
  * Auto updated?
  *   Yes
  *
@@ -293,7 +293,6 @@ start:
             goto r_start;
         } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
             // Mark the Token as a general identifier and move to parsing the rest of it
-            result->type = TokenType::identifier;
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
             STORE(c);
@@ -304,7 +303,6 @@ start:
             ACCEPT(c);
             goto dash_start;
         } else if (c == '<') {
-            result->type = TokenType::type;
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
             ACCEPT(c);
@@ -477,8 +475,14 @@ id_start:
             // Remember the value and try to parse more
             STORE(c);
             goto id_start;
+        } else if (c == '.') {
+            // It's a reference!
+            result->type = TokenType::reference;
+            STORE(c);
+            goto reference_dot;
         } else {
             // We parsed what we could, we are done
+            result->type = TokenType::identifier;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col - 1;
             REJECT(c);
@@ -498,12 +502,11 @@ dash_start:
                 (c >= 'A' && c <= 'Z') ||
                 (c >= '0' && c <= '9') ||
                  c == '?') {
-            // Done, it was a shortlabel
-            result->type = TokenType::shortlabel;
+            // Done, see if the shortlabel becomes a reference
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
             STORE(c);
-            return result;
+            goto shortlabel_end;
         } else if (c == '-') {
             // Parse as longlabel or number, we still don't know
             ACCEPT(c);
@@ -526,6 +529,28 @@ dash_start:
 
 
 
+shortlabel_end:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '.') {
+            // It's a reference!
+            result->type = TokenType::reference;
+            result->raw = "-" + result->raw;
+            STORE(c);
+            goto reference_dot;
+        } else {
+            // Just a type identifier; we're done
+            result->type = TokenType::shortlabel;
+            REJECT(c);
+            return result;
+        }
+    }
+
+
+
 dash_dash:
     {
         // Get the head character on the stream
@@ -537,7 +562,6 @@ dash_dash:
                 (c >= '0' && c <= '9') ||
                  c == '_') {
             // Parse it as a longlabel
-            result->type = TokenType::longlabel;
             STORE(c);
             goto dash_dash_longlabel;
         } else if (c == '-') {
@@ -575,8 +599,15 @@ dash_dash_longlabel:
             // Keep on parsing
             STORE(c);
             goto dash_dash_longlabel;
+        } else if (c == '.') {
+            // It's a reference
+            result->type = TokenType::reference;
+            result->raw = "--" + result->raw;
+            STORE(c);
+            goto reference_dot;
         } else {
             // We parsed what we could, we are done
+            result->type = TokenType::longlabel;
             result->debug.line2 = this->line;
             result->debug.col2 = this->col - 1;
             REJECT(c);
@@ -638,11 +669,11 @@ type_contd:
             STORE(c);
             goto type_contd;
         } else if (c == '>') {
-            // Type parsing complete
+            // Type parsing complete; final check to see if this happens to be a reference
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
             ACCEPT(c);
-            return result;
+            goto type_end;
         } else if (is_whitespace(c) || c == EOF) {
             // Unterminated type definition
             result->debug.line2 = this->line;
@@ -656,6 +687,77 @@ type_contd:
                 Exceptions::IllegalTypeException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c)
             );
             RETRY_AT_WHITESPACE();
+        }
+    }
+
+
+
+type_end:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '.') {
+            // It's a reference!
+            
+            // ...unless it's followed by an _additional_ dot, in which case it's probably a triple dot
+            char old_c = c;
+            PEEK(c);
+            REJECT(c);
+            if (c == '.') {
+                // Just a type identifier; we're done
+                result->type = TokenType::type;
+                REJECT(old_c);
+                return result;
+            }
+
+            // Update the type and the value and parse the property we reference
+            result->type = TokenType::reference;
+            result->raw = "<" + result->raw + ">";
+            STORE(old_c);
+            goto reference_dot;
+        } else {
+            // Just a type identifier; we're done
+            result->type = TokenType::type;
+            REJECT(c);
+            return result;
+        }
+    }
+
+
+
+reference_dot:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (    (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') ||
+                 c == '_' || c == '-') {
+            // Keep on parsing the reference property
+            STORE(c);
+            goto reference_dot;
+        } else {
+            // We're done here
+
+            // Check if we parsed anything at all
+            if (result->raw[result->raw.size() - 1] == '.') {
+                // We didn't
+                Exceptions::log(
+                    Exceptions::EmptyReferenceException(DebugInfo(this->filenames, this->line, this->col, this->get_line()))
+                );
+                REJECT(c);
+                goto start;
+            }
+
+            // Otherwise, store the debug info and return
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            REJECT(c);
+            return result;
         }
     }
 

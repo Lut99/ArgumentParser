@@ -39,7 +39,7 @@ TYPE = '<[A-Za-z0-9_-]+>'
 
 The final identifier occurring in the ADL are those for used to identify and set additional properties of arguments and types: the configuration identifiers (```CONFIG```). These identifiers are any alphanumerical character, underscore or dash, as long as its proceeded by a dot. In regex:
 ```
-CONFIG = `\.[A-Za-z0-9_-]+`
+CONFIG = `.[A-Za-z0-9_-]+`
 ```
 
 ### Values
@@ -72,7 +72,7 @@ As a simple, 1-or-0 value, the ADL also includes booleans. A boolean is simply e
 BOOL = '(\(true\))|(\(false\))'
 ```
 
-Finally, users can specify inline snippets of C++-code, for easy implementation of type parsers. Each such block is wrapped in matching curly brackets '++{' and '}++'. Then, in the snippet, one can use '++\<X\>++' to reference the X'th value matched by the type's given pattern. Note that the parser respects C++ comments, meaning that both the special brackets and references can be used in comments without messing up parsing.  
+Aside from just values, users can also specify inline snippets of C++-code, for easy implementation of type parsers. Each such block is wrapped in matching curly brackets '++{' and '}++'. Then, in the snippet, one can use '++\<X\>++' to reference the X'th value matched by the type's given pattern. Note that the parser respects C++ comments, meaning that both the special brackets and references can be used in comments without messing up parsing.  
 In regex, the token can be described as:
 ```
 SNIPPET = '\+\+{([^/]|(\/\*([^*]|\*+[^/])*\*+\/)|(\/\/.*\n)|\/)*?}\+\+'
@@ -85,6 +85,13 @@ The expression may look hidious (and it is), but a careful observer should see t
 - A fourth rule matching only forward slashes that aren't part of commas.
 
 In this way, the expression respects C++-style comments.
+
+The final type of value that the ADL supports is not strictly a value, but rather a shotcut that is added for organisational purposes: a so-called reference (```REFERENCE```). These references are any (existing) Positional (using its identifier), Option (using its shortlabel or longlabel) or type definition (using its type identifier), followed by a dot and then the identifier part of a configuration parameter. In regex:
+```
+REFERENCE = '((ID)|(SLABEL)|(LABEL)|(TYPE))\.[A-Za-z0-9_-]+'
+```
+where ```ID```, ```SLABEL```, ```LLABEL``` and ```TYPE``` can be replaced with their respective regex-expressions.  
+Note that the special toplevel META-namespace can also be used to reference constant values from.
 
 ### Special tokens
 Aside from identifiers and values, ADL also features a couple of special tokens that are used to derive structure from the text. There are the following:
@@ -144,44 +151,41 @@ values = values STRING
        = values NUM
        = values DECIMAL
        = values BOOL
-       = values property
+       = values REFERENCE
        = values SNIPPET
        = STRING
        = REGEX
        = NUM
        = DECIMAL
        = BOOL
-       = property
+       = REFERENCE
        = SNIPPET
 ```
-Note that there is the inclusion of the property-rule, which can be used to reference other fields of either types, positionals or options. The specific rule is given as:
-```
-property = TYPE CONFIG
-         = ID CONFIG
-         = SLABEL CONFIG
-         = LLABEL CONFIG
-```
 
-### Meta definition
-As a special type of toplevel construct, the ADL has space for the meta-definition. This is simply an identifier 'meta', in caps, followed by a normal bracket-config construct (see the arg_body grammar rule):
+The other common rule is the ```def_body``` rule, which is used to define the body of each of the definitions in the ADL:
 ```
-meta = ID arg_body
-```
-```
-arg_body = LCURLY config RCURLY
+def_body = LCURLY config RCURLY
          = LCURLY RCURLY
 ```
-In this toplevel, some special values are allowed that influence some meta-strategies of the to-be-created parser; additionally, any property may be given here s.t. it may be referenced later.
+where the ```config```-rule is the one defined above.
+
+### Meta definition
+As a special type of toplevel construct, the ADL has space for the meta-definition. In this toplevel, some special values are allowed that influence some meta-strategies of the to-be-created parser; additionally, any property may be given here s.t. it may be referenced later. Its syntax is simply an identifier 'meta', followed by a normal bracket-config construct (see the arg_body grammar rule):
+```
+meta = ID def_body
+```
+Note that it's distinguishable from a normal Positional definition by its lack of types, which are mandatory for a Positional.  
+Unlike other definitions, is the meta to be specified multiple times - this way, each file may implement its own, global parameters.
 
 ### Argument definition
 The biggest feature of ADL is, of course, how to define new arguments. Of these, there are two types: Positionals and Options. Both of these will be defined below.
 
 The first type of argument, the Positionals, is given by the following grammar rule:
 ```
-positional = ID types arg_body
-           = ID types TDOT arg_body
-           = LSQUARE ID RSQUARE types arg_body
-           = LSQUARE ID RSQUARE types TDOT arg_body
+positional = ID types def_body
+           = ID types TDOT def_body
+           = LSQUARE ID RSQUARE types def_body
+           = LSQUARE ID RSQUARE types TDOT def_body
 ```
 Here, the rule with square brackets indicates that the positional is optional, and the triple dots indicate that it is variadic - i.e., the positional can have any arbitrary number of values.
 
@@ -193,11 +197,11 @@ types = types TYPE
 
 Similarly, the second type of arguments can be given with the next grammar rule:
 ```
-option = option_id arg_body
-       = option_id types arg_body
-       = option_id LSQUARE types RSQUARE arg_body
-       = option_id types TDOT arg_body
-       = option_id LSQUARE types TDOT RSQUARE arg_body
+option = option_id def_body
+       = option_id types def_body
+       = option_id LSQUARE types RSQUARE def_body
+       = option_id types TDOT def_body
+       = option_id LSQUARE types TDOT RSQUARE def_body
 ```
 Again, here the rule with square brackets indicates that the positional is optional, and the triple dots indicate that it is variadic. Additionally, the types rule is the same as defined above.
 
@@ -214,11 +218,14 @@ option_id = SLABEL
 ```
 Again, the rules with the square brackets indicate that the option is Optional.
 
+For both arguments type holds that one can specify additional properties besides the one recognised by the parser for reference purposes, just like the META namespace.
+
 ### Type definition
 To support defining arguments, the ADL also allows users to define their own types. Grammar-wise, the syntax for defining a type is very similar to that of defining an argument, and is defined as follows:
 ```
 typedef = TYPE LCURLY config RCURLY
 ```
+The type definition, too, supports the specification of unrecognised properties for reference purposes.
 
 ## 4. Preprocessor Macros
 Like C or C++, the ADL has a concept of a preprocessor. In this case, the preprocessor forms an extra layer of abstraction on top of the Tokenizer but below the Parser. This way, the preprocessor needn't implement a new Tokenizer from scratch, but still allows the parser to get only to-be-parsed tokens. Right now, the preprocessor implements including other files and conditional compilation.

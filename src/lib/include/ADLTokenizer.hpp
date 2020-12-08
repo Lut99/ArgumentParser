@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   06/12/2020, 13:56:51
+ *   08/12/2020, 17:33:27
  * Auto updated?
  *   Yes
  *
@@ -273,6 +273,18 @@ namespace ArgumentParser {
 
             /* Copies the IllegalStringException polymorphically. */
             virtual IllegalStringException* copy() const { return new IllegalStringException(*this); }
+
+        };
+        /* Exception for when a reference ends in a dot. */
+        class EmptyReferenceException: public SyntaxError {
+        public:
+            /* Constructor for the EmptyReferenceException class, which only takes a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyReferenceException(const DebugInfo& debug) :
+                SyntaxError(debug, "Missing property to reference from given definition.")
+            {}
+
+            /* Copies the EmptyReferenceException polymorphically. */
+            virtual EmptyReferenceException* copy() const { return new EmptyReferenceException(*this); }
 
         };
         /* Exception for when a macro contains no characters. */

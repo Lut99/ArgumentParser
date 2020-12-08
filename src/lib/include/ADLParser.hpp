@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   06/12/2020, 13:51:46
+ *   08/12/2020, 17:21:36
  * Auto updated?
  *   Yes
  *
@@ -71,6 +71,19 @@ namespace ArgumentParser {
 
             /* Copies the EmptyConfigError polymorphically. */
             virtual EmptyConfigError* copy() const { return new EmptyConfigError(*this); }
+
+        };
+
+        /* Exception for when a Positional has missing types. */
+        class MissingTypesException: public ParseError {
+        public:
+            /* Constructor for the the MissingTypesException class, which takes a debug info struct for where we expected the types to be. */
+            MissingTypesException(const DebugInfo& debug) :
+                ParseError(debug, "Missing specification of the Positional's types.")
+            {}
+
+            /* Copies the MissingTypesException polymorphically. */
+            virtual MissingTypesException* copy() const { return new MissingTypesException(*this); }
 
         };
 
