@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   08/12/2020, 20:53:08
+ *   08/12/2020, 21:41:52
  * Auto updated?
  *   Yes
  *
@@ -260,7 +260,8 @@ definition_configs:
         if (symbol->is_terminal) {
             std::cout << term->debug().line1 << ':' << *term << std::endl;
             if (term->type() == TokenType::l_curly) {
-                // Yes! Very good! Now continue
+                // Yes! Very good! Now continue, after temporarily storing the left curly for errors
+                prev_prev_term = term->token();
                 goto definitions_body;
 
             } else {
@@ -293,7 +294,7 @@ definitions_body:
                     {  
                         // ...IF it has the correct identifier; otherwise, we treat it as Positional without types
                         if (term->raw() != "meta") {
-                            Exceptions::log(Exceptions::MissingTypesException(term->debug()));
+                            Exceptions::log(Exceptions::MissingTypesError(term->debug()));
                             return "";
                         }
 
@@ -347,7 +348,8 @@ definitions_body:
                     goto definitions_optional_start;
                 
                 default:
-                    // Not for us
+                    // Not for us, so assume that the user didn't provide us with an identifier
+                    Exceptions::log(Exceptions::NamelessBodyError(prev_prev_term->debug));
                     return "";
 
             }
@@ -360,7 +362,8 @@ definitions_body:
                 goto definitions_types;
 
             } else {
-                // No success
+                // No success, so assume that the user didn't provide us with an identifier
+                Exceptions::log(Exceptions::NamelessBodyError(prev_prev_term->debug));
                 return "";
             }
         }
@@ -376,18 +379,28 @@ definitions_variadic:
         // Start by looking at the top of the stack
         PEEK(symbol, iter, n_symbols);
 
+        // Prepare a Debug struct to put the correct error location in
+        DebugInfo debug = di_empty;
+
         // We now only accept an ADLTypes token
         NonTerminal* nterm = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && nterm->type() == NodeType::types) {
-            // OK! Store it and resume on the 'normal' path
-            prev_prev_nonterm = prev_nonterm;
-            prev_nonterm = nterm->node();
-            goto definitions_types;
+        if (symbol->is_terminal) {
+            debug = ((Terminal*) symbol)->debug();
 
         } else {
-            // No success
-            return "";
+            if (nterm->type() == NodeType::types) {
+                // OK! Store it and resume on the 'normal' path
+                prev_prev_nonterm = prev_nonterm;
+                prev_nonterm = nterm->node();
+                goto definitions_types;
+            } else {
+                debug = nterm->debug();
+            }
         }
+        
+        // No success, so we didn't encounter the one thing we expect
+        Exceptions::log(Exceptions::StrayVariadicException(debug));
+        return "";
     }
 
 
@@ -478,16 +491,19 @@ definitions_types:
                 
                 case TokenType::r_square:
                     // It's an optional argument of some sort; check it out
+                    prev_prev_term = term->token();
                     goto definitions_types_optional;
                 
                 default:
-                    // Not successfull
+                    // We can only conclude the user forgot the identifier
+                    Exceptions::log(Exceptions::NamelessBodyError(prev_term->debug));
                     return "";
 
             }
             
         } else {
-            // Only looking for terminals this time around
+            // We can only conclude the user forgot the identifier
+            Exceptions::log(Exceptions::NamelessBodyError(prev_term->debug));
             return "";
         }
 
@@ -533,14 +549,30 @@ definitions_types_optional:
                     prev_term = term->token();
                     goto definitions_optional_option;
                 
+                case TokenType::l_square:
+                    // No identifier given; just a closing leftsquare
+                    {
+                        DebugInfo debug = prev_prev_term->debug;
+                        debug.line2 = term->debug().line2;
+                        debug.col2 = term->debug().col2;
+                        Exceptions::log(Exceptions::EmptyOptionalIDError(debug));
+                        return "";
+                    }
+                
                 default:
-                    // Not successfull
+                    // Otherwise, we treat it as an unnamed body
+                    Exceptions::log(
+                        Exceptions::NamelessBodyError(term->debug())
+                    );
                     return "";
 
             }
             
         } else {
-            // Only looking for terminals this time around
+            // Otherwise, we treat it as an unnamed body
+            Exceptions::log(
+                Exceptions::NamelessBodyError(((NonTerminal*) symbol)->debug())
+            );
             return "";
         }
 

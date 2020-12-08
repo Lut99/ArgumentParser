@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:37:52 PM
  * Last edited:
- *   08/12/2020, 17:21:36
+ *   08/12/2020, 21:36:20
  * Auto updated?
  *   Yes
  *
@@ -27,12 +27,25 @@
 namespace ArgumentParser {
     namespace Exceptions {
         /* Baseclass exception for all Parser-related errors. */
-        class ParseError : public ADLCompileError {
+        class ParseError: public ADLCompileError {
         public:
             /* Constructor for the ParseError class, which takes a DebugInfo struct linking this warning to a location in the source file and optionally a message. */
             ParseError(const DebugInfo& debug, const std::string& message = "") :
                 ADLCompileError(debug, message)
             {}
+
+        };
+
+        /* General error for when we found a symbol we didn't define a special case for. */
+        class GeneralError: public ParseError {
+        public:
+            /* Constructor for the GeneralError class, which only takes a DebugInfo struct linking this error to a location in the source file. */
+            GeneralError(const DebugInfo& debug) :
+                ParseError(debug, "Unexpected symbols.")
+            {}
+
+            /* Copies the GeneralError polymorphically. */
+            virtual GeneralError* copy() const { return new GeneralError(*this); }
 
         };
 
@@ -60,7 +73,31 @@ namespace ArgumentParser {
             virtual MissingSemicolonError* copy() const { return new MissingSemicolonError(*this); }
 
         };
+        /* Exception for when a Positional has missing types. */
+        class MissingTypesError: public ParseError {
+        public:
+            /* Constructor for the the MissingTypesError class, which takes a debug info struct for where we expected the types to be. */
+            MissingTypesError(const DebugInfo& debug) :
+                ParseError(debug, "Missing specification of the Positional's types.")
+            {}
 
+            /* Copies the MissingTypesError polymorphically. */
+            virtual MissingTypesError* copy() const { return new MissingTypesError(*this); }
+
+        };
+
+        /* Exception for when a body is defined but no identifier whatsoever is given. */
+        class NamelessBodyError: public ParseError {
+        public:
+            /* Constructor for the NamelessBodyError class, which only takes a DebugInfo struct linking this error to a location in the source file. */
+            NamelessBodyError(const DebugInfo& debug) :
+                ParseError(debug, "Definition body needs an identifier to name it.")
+            {}
+
+            /* Copies the NamelessBodyError polymorphically. */
+            virtual NamelessBodyError* copy() const { return new NamelessBodyError(*this); }
+
+        };
         /* Exception for when a property definition is found without values. */
         class EmptyConfigError: public ParseError {
         public:
@@ -73,21 +110,31 @@ namespace ArgumentParser {
             virtual EmptyConfigError* copy() const { return new EmptyConfigError(*this); }
 
         };
-
-        /* Exception for when a Positional has missing types. */
-        class MissingTypesException: public ParseError {
+        /* Exception for when an optional ID is given, without the actual ID. */
+        class EmptyOptionalIDError: public ParseError {
         public:
-            /* Constructor for the the MissingTypesException class, which takes a debug info struct for where we expected the types to be. */
-            MissingTypesException(const DebugInfo& debug) :
-                ParseError(debug, "Missing specification of the Positional's types.")
+            /* Constructor for the EmptyOptionalIDError class, which only takes a DebugInfo struct relating this exception to the source code. */
+            EmptyOptionalIDError(const DebugInfo& debug) :
+                ParseError(debug, "Missing argument name when trying to define an optional argument.")
             {}
 
-            /* Copies the MissingTypesException polymorphically. */
-            virtual MissingTypesException* copy() const { return new MissingTypesException(*this); }
+            /* Copies the EmptyOptionalIDError polymorphically. */
+            virtual EmptyOptionalIDError* copy() const { return new EmptyOptionalIDError(*this); }
 
         };
 
+        /* Exception for when a variadic marker (triple dot) is given, but it doesn't follow a Types dict. */
+        class StrayVariadicException: public ParseError {
+        public:
+            /* Constructor for the the StrayVariadicException class, which takes a debug info struct to the config parameter. */
+            StrayVariadicException(const DebugInfo& debug) :
+                ParseError(debug, "Variadic marker must follow at least one type identifier, but none is given.")
+            {}
 
+            /* Copies the StrayVariadicException polymorphically. */
+            virtual StrayVariadicException* copy() const { return new StrayVariadicException(*this); }
+
+        };
 
         /* Baseclass exception for all Parser-related warnings. */
         class ParseWarning : public ADLCompileWarning {
