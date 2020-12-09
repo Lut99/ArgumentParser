@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   12/9/2020, 2:14:36 PM
+ *   12/9/2020, 3:35:05 PM
  * Auto updated?
  *   Yes
  *
@@ -1406,11 +1406,11 @@ LineSnippet Tokenizer::get_line() {
         }
     }
 
-    // Reduce the size of the string to 50 if needed, by laternatingly take of one at the end and the start
+    // Reduce the size of the string to 100 if needed, by laternatingly take of one at the end and the start
     std::string result = sstr.str();
     size_t c1 = 0;
     size_t c2 = result.size() - 1;
-    size_t oversize = result.size() > 50 ? result.size() - 50 : 0;
+    size_t oversize = result.size() > 100 ? result.size() - 100 : 0;
     for (size_t i = 0; i < oversize; i++) {
         if (i % 2 == 0) {
             result.pop_back();

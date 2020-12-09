@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   06/12/2020, 13:53:12
+ *   12/9/2020, 4:48:28 PM
  * Auto updated?
  *   Yes
  *
@@ -91,7 +91,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the UnmatchedIfdefException class, which only takes a DebugInfo struct s.t. we can link the error to a source file. */
             UnmatchedIfdefException(const DebugInfo& debug) :
-                PreprocessorException(debug, "Encountered #ifdef without closing #endif.")
+                PreprocessorException(debug, "#ifdef not closed by an #endif.")
             {}
 
             /* Copies the UnmatchedIfdefException polymorphically. */
@@ -103,7 +103,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the UnmatchedIfndefException class, which only takes a DebugInfo struct s.t. we can link the error to a source file. */
             UnmatchedIfndefException(const DebugInfo& debug) :
-                PreprocessorException(debug, "Encountered #ifndef without closing #endif.")
+                PreprocessorException(debug, "#ifndef not closed by an #endif.")
             {}
 
             /* Copies the UnmatchedIfndefException polymorphically. */
@@ -183,7 +183,9 @@ namespace ArgumentParser {
         /* Keeps track of all defines currently present. */
         std::vector<std::string> defines;
         /* Keeps track of how many compileable and unclosed ifdefs we saw. */
-        size_t ifdefs;
+        std::vector<std::tuple<std::string, DebugInfo>> ifdefs;
+        /* List of all previously defined ifdefs for each file in the include tree. */
+        std::vector<std::vector<std::tuple<std::string, DebugInfo>>> ifdefs_stack;
         
         /* Resizes the internal tokenizers list by doubling its size. */
         void resize();

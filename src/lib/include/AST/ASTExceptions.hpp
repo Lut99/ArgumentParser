@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 21:02:41
  * Last edited:
- *   26/11/2020, 12:19:04
+ *   12/9/2020, 2:28:44 PM
  * Auto updated?
  *   Yes
  *
@@ -26,7 +26,7 @@ namespace ArgumentParser::Exceptions {
     class ASTException : public std::exception {
     protected:
         /* Prepends the context to the message in a uniform way. */
-        inline std::string generate(const std::string& context, const std::string& trav_id, const std::string message) {
+        inline static std::string generate(const std::string& context, const std::string& trav_id, const std::string message) {
             return context + ": " + trav_id + ": " + message;
         }
 

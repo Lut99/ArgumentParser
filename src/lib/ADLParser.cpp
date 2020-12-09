@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   08/12/2020, 21:41:52
+ *   12/9/2020, 5:47:34 PM
  * Auto updated?
  *   Yes
  *
@@ -56,7 +56,7 @@ using namespace ArgumentParser::Parser;
     else { (SYMBOL) = (STACK)[(I)++]; }
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
-std::string reduce(Token* lookahead, SymbolStack& stack) {
+std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& stack) {
     // Iterates over each stack symbol, returning the empty terminal if it went out-of-range
     SymbolStack::const_iterator iter = stack.begin();
     // Placeholder for the to-be-examined symbol
@@ -78,7 +78,7 @@ std::string reduce(Token* lookahead, SymbolStack& stack) {
     // Stores if the argument is variadic or not
     bool variadic = false;
 
-start:
+    // Start
     {
         // Start by looking at the top of the stack
         PEEK(symbol, iter, n_symbols);
@@ -215,11 +215,13 @@ definition_start:
                 case TokenType::config:
                     // Found config without matching values or semicolon
                     Exceptions::log(Exceptions::EmptyConfigError(term->debug()));
+                    stack.remove(n_symbols);
                     return "";
                 
                 default:
                     // In every other case, we assume there to be a missing left curly
                     Exceptions::log(Exceptions::MissingLCurlyError(DebugInfo(term->debug().filenames, term->debug().line2, term->debug().col2 + 1, term->debug().raw_line)));
+                    stack.remove(n_symbols);
                     return "";
 
             }
@@ -234,11 +236,13 @@ definition_start:
                 case NodeType::values:
                     // Missing semicolon
                     Exceptions::log(Exceptions::MissingSemicolonError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line)));
+                    stack.remove(n_symbols);
                     return "";
 
                 default:
                     // In every other case, we assume there to be a missing left curly
                     Exceptions::log(Exceptions::MissingLCurlyError(DebugInfo(nterm->debug().filenames, nterm->debug().line2, nterm->debug().col2 + 1, nterm->debug().raw_line)));
+                    stack.remove(n_symbols);
                     return "";
 
             }
@@ -256,25 +260,37 @@ definition_configs:
         DebugInfo debug = di_empty;
 
         // Do different things based on whether it is a terminal or not
-        Terminal* term = (Terminal*) symbol;
         if (symbol->is_terminal) {
-            std::cout << term->debug().line1 << ':' << *term << std::endl;
-            if (term->type() == TokenType::l_curly) {
-                // Yes! Very good! Now continue, after temporarily storing the left curly for errors
-                prev_prev_term = term->token();
-                goto definitions_body;
+            Terminal* term = (Terminal*) symbol;
+            switch(term->type()) {
+                case TokenType::l_curly:
+                    // Yes! Very good! Now continue, after temporarily storing the left curly for errors
+                    goto definitions_body;
+                
+                case TokenType::config:
+                case TokenType::semicolon:
+                    // Fail silently, since errors with this should be handled in other states
+                    return "";
+                
+                default:
+                    // Read the debug info from the terminal to error
+                    debug = term->debug();
 
-            } else {
-                // Read the debug as terminal
-                debug = term->debug();
             }
         } else {
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            if (nterm->type() == NodeType::values) {
+                // Fail silently, since errors with this should be handled in other states
+                return "";
+            }
+
             // Read the debug as nonterminal
-            debug = ((NonTerminal*) symbol)->debug();
+            debug = nterm->debug();
         }
 
         // If here, it wasn't an LCurly
         Exceptions::log(Exceptions::MissingLCurlyError(debug));
+        stack.remove(n_symbols);
         return "";
     }
 
@@ -295,6 +311,7 @@ definitions_body:
                         // ...IF it has the correct identifier; otherwise, we treat it as Positional without types
                         if (term->raw() != "meta") {
                             Exceptions::log(Exceptions::MissingTypesError(term->debug()));
+                            stack.remove(n_symbols);
                             return "";
                         }
 
@@ -302,6 +319,7 @@ definitions_body:
                         DebugInfo debug = term->debug();
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
+                        debug.raw_line = prev_term->debug.raw_line;
 
                         // Replace the symbols on the stack with the new definition
                         stack.replace(n_symbols, new NonTerminal(
@@ -317,6 +335,7 @@ definitions_body:
                         DebugInfo debug = term->debug();
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
+                        debug.raw_line = prev_term->debug.raw_line;
 
                         // Replace the symbols on the stack with the new definition
                         stack.replace(n_symbols, new NonTerminal(
@@ -349,7 +368,8 @@ definitions_body:
                 
                 default:
                     // Not for us, so assume that the user didn't provide us with an identifier
-                    Exceptions::log(Exceptions::NamelessBodyError(prev_prev_term->debug));
+                    Exceptions::log(Exceptions::MissingArgumentIdentifierError(term->debug()));
+                    stack.remove(n_symbols);
                     return "";
 
             }
@@ -363,7 +383,8 @@ definitions_body:
 
             } else {
                 // No success, so assume that the user didn't provide us with an identifier
-                Exceptions::log(Exceptions::NamelessBodyError(prev_prev_term->debug));
+                Exceptions::log(Exceptions::MissingArgumentIdentifierError(nterm->debug()));
+                stack.remove(n_symbols);
                 return "";
             }
         }
@@ -400,6 +421,7 @@ definitions_variadic:
         
         // No success, so we didn't encounter the one thing we expect
         Exceptions::log(Exceptions::StrayVariadicException(debug));
+        stack.remove(n_symbols);
         return "";
     }
 
@@ -408,15 +430,13 @@ definitions_variadic:
 definitions_option:
     {
         // Start by looking at the top of the stack
-        int temp;
+        int temp = 0;
         PEEK(symbol, iter, temp);
 
         // Prepare placeholders for the options we'll use
         std::string shortlabel = "";
         std::string longlabel = "";
-        DebugInfo debug = di_empty;
-        debug.line2 = prev_prev_term->debug.line2;
-        debug.col2 = prev_prev_term->debug.col2;
+        DebugInfo debug = prev_prev_term->debug;
 
         // Determine if we're going to use this next symbol or not
         Terminal* term = (Terminal*) symbol;
@@ -426,12 +446,10 @@ definitions_option:
                 longlabel = term->raw();
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
-                debug.raw_line = term->debug().raw_line;
                 ++n_symbols;
             } else {
                 debug.line1 = prev_term->debug.line1;
                 debug.col1 = prev_term->debug.col1;
-                debug.raw_line = prev_term->debug.raw_line;
             }
         } else {
             longlabel = prev_term->raw;
@@ -439,12 +457,10 @@ definitions_option:
                 shortlabel = term->raw();
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
-                debug.raw_line = term->debug().raw_line;
                 ++n_symbols;
             } else {
                 debug.line1 = prev_term->debug.line1;
                 debug.col1 = prev_term->debug.col1;
-                debug.raw_line = prev_term->debug.raw_line;
             }
         }
 
@@ -474,6 +490,7 @@ definitions_types:
                         DebugInfo debug = term->debug();
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
+                        debug.raw_line = prev_term->debug.raw_line;
 
                         // Apply the grammar rule!
                         stack.replace(n_symbols, new NonTerminal(
@@ -496,14 +513,16 @@ definitions_types:
                 
                 default:
                     // We can only conclude the user forgot the identifier
-                    Exceptions::log(Exceptions::NamelessBodyError(prev_term->debug));
+                    Exceptions::log(Exceptions::MissingArgumentIdentifierError(term->debug()));
+                    stack.remove(n_symbols);
                     return "";
 
             }
             
         } else {
             // We can only conclude the user forgot the identifier
-            Exceptions::log(Exceptions::NamelessBodyError(prev_term->debug));
+            Exceptions::log(Exceptions::MissingArgumentIdentifierError(((NonTerminal*) symbol)->debug()));
+            stack.remove(n_symbols);
             return "";
         }
 
@@ -527,6 +546,11 @@ definitions_types_optional:
                         PEEK(symbol, iter, n_symbols);
                         if (!symbol->is_terminal || ((Terminal*) symbol)->type() != TokenType::l_square) {
                             // It wasn't
+                            DebugInfo debug;
+                            if (symbol->is_terminal) { debug = ((Terminal*) symbol)->debug(); }
+                            else { debug = ((NonTerminal*) symbol)->debug(); }
+                            Exceptions::log(Exceptions::MissingLSquareError(debug));
+                            stack.remove(n_symbols);
                             return "";
                         }
 
@@ -534,6 +558,7 @@ definitions_types_optional:
                         DebugInfo debug = term->debug();
                         debug.line2 = prev_term->debug.line2;
                         debug.col2 = prev_term->debug.col2;
+                        debug.raw_line = prev_term->debug.raw_line;
 
                         // Apply the grammar rule!
                         stack.replace(n_symbols, new NonTerminal(
@@ -556,23 +581,26 @@ definitions_types_optional:
                         debug.line2 = term->debug().line2;
                         debug.col2 = term->debug().col2;
                         Exceptions::log(Exceptions::EmptyOptionalIDError(debug));
+                        stack.remove(n_symbols);
                         return "";
                     }
                 
                 default:
-                    // Otherwise, we treat it as an unnamed body
+                    // Otherwise, we treat it as an invalid optional body
                     Exceptions::log(
-                        Exceptions::NamelessBodyError(term->debug())
+                        Exceptions::InvalidOptionalError(term->debug())
                     );
+                    stack.remove(n_symbols);
                     return "";
 
             }
             
         } else {
-            // Otherwise, we treat it as an unnamed body
+            // Otherwise, we treat it as an invalid optional body
             Exceptions::log(
-                Exceptions::NamelessBodyError(((NonTerminal*) symbol)->debug())
+                Exceptions::InvalidOptionalError(((NonTerminal*) symbol)->debug())
             );
+            stack.remove(n_symbols);
             return "";
         }
 
@@ -611,7 +639,9 @@ definitions_optional_start:
                     goto definitions_optional_variadic;
                 
                 default:
-                    // Not for us
+                    // Not for us, i.e., invalid identifier(s) entered in optional space
+                    Exceptions::log(Exceptions::InvalidOptionalError(term->debug()));
+                    stack.remove(n_symbols);
                     return "";
 
             }
@@ -624,7 +654,9 @@ definitions_optional_start:
                 goto definitions_optional_types;
 
             } else {
-                // No success
+                // Not for us, i.e., invalid identifier(s) entered in optional space
+                Exceptions::log(Exceptions::InvalidOptionalError(nterm->debug()));
+                stack.remove(n_symbols);
                 return "";
             }
         }
@@ -640,9 +672,7 @@ definitions_optional_option:
         // Prepare placeholders for the options we'll use
         std::string shortlabel = "";
         std::string longlabel = "";
-        DebugInfo debug = di_empty;
-        debug.line2 = prev_prev_term->debug.line2;
-        debug.col2 = prev_prev_term->debug.col2;
+        DebugInfo debug = prev_prev_term->debug;
 
         // Determine if we're going to use this next symbol or not
         Terminal* term = (Terminal*) symbol;
@@ -652,11 +682,9 @@ definitions_optional_option:
                 longlabel = term->raw();
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
-                debug.raw_line = term->debug().raw_line;
             } else {
                 debug.line1 = prev_term->debug.line1;
                 debug.col1 = prev_term->debug.col1;
-                debug.raw_line = prev_term->debug.raw_line;
             }
         } else {
             longlabel = prev_term->raw;
@@ -664,11 +692,9 @@ definitions_optional_option:
                 shortlabel = term->raw();
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
-                debug.raw_line = term->debug().raw_line;
             } else {
                 debug.line1 = prev_term->debug.line1;
                 debug.col1 = prev_term->debug.col1;
-                debug.raw_line = prev_term->debug.raw_line;
             }
         }
 
@@ -678,7 +704,11 @@ definitions_optional_option:
             PEEK(symbol, iter, n_symbols);
         }
         if (!symbol->is_terminal || ((Terminal*) symbol)->type() != TokenType::l_square) {
-            // It isn't; stop this party
+            // It isn't; alert of the missing LCurly
+            if (symbol->is_terminal) { debug = ((Terminal*) symbol)->debug(); }
+            else { debug = ((NonTerminal*) symbol)->debug(); }
+            Exceptions::log(Exceptions::MissingLSquareError(debug));
+            stack.remove(n_symbols);
             return "";
         }
 
@@ -697,18 +727,29 @@ definitions_optional_variadic:
         // Start by looking at the top of the stack
         PEEK(symbol, iter, n_symbols);
 
+        // Prepare a Debug struct to put the correct error location in
+        DebugInfo debug = di_empty;
+
         // We now only accept an ADLTypes token
         NonTerminal* nterm = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && nterm->type() == NodeType::types) {
-            // OK! Store it and resume on the 'normal' path
-            prev_prev_nonterm = prev_nonterm;
-            prev_nonterm = nterm->node();
-            goto definitions_optional_types;
+        if (symbol->is_terminal) {
+            debug = ((Terminal*) symbol)->debug();
 
         } else {
-            // No success
-            return "";
+            if (nterm->type() == NodeType::types) {
+                // OK! Store it and resume on the 'normal' path
+                prev_prev_nonterm = prev_nonterm;
+                prev_nonterm = nterm->node();
+                goto definitions_optional_types;
+            } else {
+                debug = nterm->debug();
+            }
         }
+
+        // No success
+        Exceptions::log(Exceptions::MissingTypesError(debug));
+        stack.remove(n_symbols);
+        return "";
     }
 
 
@@ -718,17 +759,27 @@ definitions_optional_types:
         // Start by looking at the top of the stack
         PEEK(symbol, iter, n_symbols);
 
+        // Prepare the DebugInfo struct used to store information about a possible invalid symbol
+        DebugInfo debug = di_empty;
+
         // We now only accept a closing bracket
         Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal && term->type() == TokenType::l_square) {
-            // Sweet! Go on to a special state which only allows parsing of Options, after marking the type as optional
-            types_optional = true;
-            goto definitions_types_options;
-
+        if (symbol->is_terminal) {
+            if (term->type() == TokenType::l_square) {
+                // Sweet! Go on to a special state which only allows parsing of Options, after marking the type as optional
+                types_optional = true;
+                goto definitions_types_options;
+            } else {
+                debug = term->debug();
+            }
         } else {
-            // No success
-            return "";
+            debug = ((NonTerminal*) symbol)->debug();
         }
+
+        // No success
+        Exceptions::log(Exceptions::MissingLSquareError(debug));
+        stack.remove(n_symbols);
+        return "";
     }
 
 
@@ -751,16 +802,20 @@ definitions_types_options:
 
                 case TokenType::r_square:
                     // Go into one final state, searching for the idenfitier
+                    prev_prev_term = term->token();
                     goto definitions_types_options_optional;
-                    
 
                 default:
-                    // Not successfull
+                    // We assume the thing to be nameless
+                    Exceptions::log(Exceptions::MissingArgumentIdentifierError(term->debug()));
+                    stack.remove(n_symbols);
                     return "";
             }
         }
 
-        // Not successfull
+        // We assume the thing to be nameless
+        Exceptions::log(Exceptions::MissingArgumentIdentifierError(((NonTerminal*) symbol)->debug()));
+        stack.remove(n_symbols);
         return "";
     }
 
@@ -772,15 +827,38 @@ definitions_types_options_optional:
         PEEK(symbol, iter, n_symbols);
 
         // We now only accept shortlabels and / or longlabels
-        Terminal* term = (Terminal*) symbol;
-        if (symbol->is_terminal && (term->type() == TokenType::shortlabel || term->type() == TokenType::longlabel)) {
-            // Sweet, parse as optional Option (but with types, this time)
-            prev_prev_term = prev_term;
-            prev_term = term->token();
-            goto definitions_optional_option;
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch (term->type()) {
+                case TokenType::shortlabel:
+                case TokenType::longlabel:
+                    // Sweet, parse as optional Option (but with types, this time)
+                    prev_prev_term = prev_term;
+                    prev_term = term->token();
+                    goto definitions_optional_option;
+                
+                case TokenType::l_square:
+                    // Empty optional tokens
+                    {
+                        DebugInfo debug = prev_prev_term->debug;
+                        debug.line2 = term->debug().line2;
+                        debug.col2 = term->debug().col2;
+                        Exceptions::log(Exceptions::EmptyOptionalIDError(debug));
+                        stack.remove(n_symbols);
+                        return "";
+                    }
 
+                default:
+                    // Expected an identifier here, but it wasn't
+                    Exceptions::log(Exceptions::MissingArgumentIdentifierError(term->debug()));
+                    stack.remove(n_symbols - 1);
+                    return "";
+
+            }
         } else {
-            // Not successfull
+            // Expected an identifier here, but it wasn't
+            Exceptions::log(Exceptions::MissingArgumentIdentifierError(((NonTerminal*) symbol)->debug()));
+            stack.remove(n_symbols - 1);
             return "";
         }
     }
@@ -796,15 +874,44 @@ config_start:
         PEEK(symbol, iter, n_symbols);
 
         // Do different things based on whether it is a terminal or not
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::values) {
-            // Store this as the previous nonterm and then go to the config's final stage
-            prev_nonterm = term->node();
-            goto config_values;
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch (term->type()) {
+                case TokenType::l_curly:
+                case TokenType::semicolon:
+                    // Simply an empty statement; we'll allow it (but with warning)
+                    Exceptions::log(Exceptions::EmptyStatementWarning(prev_term->debug));
+                    stack.remove(1);
+                    return "";
+                
+                case TokenType::config:
+                    // Missing value!
+                    Exceptions::log(Exceptions::EmptyConfigError(term->debug()));
+                    stack.remove(2);
+                    return "";
+                
+                default:
+                    // Unexpected symbol to follow a termination; let the user know
+                    Exceptions::log(Exceptions::StraySemicolonWarning(term->debug()));
+                    stack.remove(1);
+                    return "";
 
+            }
         } else {
-            // Not what we're looking for
-            return "";
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            switch(nterm->type()) {
+                case NodeType::values:
+                    // Store this as the previous nonterm and then go to the config's final stage
+                    prev_nonterm = nterm->node();
+                    goto config_values;
+                
+                default:
+                    // Unexpected symbol to follow a termination; let the user know
+                    Exceptions::log(Exceptions::StraySemicolonWarning(nterm->debug()));
+                    stack.remove(1);
+                    return "";
+
+            }
         }
     }
 
@@ -828,12 +935,17 @@ config_values:
             // Create a new ADLConfig node and set it as the prevous value, then try to merge it with an existing ADLConfigs node
             prev_nonterm = new ADLConfig(debug, term->raw(), (ADLValues*) prev_nonterm);
             goto config_merge;
-
-        } else {
-            // Not what we're looking for, so we're done
-            return "";
-            
         }
+
+        // Else it's clearly in the incorrect place
+        DebugInfo debug = prev_nonterm->debug;
+        debug.line2 = prev_term->debug.line2;
+        debug.col2 = prev_term->debug.col2;
+        Exceptions::log(Exceptions::MissingConfigError(debug));
+
+        // Also remove the two symbols from the stack, for the simple reason as to not infuriate later errors
+        stack.remove(2);
+        return "";
     }
 
 
@@ -844,7 +956,7 @@ config_values:
 types_merge:
     {
         // Start by looking at the top of the stack
-        int temp;
+        int temp = 0;
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
@@ -884,30 +996,42 @@ types_merge:
 config_merge:
     {
         // Start by looking at the top of the stack
-        int temp;
+        int temp = 0;
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a configs node or not
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::configs) {
-            // Merge this configs node and the one we parsed earlier together
-            term->node<ADLConfigs>()->add_node(prev_nonterm);
-            stack.remove(n_symbols);
+        if (!symbol->is_terminal) {
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            switch (nterm->type()) {
+                case NodeType::configs:
+                    // Merge this configs node and the one we parsed earlier together
+                    nterm->node<ADLConfigs>()->add_node(prev_nonterm);
+                    stack.remove(n_symbols);
 
-            // Update the value's debug info though
-            term->node<ADLConfigs>()->debug.line2 = prev_nonterm->debug.line2;
-            term->node<ADLConfigs>()->debug.col2 = prev_nonterm->debug.col2;
+                    // Update the value's debug info though
+                    nterm->node<ADLConfigs>()->debug.line2 = prev_nonterm->debug.line2;
+                    nterm->node<ADLConfigs>()->debug.col2 = prev_nonterm->debug.col2;
+                    nterm->node<ADLConfigs>()->debug.raw_line = prev_nonterm->debug.raw_line;
 
-            return "config-merge";
+                    return "config-merge";
+                
+                case NodeType::values:
+                    // Probably a missing semicolon
+                    Exceptions::log(Exceptions::MissingSemicolonError(nterm->debug()));
+                    stack.remove(n_symbols);
+                    return "";
+                
+                default:
+                    break;
 
-        } else {
-            // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
-            stack.replace(n_symbols, new NonTerminal(
-                new ADLConfigs(prev_nonterm->debug, (ADLConfig*) prev_nonterm)
-            ));
-            return "config-new";
-            
+            }
         }
+
+        // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
+        stack.replace(n_symbols, new NonTerminal(
+            new ADLConfigs(prev_nonterm->debug, (ADLConfig*) prev_nonterm)
+        ));
+        return "config-new";
     }
 
 
@@ -915,7 +1039,7 @@ config_merge:
 value_merge:
     {
         // Start by looking at the top of the stack
-        int temp;
+        int temp = 0;
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
@@ -944,21 +1068,28 @@ value_merge:
 toplevel_merge:
     {
         // Start by looking at the top of the stack
-        int temp;
+        int temp = 0;
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::root) {
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && nterm->type() == NodeType::root) {
             // Merge this value to the previously found File node
-            term->node<ADLTree>()->add_node(prev_nonterm);
+            nterm->node<ADLTree>()->add_node(prev_nonterm);
+
+            // Update the Tree's debug information
+            nterm->node<ADLTree>()->debug.line2 = prev_nonterm->debug.line2;
+            nterm->node<ADLTree>()->debug.col2 = prev_nonterm->debug.col2;
+            nterm->node<ADLTree>()->debug.raw_line = prev_nonterm->debug.raw_line;
+
+            // We're done here
             stack.remove(n_symbols);
             return "toplevel-merge";
             
         } else {
             // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
             stack.replace(n_symbols, new NonTerminal(
-                new ADLTree(prev_nonterm)
+                new ADLTree(filename, prev_nonterm)
             ));
             return "toplevel-new";
             
@@ -968,25 +1099,50 @@ toplevel_merge:
 }
 
 /* Analyses a stack that is done in principle but didn't reduce to a single ADLFile* node and prints out each of the errors. */
-void analyze_errors(const std::vector<std::string>& filenames, const SymbolStack& stack) {
-//     size_t stack_i = 0;
+void analyze_errors(const SymbolStack& stack) {
+    size_t stack_i = 0;
 
-//     // Placeholder for the symbol we read from the stack
-//     Symbol* symbol;
+    // Placeholder for the symbol we read from the stack
+    Symbol* symbol;
 
-//     // Go through another final state machine to arrive at the correct error messages
-// start:
-//     {
-//         // Get the next symbol from the stack
-//         PEEK_ERR(symbol, stack, stack_i);
+    // Go through another final state machine to arrive at the correct error messages
+start:
+    {
+        // Get the next symbol from the stack
+        PEEK_ERR(symbol, stack, stack_i);
+        if (symbol->is_terminal && ((Terminal*) symbol)->type() == TokenType::empty) {
+            // We're done
+            return;
+        }
 
-//         // Do different things depending on if it's a terminal or not
-//         if (symbol->is_terminal) {
+        // Do different things depending on if it's a terminal or not
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch (term->type()) {
+                case TokenType::l_curly:
+                    // Unterminated left curly!
+                    Exceptions::log(Exceptions::UnterminatedLCurlyError(term->debug()));
+                    goto start;
 
-//         } else {
+                default:
+                    // Just skip
+                    Exceptions::log(Exceptions::GeneralError(term->debug()));
+                    goto start;
+
+            }
+        } else {
+            NonTerminal* nterm = (NonTerminal*) symbol;
             
-//         }
-//     }
+            if (nterm->type() == NodeType::root) {
+                // Error-less process
+                goto start;
+            }
+
+            // Just skip
+            Exceptions::log(Exceptions::GeneralError(nterm->debug()));
+            goto start;
+        }
+    }
 }
 
 
@@ -1011,7 +1167,7 @@ ADLTree* ArgumentParser::Parser::parse(const std::string& filename) {
     bool changed = true;
     while (!in.eof() || changed) {
         // Check to see if we can match any grammar rule (reduce)
-        std::string applied_rule = reduce(lookahead, stack);
+        std::string applied_rule = reduce(filename, lookahead, stack);
         changed = !applied_rule.empty();
 
         // If we couldn't, then shift a new symbol if there are any left
@@ -1040,7 +1196,7 @@ ADLTree* ArgumentParser::Parser::parse(const std::string& filename) {
     // Check if we parsed everything
     if (stack.size() != 1 || stack[0]->is_terminal || ((NonTerminal*) stack[0])->type() != NodeType::root) {
         // Print errors to the user
-        analyze_errors(in.breadcrumbs(), stack);
+        analyze_errors(stack);
 
         // Free the stack
         for (size_t i = 0; i < stack.size(); i++) {

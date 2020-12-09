@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:36:22
  * Last edited:
- *   03/12/2020, 23:18:41
+ *   12/9/2020, 5:20:26 PM
  * Auto updated?
  *   Yes
  *
@@ -25,8 +25,8 @@ namespace ArgumentParser {
     /* Class for the topmost node in the ADL AST. */
     class ADLTree : public ADLBranch {
     public:
-        /* Constructor for the ADLTree class, which only optionally takes a toplevel node. */
-        ADLTree(ADLNode* toplevel = nullptr);
+        /* Constructor for the ADLTree class, which takes the filename of the root file and optionally takes a toplevel node. */
+        ADLTree(const std::string& root_file, ADLNode* toplevel = nullptr);
 
         /* Prints all nodes in this file, reflecting the AST structure. */
         virtual std::ostream& print(std::ostream& os) const;

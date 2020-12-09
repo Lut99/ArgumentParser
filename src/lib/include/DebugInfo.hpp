@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 14:38:54
  * Last edited:
- *   03/12/2020, 21:42:38
+ *   12/9/2020, 4:33:52 PM
  * Auto updated?
  *   Yes
  *
@@ -63,6 +63,10 @@ namespace ArgumentParser {
         /* The raw string including and around the token. */
         LineSnippet raw_line;
 
+        /* Default constructor for the DebugInfo struct, which initializes it as an empty DebugInfo. */
+        DebugInfo() :
+            filenames({}), line1(0), col1(0), line2(0), col2(0), raw_line("")
+        {}
         /* Constructor for the DebugInfo struct, which takes the line information and a raw line snippet. */
         DebugInfo(const std::vector<std::string>& filenames, size_t line1, size_t col1, size_t line2, size_t col2, const LineSnippet& raw_line) :
             filenames(filenames), line1(line1), col1(col1), line2(line2), col2(col2), raw_line(raw_line)
@@ -71,10 +75,19 @@ namespace ArgumentParser {
         DebugInfo(const std::vector<std::string>& filenames, size_t line, size_t col, const LineSnippet& raw_line) :
             filenames(filenames), line1(line), col1(col), line2(line), col2(col), raw_line(raw_line)
         {}
+
+        /* Adds this DebugInfo to another, setting its line number to ours. */
+        inline DebugInfo operator+(const DebugInfo& other) { return DebugInfo(this->filenames, this->line1, this->col1, other.line2, other.col2, this->raw_line); }
+        /* Adds this DebugInfo to another, setting its line number to ours. */
+        DebugInfo& operator+=(const DebugInfo& other) {
+            this->line2 = other.line2;
+            this->col2 = other.col2;
+            return *this;
+        }
     };
 
     /* A static debuginfo for when a node does not have a direct origin. */
-    const static DebugInfo di_empty({}, 0, 0, 0, 0, std::string(""));
+    const static DebugInfo di_empty;
 
 }
 

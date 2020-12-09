@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:47:57
  * Last edited:
- *   08/12/2020, 20:48:14
+ *   12/9/2020, 5:23:31 PM
  * Auto updated?
  *   Yes
  *
@@ -22,9 +22,9 @@ using namespace ArgumentParser;
 
 /***** ADLFILE CLASS *****/
 
-/* Constructor for the ADLTree class, which only optionally takes a toplevel node. */
-ADLTree::ADLTree(ADLNode* toplevel) :
-    ADLBranch(NodeType::root, di_empty, nt_toplevel)
+/* Constructor for the ADLTree class, which takes the filename of the root file and optionally takes a toplevel node. */
+ADLTree::ADLTree(const std::string& root_file, ADLNode* toplevel) :
+    ADLBranch(NodeType::root, DebugInfo({ root_file }, 0, 0, LineSnippet("")), nt_toplevel)
 {
     // Add the node if it isn't NULL
     if (toplevel != nullptr) { this->add_node(toplevel); }

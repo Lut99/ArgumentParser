@@ -15,6 +15,7 @@ cd "../../.."
 # Then, check arguments
 if [ "$#" -lt 3 ]; then
     echo "Usage: $0 <template_path> <adl_path>... <output_path>"
+    exit 0
 fi
 
 n_args="$#"
@@ -43,11 +44,11 @@ for ((i=2;i<n_args;i++)); do
 done
 
 # Once done, replace the correct occurences in the template with the just generated names and files
-template_file=$(cat "$template")
-result_file=${template_file//"/*****NAMEPASTE*****/"/"$names"}
-result_file=${result_file//"/*****FILEPASTE*****/"/"$files"}
+result_file=$(cat "$template")
+result_file=${result_file//"*****NAMEPASTE*****"/"$names"}
+result_file=${result_file//"*****FILEPASTE*****"/"$files"}
 n_files=$((n_args-2))
-result_file=${result_file//"/*****COUNTPASTE*****/"/"$n_files"}
+result_file=${result_file//"*****COUNTPASTE*****"/"$n_files"}
 echo "$result_file" > "$output"
 
 # Done!

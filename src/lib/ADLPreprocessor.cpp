@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 21:52:46
  * Last edited:
- *   07/12/2020, 21:14:25
+ *   12/9/2020, 5:02:57 PM
  * Auto updated?
  *   Yes
  *
@@ -63,7 +63,8 @@ Preprocessor::Preprocessor(Preprocessor&& other) :
     done_tokenizing(other.done_tokenizing),
     included_paths(other.included_paths),
     defines(other.defines),
-    ifdefs(other.ifdefs)
+    ifdefs(other.ifdefs),
+    ifdefs_stack(other.ifdefs_stack)
 {
     // Set the other's pointers list to nullptr, as we don't want him to allocate this
     other.tokenizers = nullptr;
@@ -106,6 +107,10 @@ Token* Preprocessor::include_handler(bool pop, Token* token) {
             this->current = new_tokenizer;
             if (this->length >= this->max_length) { this->resize(); }
             this->tokenizers[this->length++] = new_tokenizer;
+
+            // Also push the current list of ifdefs to the stack & make place for the new file
+            this->ifdefs_stack.push_back(this->ifdefs);
+            this->ifdefs.clear();
 
             // Don't forget to add the new path to the list of included paths
             this->included_paths.push_back(token->raw);
@@ -156,6 +161,10 @@ Token* Preprocessor::include_handler(bool pop, Token* token) {
             this->current = new_tokenizer;
             if (this->length >= this->max_length) { this->resize(); }
             this->tokenizers[this->length++] = new_tokenizer;
+
+            // Also push the current list of ifdefs to the stack & make place for the new file
+            this->ifdefs_stack.push_back(this->ifdefs);
+            this->ifdefs.clear();
 
             // Don't forget to add the new path to the list of included paths
             this->included_paths.push_back(token->raw);
@@ -265,7 +274,7 @@ Token* Preprocessor::ifdef_handler(bool pop, Token* token) {
     // Check if the token is present
     if (this->contains(this->defines, token->raw)) {
         // It is, so mark internally that we are now one deep in an if/else statement
-        ++this->ifdefs;
+        this->ifdefs.push_back(std::make_tuple("ifdef", debug + token->debug));
 
         #ifdef DEBUG
         cout << "[ADLPreprocessor]  > Compiling nested code" << endl; 
@@ -328,7 +337,7 @@ Token* Preprocessor::ifndef_handler(bool pop, Token* token) {
     // Check if the token is present
     if (this->contains(this->defines, token->raw)) {
         // It isn't, so mark internally that we are now one deep in an if/else statement
-        ++this->ifdefs;
+        this->ifdefs.push_back(std::make_tuple("ifndef", debug + token->debug));
 
         #ifdef DEBUG
         cout << "[ADLPreprocessor]  > Leaving nested code out" << endl; 
@@ -368,7 +377,7 @@ Token* Preprocessor::ifndef_handler(bool pop, Token* token) {
 /* Handler for the endif-macro. */
 Token* Preprocessor::endif_handler(bool pop, Token* token) {
     // Check if we have unmatched if-statements
-    if (this->ifdefs == 0) {
+    if (this->ifdefs.size() == 0) {
         // We don't; unmatched endif
         Exceptions::log(Exceptions::UnmatchedEndifException(token->debug));
         // Use recursion to find the next token instead
@@ -380,7 +389,7 @@ Token* Preprocessor::endif_handler(bool pop, Token* token) {
     #endif
 
     // Otherwise, mark one as closed and use recursion to return the next token
-    --this->ifdefs;
+    this->ifdefs.pop_back();
     delete token;
     return this->read_head(pop);
 }
@@ -410,10 +419,6 @@ Token* Preprocessor::read_head(bool pop) {
     Token* token;
     PEEK(token, this->current, pop)
 
-    // #ifdef DEBUG
-    // cout << "[ADLPreprocessor] Read token " << *token << " from file '" << this->current->filenames[this->current->filenames.size() - 1] << "'" << endl;
-    // #endif
-
     // Do clever stuff
     if (token->type == TokenType::macro) {
         // Determine which macro
@@ -436,11 +441,25 @@ Token* Preprocessor::read_head(bool pop) {
         }
 
     } else if (token->type == TokenType::empty) {
+        // Check if we have unmatched ifdefs
+        for (size_t i = 0; i < this->ifdefs.size(); i++) {
+            std::tuple<std::string, DebugInfo> ifdef = this->ifdefs[i];
+            if (get<0>(ifdef) == "ifdef") {
+                Exceptions::log(Exceptions::UnmatchedIfdefException(get<1>(ifdef)));
+            } else {
+                Exceptions::log(Exceptions::UnmatchedIfndefException(get<1>(ifdef)));
+            }
+        }
+        
         // This Tokenizer is depleted; check if we have more
         if (this->length > 1) {
             #ifdef DEBUG
             cout << "[ADLPreprocessor] Done including file '" << token->raw << "', moving back to '" << this->tokenizers[this->length - 2]->filenames[this->tokenizers[this->length - 2]->filenames.size() - 1] << "'" << endl;
             #endif
+
+            // Reset the ifdefs to a previous state
+            this->ifdefs = this->ifdefs_stack[this->ifdefs_stack.size() - 1];
+            this->ifdefs_stack.pop_back();
 
             // Destroy the depleted one and move one tokenizer back on the stack
             delete this->tokenizers[--this->length];

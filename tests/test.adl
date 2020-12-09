@@ -9,9 +9,10 @@
 #define DEBUG
 #define DEBUG2
 
+#ifdef DEBUG
 #include stdtypes
 #include "tests/test_extern.adl"
-
+#endif
 
 meta {
     .auto_help (false);
@@ -61,6 +62,10 @@ positional1 <int> {
 
 variadic_positional <int>... {
     .index ---5.5;
+}
+
+[optional_positional] <int> <uint> {
+    .category "Wouldn't you like to know, wheater boy";
 }
 
 #undefine DEBUG

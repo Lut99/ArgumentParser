@@ -17,7 +17,7 @@ TEST=tests/
 AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
 AST = $(AST_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
-PREPROCESSOR = $(INCL)/adl/ADLBaked.hpp $(OBJ)/ADLPreprocessor.o $(TOKENIZER)
+PREPROCESSOR = $(OBJ)/ADLPreprocessor.o $(TOKENIZER)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(PREPROCESSOR) $(AST)
 
 # Prepare the list of includes and use that to extend the list of directories we need to make
@@ -72,6 +72,8 @@ dirs: $(DIRS)
 
 ##### COMPILE RULES #####
 
+$(OBJ)/ADLPreprocessor.o: $(LIB)/ADLPreprocessor.cpp $(INCL)/adl/ADLBaked.hpp | dirs
+	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
 $(OBJ)/%.o: $(LIB)/%.cpp | dirs
 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
 
@@ -95,5 +97,5 @@ test_tokenizer: $(BIN)/test_tokenizer.out
 $(OBJ)/test_parser.o: $(TEST)/test_parser.cpp | dirs
 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
 $(BIN)/test_parser.out: $(OBJ)/test_parser.o $(PARSER) | dirs
-	$(GXX) $(GXX_ARGS) -o $@ $< $(PARSER)
+	$(GXX) $(GXX_ARGS) -o $@ $^
 test_parser: $(BIN)/test_parser.out

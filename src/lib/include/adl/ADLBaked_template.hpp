@@ -4,7 +4,7 @@
  * Created:
  *   12/5/2020, 1:04:17 PM
  * Last edited:
- *   12/5/2020, 4:23:58 PM
+ *   12/9/2020, 2:26:37 PM
  * Auto updated?
  *   Yes
  *
@@ -27,13 +27,13 @@
 
 namespace ArgumentParser {
     namespace System {
-        static const size_t n_files = /*****COUNTPASTE*****/;
+        static const size_t n_files = *****COUNTPASTE*****;
 
         static const char* names[] = {
-            /*****NAMEPASTE*****/
+            *****NAMEPASTE*****
         };
         static const char* files[] = {
-            /*****FILEPASTE*****/
+            *****FILEPASTE*****
         };
     }
 }
