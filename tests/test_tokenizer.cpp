@@ -4,7 +4,7 @@
  * Created:
  *   10/11/2020, 18:03:09
  * Last edited:
- *   07/12/2020, 21:06:11
+ *   12/9/2020, 1:55:37 PM
  * Auto updated?
  *   Yes
  *
@@ -45,7 +45,7 @@ int main() {
             }
 
             // Write it
-            cout << t->debug.line1 << ":" << t->debug.col1 << ":" << *t;
+            cout << *t;
 
             // Deallocate the token
             delete t;

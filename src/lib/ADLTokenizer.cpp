@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   08/12/2020, 17:45:37
+ *   12/9/2020, 2:14:36 PM
  * Auto updated?
  *   Yes
  *
@@ -48,8 +48,9 @@ using namespace ArgumentParser;
 /* Shortcut for fetching the head character of the internal stream. */
 #define PEEK(C) \
     (C) = this->file->get(); \
-    if ((C) == EOF && this->file->bad()) { throw Exceptions::log(Exceptions::FileReadError(this->filenames, errno)); }
-
+    if ((C) == EOF && this->file->bad()) { throw Exceptions::log(Exceptions::FileReadError(this->filenames, errno)); } \
+    else if ((C) == EOF && this->file->eof()) { /* Unset the fail flag to continue getting EOF's */ this->file->clear(); }
+    
 /* Shortcut for accepting a token and storing it. */
 #define STORE(C) \
     result->raw.push_back((C)); \
@@ -1396,16 +1397,12 @@ LineSnippet Tokenizer::get_line() {
     std::stringstream sstr;
     while (true) {
         char c;
-        this->file->get(c);
+        PEEK(c);
         sstr << c;
-        if (c == '\n' || (c == EOF && this->file->eof())) {
+        if (c == '\n' || c == EOF) {
             // Restore the initial file position and return
             this->file->seekg(cursor);
             break;
-        } else if (c == EOF && this->file->fail()) {
-            // Restore the initial file position and return an empty one
-            this->file->seekg(cursor);
-            return std::string();
         }
     }
 
