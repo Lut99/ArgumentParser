@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   07/12/2020, 20:51:06
+ *   10/12/2020, 17:29:55
  * Auto updated?
  *   Yes
  *
@@ -181,6 +181,9 @@ namespace ArgumentParser::Exceptions {
         size_t length;
         /* Maximum number of exception we allocated space for. */
         size_t max_length;
+        
+        /* Number of errors that have been logged in the handler. */
+        size_t n_errors;
 
         /* Resizes the internal array, by doubling its size. */
         void resize();
@@ -222,6 +225,7 @@ namespace ArgumentParser::Exceptions {
             // Log the exception in our internal list
             if (this->length >= this->max_length) { this->resize(); }
             this->exceptions[this->length++] = except.copy();
+            if (dynamic_cast<const ADLError*>(&except)) { ++this->n_errors; }
     
             // Don't forget to print it
             if (this->print_on_add) { except.print(std::cerr); }
@@ -237,6 +241,8 @@ namespace ArgumentParser::Exceptions {
         inline const ADLException& operator[](size_t i) const { return *(this->exceptions[i]); }
         /* Returns the number of exceptions currently stored in this handler. */
         inline size_t size() const { return this->length; }
+        /* Returns the number of errors (not warning) logged in the handler. */
+        inline size_t errors() const { return this->n_errors; }
         
         /* Neatly prints all exceptions in this ExceptionHandler. */
         friend std::ostream& operator<<(std::ostream& os, const ExceptionHandler& except);

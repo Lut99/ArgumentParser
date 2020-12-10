@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:36:56
  * Last edited:
- *   08/12/2020, 20:44:15
+ *   10/12/2020, 16:55:05
  * Auto updated?
  *   Yes
  *
@@ -58,6 +58,8 @@ namespace ArgumentParser {
         /* Adds a node as child of this node. */
         void add_node(ADLNode* node);
 
+        /* Returns all nodes (as vector) with the given type(s) stored as child of this node. */
+        std::vector<ADLNode*> get_nodes(NodeType type) const;
         /* Returns the number of children currently in this node. */
         inline size_t size() const { return this->children.size(); }
 

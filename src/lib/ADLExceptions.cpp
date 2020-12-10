@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   07/12/2020, 20:48:51
+ *   10/12/2020, 17:30:06
  * Auto updated?
  *   Yes
  *
@@ -345,6 +345,7 @@ ExceptionHandler& ExceptionHandler::log(const ADLException& except) {
     // Log the exception in our internal list
     if (this->length >= this->max_length) { this->resize(); }
     this->exceptions[this->length++] = except.copy();
+    if (dynamic_cast<const ADLError*>(&except)) { ++this->n_errors; }
 
     // Don't forget to print it
     if (this->print_on_add) { except.print(cerr); }

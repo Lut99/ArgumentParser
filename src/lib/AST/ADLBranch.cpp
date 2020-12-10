@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:39:35
  * Last edited:
- *   08/12/2020, 20:44:33
+ *   10/12/2020, 16:56:50
  * Auto updated?
  *   Yes
  *
@@ -144,4 +144,23 @@ void ADLBranch::add_node(ADLNode* node) {
     // Finally, just add the node and set its parent
     this->children.push_back(node);
     node->parent = this;
+}
+
+/* Returns all nodes (as vector) with the given type(s) stored as child of this node. */
+std::vector<ADLNode*> ADLBranch::get_nodes(NodeType type) const {
+    // Reserve a list with enough space to return
+    std::vector<ADLNode*> result;
+    result.reserve(this->children.size());
+
+    // Search for nodes with one of the given types
+    for (size_t i = 0; i < this->children.size(); i++) {
+        if (this->children[i]->type & type) {
+            // It's one of the desired types
+            result.push_back(this->children[i]);
+        }
+    }
+
+    // Shrink the resulting vector back to the correct size, and then return it
+    result.reserve(result.size());
+    return result;
 }

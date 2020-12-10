@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   03/12/2020, 17:25:14
+ *   10/12/2020, 16:43:22
  * Auto updated?
  *   Yes
  *
@@ -21,7 +21,7 @@
 
 namespace ArgumentParser {
     /* The type to which cast NodeType if we want to perform numeric operations on it. */
-    using nodetype_t = uint16_t;
+    using nodetype_t = uint32_t;
 
     /* The NodeType enum, defining all types. */
     enum class NodeType {
@@ -33,18 +33,19 @@ namespace ArgumentParser {
         positional = 0x10,
         option = 0x20,
 
-        types = 0x40,
+        identifier = 0x40,
+        types = 0x80,
 
-        configs = 0x80,
-        config = 0x100,
+        configs = 0x100,
+        config = 0x200,
 
-        values = 0x200,
-        string = 0x400,
-        regex = 0x800,
-        number = 0x1000,
-        decimal = 0x2000,
-        reference = 0x4000,
-        snippet = 0x8000
+        values = 0x400,
+        string = 0x800,
+        regex = 0x1000,
+        number = 0x2000,
+        decimal = 0x4000,
+        reference = 0x8000,
+        snippet = 0x10000
     };
 
 
@@ -59,6 +60,7 @@ namespace ArgumentParser {
         { NodeType::positional, "Positional" },
         { NodeType::option, "Option" },
 
+        { NodeType::identifier, "Identifier" },
         { NodeType::types, "Types" },
 
         { NodeType::configs, "Configs" },

@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/9/2020, 5:47:34 PM
+ *   10/12/2020, 17:20:16
  * Auto updated?
  *   Yes
  *
@@ -22,6 +22,7 @@
 #include "ADLPositional.hpp"
 #include "ADLOption.hpp"
 
+#include "ADLIdentifier.hpp"
 #include "ADLTypes.hpp"
 
 #include "ADLConfigs.hpp"
@@ -142,18 +143,21 @@ std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& s
                         std::string property = term->raw().substr(string_pos + 1);
 
                         // Infer the type of the reference
-                        TokenType reference_type = TokenType::identifier;
-                        if (identifier[0] == '-' && identifier[1] == '-') {
+                        IdentifierType reference_type = IdentifierType::positional;
+                        if (identifier == "meta") {
+                            // Meta
+                            reference_type = IdentifierType::meta;
+                        } else if (identifier[0] == '-' && identifier[1] == '-') {
                             // Longlabel
-                            reference_type = TokenType::longlabel;
+                            reference_type = IdentifierType::longlabel;
                             identifier = identifier.substr(2);
                         } else if (identifier[0] == '-') {
                             // Shortlabel
-                            reference_type = TokenType::shortlabel;
+                            reference_type = IdentifierType::shortlabel;
                             identifier = identifier[1];
                         } else if (identifier[0] == '<') {
                             // Type
-                            reference_type = TokenType::type;
+                            reference_type = IdentifierType::type;
                             identifier = identifier.substr(1, identifier.size() - 2);
                         }
 
@@ -323,7 +327,7 @@ definitions_body:
 
                         // Replace the symbols on the stack with the new definition
                         stack.replace(n_symbols, new NonTerminal(
-                            new ADLMeta(debug, (ADLConfigs*) prev_nonterm)
+                            new ADLMeta(debug, new ADLIdentifier(term->debug(), "meta", IdentifierType::meta), (ADLConfigs*) prev_nonterm)
                         ));
                         return "meta";
                     }
@@ -339,7 +343,7 @@ definitions_body:
 
                         // Replace the symbols on the stack with the new definition
                         stack.replace(n_symbols, new NonTerminal(
-                            new ADLTypeDef(debug, term->raw(), (ADLConfigs*) prev_nonterm)
+                            new ADLTypeDef(debug, new ADLIdentifier(term->debug(), term->raw(), IdentifierType::type), (ADLConfigs*) prev_nonterm)
                         ));
                         return "typedef";
                     }
@@ -434,16 +438,16 @@ definitions_option:
         PEEK(symbol, iter, temp);
 
         // Prepare placeholders for the options we'll use
-        std::string shortlabel = "";
-        std::string longlabel = "";
+        ADLIdentifier* shortlabel = nullptr;
+        ADLIdentifier* longlabel = nullptr;
         DebugInfo debug = prev_prev_term->debug;
 
         // Determine if we're going to use this next symbol or not
         Terminal* term = (Terminal*) symbol;
         if (prev_term->type == TokenType::shortlabel) {
-            shortlabel = prev_term->raw;
+            shortlabel = new ADLIdentifier(prev_term->debug, prev_term->raw, IdentifierType::shortlabel);
             if (symbol->is_terminal && term->type() == TokenType::longlabel) {
-                longlabel = term->raw();
+                longlabel = new ADLIdentifier(term->debug(), term->raw(), IdentifierType::longlabel);
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
                 ++n_symbols;
@@ -452,9 +456,9 @@ definitions_option:
                 debug.col1 = prev_term->debug.col1;
             }
         } else {
-            longlabel = prev_term->raw;
+            longlabel = new ADLIdentifier(prev_term->debug, prev_term->raw, IdentifierType::longlabel);
             if (symbol->is_terminal && term->type() == TokenType::shortlabel) {
-                shortlabel = term->raw();
+                shortlabel = new ADLIdentifier(term->debug(), term->raw(), IdentifierType::shortlabel);
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
                 ++n_symbols;
@@ -494,7 +498,7 @@ definitions_types:
 
                         // Apply the grammar rule!
                         stack.replace(n_symbols, new NonTerminal(
-                            new ADLPositional(debug, term->raw(), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
+                            new ADLPositional(debug, new ADLIdentifier(term->debug(), term->raw(), IdentifierType::positional), (ADLTypes*) prev_nonterm, false, variadic, (ADLConfigs*) prev_prev_nonterm)
                         ));
                         return "positional";
                     }
@@ -562,7 +566,7 @@ definitions_types_optional:
 
                         // Apply the grammar rule!
                         stack.replace(n_symbols, new NonTerminal(
-                            new ADLPositional(debug, term->raw(), (ADLTypes*) prev_nonterm, true, variadic, (ADLConfigs*) prev_prev_nonterm)
+                            new ADLPositional(debug, new ADLIdentifier(term->debug(), term->raw(), IdentifierType::positional), (ADLTypes*) prev_nonterm, true, variadic, (ADLConfigs*) prev_prev_nonterm)
                         ));
                         return "positional-optional";
                     }
@@ -670,16 +674,16 @@ definitions_optional_option:
         PEEK(symbol, iter, n_symbols);
 
         // Prepare placeholders for the options we'll use
-        std::string shortlabel = "";
-        std::string longlabel = "";
+        ADLIdentifier* shortlabel = nullptr;
+        ADLIdentifier* longlabel = nullptr;
         DebugInfo debug = prev_prev_term->debug;
 
         // Determine if we're going to use this next symbol or not
         Terminal* term = (Terminal*) symbol;
         if (prev_term->type == TokenType::shortlabel) {
-            shortlabel = prev_term->raw;
+            shortlabel = new ADLIdentifier(prev_term->debug, prev_term->raw, IdentifierType::shortlabel);
             if (symbol->is_terminal && term->type() == TokenType::longlabel) {
-                longlabel = term->raw();
+                longlabel = new ADLIdentifier(term->debug(), term->raw(), IdentifierType::longlabel);
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
             } else {
@@ -687,9 +691,9 @@ definitions_optional_option:
                 debug.col1 = prev_term->debug.col1;
             }
         } else {
-            longlabel = prev_term->raw;
+            longlabel = new ADLIdentifier(prev_term->debug, prev_term->raw, IdentifierType::longlabel);
             if (symbol->is_terminal && term->type() == TokenType::shortlabel) {
-                shortlabel = term->raw();
+                shortlabel = new ADLIdentifier(term->debug(), term->raw(), IdentifierType::shortlabel);
                 debug.line1 = term->debug().line1;
                 debug.col1 = term->debug().col1;
             } else {
@@ -699,7 +703,7 @@ definitions_optional_option:
         }
 
         // See if the next item is actually the mandatory closing bracket
-        if (!shortlabel.empty() && !longlabel.empty()) {
+        if (shortlabel != nullptr && longlabel != nullptr) {
             // We used the current symbol; grab a new one for comparison instead
             PEEK(symbol, iter, n_symbols);
         }

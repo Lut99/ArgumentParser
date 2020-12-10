@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 17:29:00
  * Last edited:
- *   08/12/2020, 20:56:22
+ *   10/12/2020, 17:23:13
  * Auto updated?
  *   Yes
  *
@@ -22,22 +22,25 @@ using namespace ArgumentParser;
 
 /***** ADLMETA CLASS *****/
 
-/* Constructor for the ADLMeta class, which takes debug information linking this node back to the source file and optionally properties to store in the meta namespace. */
-ADLMeta::ADLMeta(const DebugInfo& debug, ADLConfigs* configs) :
-    ADLBranch(NodeType::meta, debug, 1, NodeType::configs)
+/* Constructor for the ADLMeta class, which takes debug information linking this node back to the source file, an identifier to store the 'meta' in and optionally properties to store in the meta namespace. */
+ADLMeta::ADLMeta(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs) :
+    ADLBranch(NodeType::meta, debug, 2, NodeType::identifier | NodeType::configs)
 {
+    // Add the identifier
+    this->add_node((ADLNode*) id);
     // Only add the configs if they're not nullptrs
     if (configs != nullptr) { this->add_node((ADLNode*) configs); }
 }
 
 /* Prints all the toplevel properties, reflecting the AST structure. */
 std::ostream& ADLMeta::print(std::ostream& os) const {
-    os << "meta {";
+    this->children[0]->print(os);
+    os << " {";
 
     // Print each of the configuration parameters, if any, preceded by a space
-    if (this->children.size() == 1) {
+    if (this->children.size() == 2) {
         os << endl;
-        this->children[0]->print(os);
+        this->children[1]->print(os);
     }
     
     // Close with a bracket and newline, then we're done

@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:03:08
  * Last edited:
- *   08/12/2020, 20:48:33
+ *   10/12/2020, 17:03:30
  * Auto updated?
  *   Yes
  *
@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "ADLBranch.hpp"
+#include "ADLIdentifier.hpp"
 #include "ADLConfigs.hpp"
 #include "NodeType.hpp"
 
@@ -29,11 +30,8 @@ namespace ArgumentParser {
     /* The ADLTypeDef class is used to represent new type definitions. */
     class ADLTypeDef: public ADLBranch {
     public:
-        /* The identifier of this type definition, which can later be referenced again. */
-        std::string id;
-
         /* Constructor for the ADLTypeDef class, which takes debug information about the node's origin, the type definition's identifier and optionally an ADLConfigs node. */
-        ADLTypeDef(const DebugInfo& debug, const std::string& id, ADLConfigs* configs = nullptr);
+        ADLTypeDef(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs = nullptr);
 
         /* Prints the type definition and all its configuration parameters to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

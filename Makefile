@@ -16,9 +16,12 @@ TEST=tests/
 # Required files
 AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
 AST = $(AST_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
+TRAVERSALS_SOURCE = $(shell find $(LIB)/traversals -name '*.cpp')
+TRAVERSALS = $(TRAVERSALS_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
 PREPROCESSOR = $(OBJ)/ADLPreprocessor.o $(TOKENIZER)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(PREPROCESSOR) $(AST)
+COMPILER = $(OBJ)/ADLCompiler.o $(PARSER) $(TRAVERSALS)
 
 # Prepare the list of includes and use that to extend the list of directories we need to make
 INCLUDE_DIRS = $(shell find $(INCL) -type d)
@@ -36,13 +39,14 @@ endif
 
 
 ##### PHONY RULES #####
-.PHONY: default test_tokenizer test_parser bake_adl all dirs clean
+.PHONY: default compiler test_tokenizer test_parser bake_adl all dirs clean
 default: all
 
 all: test_tokenizer test_parser bake_adl
 
 clean:
 	-find $(OBJ) -name "*.o" -type f -delete
+	-find $(OBJ) -type f ! -name "*.*" -delete
 	-rm -f $(BIN)/*.out
 	-rm -f $(INCL)/adl/ADLBaked.hpp
 
@@ -64,7 +68,11 @@ $(OBJ)/AST/configs:
 	mkdir -p $@
 $(OBJ)/AST/types:
 	mkdir -p $@
+$(OBJ)/AST/identifiers:
+	mkdir -p $@
 $(OBJ)/adl:
+	mkdir -p $@
+$(OBJ)/traversals:
 	mkdir -p $@
 dirs: $(DIRS)
 
@@ -72,8 +80,13 @@ dirs: $(DIRS)
 
 ##### COMPILE RULES #####
 
+# Rule to make the compiler itself
+$(OBJ)/ADLCompiler.o: $(SRC)/ADLCompiler.cpp | dirs
+	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
+# Special rule for the preprocessor, which re-bakes the ADL system files
 $(OBJ)/ADLPreprocessor.o: $(LIB)/ADLPreprocessor.cpp $(INCL)/adl/ADLBaked.hpp | dirs
 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
+# General object rule
 $(OBJ)/%.o: $(LIB)/%.cpp | dirs
 	$(GXX) $(GXX_ARGS) $(INCLUDE) -o $@ -c $<
 
@@ -81,6 +94,11 @@ $(OBJ)/%.o: $(LIB)/%.cpp | dirs
 $(INCL)/adl/ADLBaked.hpp: $(LIB)/adl/bakery.sh $(INCL)/adl/ADLBaked_template.hpp $(ADL_SYSTEM)
 	bash $^ $@
 bake_adl: $(INCL)/adl/ADLBaked.hpp
+
+# Rule to create the functional compiler!
+$(BIN)/adlc: $(COMPILER) | dirs
+	$(GXX) $(GXX_ARGS) -o $@ $^
+compiler: $(BIN)/adlc
 
 
 

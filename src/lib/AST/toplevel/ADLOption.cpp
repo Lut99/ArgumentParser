@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 16:15:55
  * Last edited:
- *   08/12/2020, 20:47:28
+ *   10/12/2020, 17:23:18
  * Auto updated?
  *   Yes
  *
@@ -21,15 +21,17 @@ using namespace ArgumentParser;
 /***** ADLOPTION CLASS *****/
 
 /* Constructor for the ADLOption class, which takes a DebugInfo struct linking this node to the source code, the shortlabel for this Option (empty to disable), the longlabel of this Option (empty to disable), an optional list of types that make up this Option as ADLTypes, optionally a list of configuration parameters for this Positional as ADLConfigs, whether or not this Option is optional, whether or not this Option's type may be omitted and whether or not this Positional is variadic. */
-ADLOption::ADLOption(const DebugInfo& debug, const std::string& shortlabel, const std::string& longlabel, ADLTypes* types, ADLConfigs* configs, bool is_optional, bool type_is_optional, bool is_variadic) :
-    ADLBranch(NodeType::option, debug, 2, NodeType::types | NodeType::configs),
-    shortlabel(shortlabel),
-    longlabel(longlabel),
+ADLOption::ADLOption(const DebugInfo& debug, ADLIdentifier* shortlabel, ADLIdentifier* longlabel, ADLTypes* types, ADLConfigs* configs, bool is_optional, bool type_is_optional, bool is_variadic) :
+    ADLBranch(NodeType::option, debug, 4, NodeType::identifier | NodeType::types | NodeType::configs),
     optional(is_optional),
     type_optional(type_is_optional),
     variadic(is_variadic)
 {
-    // Only add  the types if they are given
+    // Only add the shortlabel if it is given
+    if (shortlabel != nullptr) { this->add_node((ADLNode*) shortlabel); }
+    // Only add the longlabel if it is given
+    if (longlabel != nullptr) { this->add_node((ADLNode*) longlabel); }
+    // Only add the types if they are given
     if (types != nullptr) { this->add_node((ADLNode*) types); }
     // Only add the values if they are given
     if (configs != nullptr) { this->add_node((ADLNode*) configs); }
@@ -39,20 +41,19 @@ ADLOption::ADLOption(const DebugInfo& debug, const std::string& shortlabel, cons
 std::ostream& ADLOption::print(std::ostream& os) const {
     // First, print the ids
     if (this->optional) { os << '['; }
-    if (!this->shortlabel.empty() && !this->longlabel.empty()) {
-        os << '-' << this->shortlabel << ", --" << this->longlabel;
-    } else if (!this->shortlabel.empty()) {
-        os << '-' << this->shortlabel;
-    } else {
-        os << "--" << this->longlabel;
+    bool first = false;
+    for (ADLNode* id : this->get_nodes(NodeType::identifier)) {
+        if (first) { os << ' '; } else { first = true; }
+        id->print(os);
     }
     if (this->optional) { os << ']'; }
 
     // Then, print the types (if any)
-    if (this->children.size() >= 1 && this->children[0]->type == NodeType::types) {
+    std::vector<ADLNode*> nodes = this->get_nodes(NodeType::types);
+    if (nodes.size() >= 1) {
         os << ' ';
         if (this->type_optional) { os << '['; }
-        this->children[0]->print(os);
+        nodes[0]->print(os);
         if (this->variadic) { os << "..."; }
         if (this->type_optional) { os << ']'; }
     }
@@ -61,9 +62,10 @@ std::ostream& ADLOption::print(std::ostream& os) const {
     os << " {";
 
     // Print each of the configuration parameters, if any, preceded by a space
-    if (this->children.size() == 2) {
+    nodes = this->get_nodes(NodeType::configs);
+    if (nodes.size() >= 1) {
         os << endl;
-        this->children[1]->print(os);
+        nodes[0]->print(os);
     }
     
     // Close with a bracket and newline, then we're done
