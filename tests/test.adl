@@ -60,6 +60,8 @@ positional1 <int> {
     .index 1;
 }
 
+@suppress unused-property
+@warning unused-property
 variadic_positional <int>... {
     .index ---5.5;
 }

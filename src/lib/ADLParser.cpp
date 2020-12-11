@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   10/12/2020, 17:20:16
+ *   11/12/2020, 19:35:50
  * Auto updated?
  *   Yes
  *
@@ -150,15 +150,12 @@ std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& s
                         } else if (identifier[0] == '-' && identifier[1] == '-') {
                             // Longlabel
                             reference_type = IdentifierType::longlabel;
-                            identifier = identifier.substr(2);
                         } else if (identifier[0] == '-') {
                             // Shortlabel
                             reference_type = IdentifierType::shortlabel;
-                            identifier = identifier[1];
                         } else if (identifier[0] == '<') {
                             // Type
                             reference_type = IdentifierType::type;
-                            identifier = identifier.substr(1, identifier.size() - 2);
                         }
 
                         // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state

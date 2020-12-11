@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:16:59
  * Last edited:
- *   08/12/2020, 17:29:39
+ *   11/12/2020, 19:54:06
  * Auto updated?
  *   Yes
  *
@@ -44,8 +44,10 @@ namespace ArgumentParser {
         triple_dot = 17,
 
         macro = 18,
+        suppress = 19,
+        warning = 20,
 
-        empty = 19,
+        empty = 21,
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -73,6 +75,8 @@ namespace ArgumentParser {
         "TripleDot",
 
         "Macro",
+        "Suppress",
+        "Warning",
 
         "Empty"
     };

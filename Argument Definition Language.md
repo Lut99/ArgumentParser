@@ -102,10 +102,17 @@ Aside from identifiers and values, ADL also features a couple of special tokens 
 - semicolon (```SEMICOLON = ';'```)
 - the triple dot (```TDOT = '\.\.\.'```)
 
-Additionally, the Tokenizer is also used to identify preprocessor macros:
+Additionally, the Tokenizer is also used to identify preprocessor macros (see section 4):
 ```
 MACRO = '#[A-Za-z0-9-_]'
 ```
+
+Finally, users can also control when and how the parser / compiler will treat warnings. In particular, two tokens are defined to control that: a token that suppresses warnings (```SUPPRESS```) and a token that raises them (```WARNING```). In regex, these expressions look like this:
+```
+SUPPRESS = '@suppress [A-Za-z-]+$'
+WARNING  = '@warning [A-Za-z-]+$'
+```
+where the variable part is used to specify the type of token (use 'all' to suppress all warnings). Note that the suppress-token only works for the next definition or the next property, depending on what line is directly below the suppress / warning token.
 
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
@@ -135,6 +142,8 @@ file = file meta
      = option
      = typedef
 ```
+
+Note that macros and warning tokens may occur anywhere in the file, as long as using them there makes sense.
 
 ### Common grammar rules
 Some of the grammar rules are used throughout the ADL, and so we first define them here.

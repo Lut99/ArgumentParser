@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   12/9/2020, 3:35:05 PM
+ *   11/12/2020, 19:58:01
  * Auto updated?
  *   Yes
  *
@@ -301,12 +301,12 @@ start:
         } else if (c == '-') { 
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
-            ACCEPT(c);
+            STORE(c);
             goto dash_start;
         } else if (c == '<') {
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
-            ACCEPT(c);
+            STORE(c);
             goto type_start;
         } else if (c == '\"') {
             result->type = TokenType::string;
@@ -397,6 +397,12 @@ start:
             result->debug.col1 = this->col;
             ACCEPT(c);
             goto macro_start;
+        } else if (c == '@') {
+            // One of the two warning tokens
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            ACCEPT(c);
+            goto warning_start;
         } else if (c == '\n') {
             // Increment the line and then try again
             ++this->line;
@@ -510,7 +516,7 @@ dash_start:
             goto shortlabel_end;
         } else if (c == '-') {
             // Parse as longlabel or number, we still don't know
-            ACCEPT(c);
+            STORE(c);
             goto dash_dash;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
@@ -539,7 +545,6 @@ shortlabel_end:
         if (c == '.') {
             // It's a reference!
             result->type = TokenType::reference;
-            result->raw = "-" + result->raw;
             STORE(c);
             goto reference_dot;
         } else {
@@ -567,7 +572,8 @@ dash_dash:
             goto dash_dash_longlabel;
         } else if (c == '-') {
             // Parse as a number or float, depending on if we find a dash
-            STORE(c);
+            ACCEPT(c);
+            result->raw = '-';
             goto number_start;
         } else if (!is_whitespace(c)) {
             // Let the user know we encountered an illegal character
@@ -603,7 +609,6 @@ dash_dash_longlabel:
         } else if (c == '.') {
             // It's a reference
             result->type = TokenType::reference;
-            result->raw = "--" + result->raw;
             STORE(c);
             goto reference_dot;
         } else {
@@ -673,7 +678,7 @@ type_contd:
             // Type parsing complete; final check to see if this happens to be a reference
             result->debug.line2 = this->line;
             result->debug.col2 = this->col;
-            ACCEPT(c);
+            STORE(c);
             goto type_end;
         } else if (is_whitespace(c) || c == EOF) {
             // Unterminated type definition
@@ -715,7 +720,6 @@ type_end:
 
             // Update the type and the value and parse the property we reference
             result->type = TokenType::reference;
-            result->raw = "<" + result->raw + ">";
             STORE(old_c);
             goto reference_dot;
         } else {
@@ -1383,6 +1387,114 @@ macro_start:
         }
     }
 
+
+
+
+warning_start:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == 's') {
+            // It's the suppress-token
+            result->type = TokenType::suppress;
+            ACCEPT(c);
+            goto suppress_token;
+        } else if (c == 'w') {
+            // It's the warning-token
+            result->type = TokenType::warning;
+            ACCEPT(c);
+            goto warning_token;
+        } else {
+            // Unknown token
+            Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
+            RETRY_AT_WHITESPACE();
+        }
+    }
+
+
+
+suppress_token:
+    {
+        // Check each of the characters in rapid succession
+        const char* uppress = "uppress ";
+        for (size_t i = 0; i < 8; i++) {
+            PEEK(c);
+            if (c != uppress[i]) {
+                // Unknown token
+                Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
+                RETRY_AT_WHITESPACE();
+            }
+        }
+
+        // If it says what we expect it to, start parsing the actual value
+        goto warning_value;
+    }
+
+
+
+warning_token:
+    {
+        // Check each of the characters in rapid succession
+        const char* arning = "arning ";
+        for (size_t i = 0; i < 7; i++) {
+            PEEK(c);
+            if (c != arning[i]) {
+                // Unknown token
+                Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
+                RETRY_AT_WHITESPACE();
+            }
+        }
+
+        // If it says what we expect it to, start parsing the actual value
+        goto warning_value;
+    }
+
+
+
+warning_value:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (    (c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                 c == '-') {
+            // Still parsing as valid
+            STORE(c);
+            goto warning_end;
+        } else {
+            // Empty warning token
+            Exceptions::log(Exceptions::EmptyWarningException(DebugInfo(this->filenames, this->line, this->col, this->get_line())));
+            REJECT(c);
+            goto start;
+        }
+    }
+
+
+
+warning_end:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (    (c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                 c == '-') {
+            // Still parsing as valid
+            STORE(c);
+            goto warning_end;
+        } else {
+            // We're done here
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            REJECT(c);
+            return result;
+        }
+    }
 }
 
 /* Reads the entire, given line from the internal file, used for error messaging. */

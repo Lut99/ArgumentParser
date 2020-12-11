@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   12/9/2020, 2:11:48 PM
+ *   11/12/2020, 19:58:54
  * Auto updated?
  *   Yes
  *
@@ -297,6 +297,18 @@ namespace ArgumentParser {
 
             /* Copies the EmptyMacroException polymorphically. */
             virtual EmptyMacroException* copy() const { return new EmptyMacroException(*this); }
+
+        };
+        /* Exception for when a warning or suppress token does not have a warning type defined. */
+        class EmptyWarningException: public SyntaxError {
+        public:
+            /* Constructor for the EmptyWarningException class, which only takes a DebugInfo struct linking this exception to a place in the source file. */
+            EmptyWarningException(const DebugInfo& debug) :
+                SyntaxError(debug, "Encountered warning type.")
+            {}
+
+            /* Copies the EmptyWarningException polymorphically. */
+            virtual EmptyWarningException* copy() const { return new EmptyWarningException(*this); }
 
         };
 
