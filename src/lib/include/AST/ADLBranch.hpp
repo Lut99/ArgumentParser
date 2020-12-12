@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:36:56
  * Last edited:
- *   12/12/2020, 17:29:45
+ *   12/12/2020, 18:14:37
  * Auto updated?
  *   Yes
  *
@@ -43,8 +43,6 @@ namespace ArgumentParser {
         NodeType whitelist;
         /* Contains all children of this node. */
         std::vector<ADLNode*> children;
-        /* Contains all suppressed warnings for this node. */
-        std::vector<Exceptions::WarningType> suppressed;
 
 
         /* Constructor for the ADLBranch class, which takes the type of the derived node, a DebugInfo struct linking this node to a location in the source file and optionally a NodeType denoting all accepted children types. */

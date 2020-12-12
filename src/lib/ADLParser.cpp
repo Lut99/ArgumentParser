@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/12/2020, 18:11:33
+ *   12/12/2020, 18:19:19
  * Auto updated?
  *   Yes
  *
@@ -35,8 +35,6 @@
 #include "ADLBoolean.hpp"
 #include "ADLReference.hpp"
 #include "ADLSnippet.hpp"
-
-#include "ADLSuppress.hpp"
 
 #include "SymbolStack.hpp"
 #include "ADLPreprocessor.hpp"
@@ -889,13 +887,13 @@ config_start:
                 case TokenType::semicolon:
                     // Simply an empty statement; we'll allow it (but with warning)
                     Exceptions::log(Exceptions::EmptyStatementWarning(prev_term->debug));
-                    n_symbols = 1;
-                    goto empty_statement_warning;
+                    stack.remove(1);
+                    return "";
                 
                 case TokenType::config:
                     // Missing value!
                     Exceptions::log(Exceptions::EmptyConfigError(term->debug()));
-                    stack.replace(2);
+                    stack.remove(2);
                     return "";
                 
                 default:
@@ -912,14 +910,6 @@ config_start:
                     // Store this as the previous nonterm and then go to the config's final stage
                     prev_nonterm = nterm->node();
                     goto config_values;
-                
-                case NodeType::suppress:
-                    // Check if it's our warning, and thus only throw if that one isn't suppressed
-                    if (nterm->node<ADLSuppress>()->warning != Exceptions::WarningType::stray_semicolon) {
-                        Exceptions::log(Exceptions::StraySemicolonWarning(nterm->debug()));
-                    }
-                    stack.remove(2);
-                    return "";
                 
                 default:
                     // Unexpected symbol to follow a termination; let the user know
@@ -980,19 +970,10 @@ modifier_identifier:
             switch(term->type()) {
                 case TokenType::suppress:
                     {
-                        // Try to parse the identifier
-                        Exceptions::WarningType warning = ADLSuppress::parse_warning(prev_term->raw);
-                        if (warning == Exceptions::WarningType::unknown) {
-                            // We don't know that warning name
-                            Exceptions::log(Exceptions::UnknownWarningError(prev_term->debug, prev_term->raw));
-                            stack.remove(2);
-                            return "";
-                        }
+                        /* TBD */
 
                         // Replace it with a suppress-node and we're done (for now)
-                        stack.replace(2, new NonTerminal(
-                            new ADLSuppress(term->debug() + prev_term->debug, warning, prev_term->raw)
-                        ));
+                        stack.remove(2);
                         return "suppress";
                     }
 
@@ -1181,14 +1162,6 @@ config_merge:
 
                     return "config-merge";
                 
-                case NodeType::suppress:
-                    // Merge the suppress by marking its type as suppressed, and then try again
-                    ((ADLBranch*) prev_nonterm)->suppressed.push_back(nterm->node<ADLSuppress>()->warning);
-                    stack.replace(2, new NonTerminal(
-                        (ADLNode*) prev_nonterm->copy()
-                    ));
-                    return "suppress-config-merge";
-                
                 case NodeType::values:
                     // Probably a missing semicolon
                     Exceptions::log(Exceptions::MissingSemicolonError(nterm->debug()));
@@ -1246,28 +1219,19 @@ toplevel_merge:
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
-        if (!symbol->is_terminal) {
-            NonTerminal* nterm = (NonTerminal*) symbol;
-            if (nterm->type() == NodeType::root) {
-                // Merge this value to the previously found File node
-                nterm->node<ADLTree>()->add_node(prev_nonterm);
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && nterm->type() == NodeType::root) {
+            // Merge this value to the previously found File node
+            nterm->node<ADLTree>()->add_node(prev_nonterm);
 
-                // Update the Tree's debug information
-                nterm->node<ADLTree>()->debug.line2 = prev_nonterm->debug.line2;
-                nterm->node<ADLTree>()->debug.col2 = prev_nonterm->debug.col2;
-                nterm->node<ADLTree>()->debug.raw_line = prev_nonterm->debug.raw_line;
+            // Update the Tree's debug information
+            nterm->node<ADLTree>()->debug.line2 = prev_nonterm->debug.line2;
+            nterm->node<ADLTree>()->debug.col2 = prev_nonterm->debug.col2;
+            nterm->node<ADLTree>()->debug.raw_line = prev_nonterm->debug.raw_line;
 
-                // We're done here
-                stack.remove(n_symbols);
-                return "toplevel-merge";
-            } else if (nterm->type() == NodeType::suppress) {
-                // Merge the suppress by marking its type as suppressed, and then try again
-                ((ADLBranch*) prev_nonterm)->suppressed.push_back(nterm->node<ADLSuppress>()->warning);
-                stack.replace(2, new NonTerminal(
-                    (ADLNode*) prev_nonterm->copy()
-                ));
-                return "suppress-toplevel-merge";
-            }
+            // We're done here
+            stack.remove(n_symbols);
+            return "toplevel-merge";
         }
 
         // The one before this is definitely not an ADLTree or an ADLSuppress; so just wrap the previously parsed on in such a NonTerminal and we're done
@@ -1275,41 +1239,6 @@ toplevel_merge:
             new ADLTree(filename, prev_nonterm)
         ));
         return "toplevel-new";
-    }
-
-
-
-
-
-/***** WARNING RULES *****/
-empty_statement_warning:
-    {
-        // Start by looking at the top of the stack
-        int temp;
-        PEEK(symbol, iter, temp);
-
-        // If it's a suppress token, we may not want to throw the error
-        NonTerminal* nterm = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && nterm->type() == NodeType::suppress) {
-            // Throw if the type is still incorrect
-            if (nterm->node<ADLSuppress>()->warning != Exceptions::WarningType::empty_statement)
-        }
-    }
-
-
-
-empty_config_warning:
-    {
-        // Start by looking at the top of the stack
-        int temp;
-        PEEK(symbol, iter, temp);
-
-        // If it's a suppress token, we may not want to throw the error
-        NonTerminal* nterm = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && nterm->type() == NodeType::suppress) {
-            // Throw if the type is still incorrect
-            if (nterm->node<ADLSuppress>()->warning != Exceptions::WarningType::)
-        }
     }
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:39:35
  * Last edited:
- *   12/12/2020, 17:30:21
+ *   12/12/2020, 18:14:46
  * Auto updated?
  *   Yes
  *
@@ -44,8 +44,7 @@ ADLBranch::ADLBranch(const ADLBranch& other) :
     ADLNode(other),
     has_max(other.has_max),
     max(other.max),
-    whitelist(other.whitelist),
-    suppressed(other.suppressed)
+    whitelist(other.whitelist)
 {
     // Copy all the children nodes
     this->children.reserve(other.children.size());
@@ -59,8 +58,7 @@ ADLBranch::ADLBranch(ADLBranch&& other) :
     ADLNode(other),
     has_max(other.has_max),
     max(other.max),
-    whitelist(other.whitelist),
-    suppressed(other.suppressed)
+    whitelist(other.whitelist)
 {
     // Move all the children nodes to us
     this->children.reserve(other.children.size());
