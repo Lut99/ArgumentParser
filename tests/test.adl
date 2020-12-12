@@ -60,8 +60,8 @@ positional1 <int> {
     .index 1;
 }
 
-@suppress unused-property
-@warning unused-property
+@warning "Hello there!"
+@warning "General kenobi! You are a bold one!"
 variadic_positional <int>... {
     .index ---5.5;
 }
@@ -70,11 +70,10 @@ variadic_positional <int>... {
     .category "Wouldn't you like to know, wheater boy";
 }
 
-#undefine DEBUG
-
 #ifdef DEBUG
 --option -o <int> {
-    
+    @suppress empty-statement
+    ;
 }
 
 #ifdef DEBUG2

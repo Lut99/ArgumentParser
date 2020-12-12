@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 14:38:54
  * Last edited:
- *   12/9/2020, 4:33:52 PM
+ *   12/12/2020, 17:47:59
  * Auto updated?
  *   Yes
  *
@@ -77,7 +77,7 @@ namespace ArgumentParser {
         {}
 
         /* Adds this DebugInfo to another, setting its line number to ours. */
-        inline DebugInfo operator+(const DebugInfo& other) { return DebugInfo(this->filenames, this->line1, this->col1, other.line2, other.col2, this->raw_line); }
+        inline DebugInfo operator+(const DebugInfo& other) const { return DebugInfo(this->filenames, this->line1, this->col1, other.line2, other.col2, this->raw_line); }
         /* Adds this DebugInfo to another, setting its line number to ours. */
         DebugInfo& operator+=(const DebugInfo& other) {
             this->line2 = other.line2;

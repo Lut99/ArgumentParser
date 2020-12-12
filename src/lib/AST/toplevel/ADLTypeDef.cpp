@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:03:01
  * Last edited:
- *   10/12/2020, 17:23:23
+ *   12/12/2020, 17:02:04
  * Auto updated?
  *   Yes
  *
@@ -38,8 +38,7 @@ ADLTypeDef::ADLTypeDef(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* co
 /* Prints the type definition and all its configuration parameters to the given output stream. */
 std::ostream& ADLTypeDef::print(std::ostream& os) const {
     // Print the type definition header
-    os << '<';
-    this->children[0]->print(os) << "> {";
+    this->children[0]->print(os) << " {";
     // Print each of the configuration parameters, if any, preceded by a space
     if (this->children.size() == 2) {
         os << endl;

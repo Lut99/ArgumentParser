@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   11/12/2020, 19:58:54
+ *   12/12/2020, 17:21:52
  * Auto updated?
  *   Yes
  *
@@ -299,18 +299,6 @@ namespace ArgumentParser {
             virtual EmptyMacroException* copy() const { return new EmptyMacroException(*this); }
 
         };
-        /* Exception for when a warning or suppress token does not have a warning type defined. */
-        class EmptyWarningException: public SyntaxError {
-        public:
-            /* Constructor for the EmptyWarningException class, which only takes a DebugInfo struct linking this exception to a place in the source file. */
-            EmptyWarningException(const DebugInfo& debug) :
-                SyntaxError(debug, "Encountered warning type.")
-            {}
-
-            /* Copies the EmptyWarningException polymorphically. */
-            virtual EmptyWarningException* copy() const { return new EmptyWarningException(*this); }
-
-        };
 
         /* Exception for when a type identifier comment is unterminated. Contains a nested exception that contains an extra note. */
         class UnterminatedTypeException: public SyntaxError {
@@ -364,14 +352,9 @@ namespace ArgumentParser {
         /* Baseclass exception for when a value goes out of the allowed range. */
         class OutOfRangeWarning: public ADLCompileWarning {
         public:
-            /* Constructor for the OutOfRangeError class, which takes:
-             *   - the line number where the error occurred
-             *   - the column number where the error occurred
-             *   - the line where the error occurred itself
-             *   - [optional] a message
-             */
-            OutOfRangeWarning(const DebugInfo& debug, const std::string& message = "") :
-                ADLCompileWarning("out-of-range", debug, message)
+            /* Constructor for the OutOfRangeError class, which takes the subtype of the derived class, debugging information and optionally a message. */
+            OutOfRangeWarning(WarningType type, const DebugInfo& debug, const std::string& message = "") :
+                ADLCompileWarning(type, debug, message)
             {}
 
         };
@@ -380,7 +363,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the OverflowWarning class, which only takes debugging information that links this error to a location in a source file. */
             OverflowWarning(const DebugInfo& debug) :
-                OutOfRangeWarning(debug, "Overflow of integral constant (larger than " + std::to_string(std::numeric_limits<long>::max()) + ")")
+                OutOfRangeWarning(WarningType::int_overflow, debug, "Overflow of integral constant (larger than " + std::to_string(std::numeric_limits<long>::max()) + ")")
             {}
 
             /* Copies the OverflowWarning polymorphically. */
@@ -392,7 +375,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the FloatOverflowWarning class, which only takes debugging information that links this error to a location in a source file. */
             FloatOverflowWarning(const DebugInfo& debug) :
-                OutOfRangeWarning(debug, "Overflow of decimal constant (larger than " + std::to_string(std::numeric_limits<double>::max()) + ")")
+                OutOfRangeWarning(WarningType::float_overflow, debug, "Overflow of decimal constant (larger than " + std::to_string(std::numeric_limits<double>::max()) + ")")
             {}
 
             /* Copies the FloatOverflowWarning polymorphically. */
@@ -404,7 +387,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the UnderflowWarning class, which only takes debugging information that links this error to a location in a source file. */
             UnderflowWarning(const DebugInfo& debug) :
-                OutOfRangeWarning(debug, "Underflow of integral constant (smaller than " + std::to_string(std::numeric_limits<long>::min()) + ")")
+                OutOfRangeWarning(WarningType::int_underflow, debug, "Underflow of integral constant (smaller than " + std::to_string(std::numeric_limits<long>::min()) + ")")
             {}
 
             /* Copies the UnderflowWarning polymorphically. */

@@ -107,12 +107,13 @@ Additionally, the Tokenizer is also used to identify preprocessor macros (see se
 MACRO = '#[A-Za-z0-9-_]'
 ```
 
-Finally, users can also control when and how the parser / compiler will treat warnings. In particular, two tokens are defined to control that: a token that suppresses warnings (```SUPPRESS```) and a token that raises them (```WARNING```). In regex, these expressions look like this:
+Finally, users can also control when and how the parser / compiler will treat warnings and errors. In particular, three tokens are defined to control that: a token that suppresses warnings (```SUPPRESS```), a token that raises them (```WARNING```) and a token that will raise a particular error (```ERROR```). In regex, these expressions look like this:
 ```
-SUPPRESS = '@suppress [A-Za-z-]+$'
-WARNING  = '@warning [A-Za-z-]+$'
+SUPPRESS = '@suppress'
+WARNING  = '@warning'
+ERROR  = '@error'
 ```
-where the variable part is used to specify the type of token (use 'all' to suppress all warnings). Note that the suppress-token only works for the next definition or the next property, depending on what line is directly below the suppress / warning token.
+Following the tokens may either be an identifier, which is used to recognize a particular warning type (for ```SUPPRESS``` and ```WARNING```) or a direct string for custom warnings or errors (for ```WARNING``` and ```ERROR```). See section 3 for more information on how the tokens are parsed.
 
 ### Comments
 Finally, the ADL also supports the use of comments. Although these aren't passed to the parser, the comments are matched by the Tokenizer and are therefore mentioned here.
@@ -143,7 +144,22 @@ file = file meta
      = typedef
 ```
 
-Note that macros and warning tokens may occur anywhere in the file, as long as using them there makes sense.
+Warnings may also occur in the toplevel of the file, which have their own rules to be parsed. For ```@suppress```-modifiers, the rule is:
+```
+suppress = SUPPRESS ID
+```
+where the ID refers to a particular build-in warning. Semantically, the ```@suppress``` token will suppress the all occurences of the given warning in either a definition (if it's defined directly before it) or a property if it's defined before that. Note that it cannot suppress custom warnings (defined with a string) or errors.  
+Similarly, for the ```@warning```-modifier, the rule is:
+```
+warning = WARNING STRING
+```
+where the string can be used to throw a warning with a custom message. When the parser encounters this modifier, the specified warning is immediately thrown.  
+Finally, the ```@error```-modifier is used to throw custom errors:
+```
+error = ERROR STRING
+```
+where the string part creates the message of the thrown error. Again, the parser throws the error immediately as soon as it encounters it.  
+Note that macros (see section 4) and warning tokens may occur anywhere in the file, as long as using them there makes sense.
 
 ### Common grammar rules
 Some of the grammar rules are used throughout the ADL, and so we first define them here.

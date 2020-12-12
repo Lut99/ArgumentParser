@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   10/12/2020, 17:30:06
+ *   12/12/2020, 17:20:49
  * Auto updated?
  *   Yes
  *
@@ -118,7 +118,7 @@ std::ostream& ADLWarning::print(std::ostream& os) const {
     }
 
     // Then, we can also always print the filename itself
-    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m-W" << this->type << "\033[0m]" << endl;
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m" << warningtype_names[(int) this->type] << "\033[0m]" << endl;
 
     // Done
     return os;
@@ -140,7 +140,7 @@ std::ostream& ADLCompileWarning::print(std::ostream& os) const {
     }
 
     // Then, we can also always print the filename itself
-    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m-W" << this->type << "\033[0m]" << endl;
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m" << warningtype_names[(int) this->type] << "\033[0m]" << endl;
 
     // Print the line number + spacing
     std::string strline = std::to_string(debug.line1);

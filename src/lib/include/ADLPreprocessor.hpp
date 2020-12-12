@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   12/9/2020, 4:48:28 PM
+ *   12/12/2020, 17:27:50
  * Auto updated?
  *   Yes
  *
@@ -129,7 +129,7 @@ namespace ArgumentParser {
         class PreprocessorWarning: public ADLCompileWarning {
         public:
             /* Constructor for the PreprocessorWarning class, which takes the warning type, a DebugInfo struct to locate this error in a source file and optionally a message. */
-            PreprocessorWarning(const std::string& type, const DebugInfo& debug, const std::string& message = "") :
+            PreprocessorWarning(WarningType type, const DebugInfo& debug, const std::string& message = "") :
                 ADLCompileWarning(type, debug, message)
             {}
 
@@ -140,7 +140,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the DuplicateDefineWarning class, which takes a DebugInfo struct to link this error to a source file and the define that was a duplicate. */
             DuplicateDefineWarning(const DebugInfo& debug, const std::string& define) :
-                PreprocessorWarning("duplicate-define", debug, "Define '" + define + "' is already defined.")
+                PreprocessorWarning(WarningType::duplicate_define, debug, "Define '" + define + "' is already defined.")
             {}
 
             /* Copies the DuplicateDefineWarning polymorphically. */
@@ -152,7 +152,7 @@ namespace ArgumentParser {
         public:
             /* Constructor for the MissingDefineWarning class, which takes a DebugInfo struct to link this error to a source file and the define that was missing. */
             MissingDefineWarning(const DebugInfo& debug, const std::string& define) :
-                PreprocessorWarning("missing-define", debug, "Define '" + define + "' is not defined.")
+                PreprocessorWarning(WarningType::missing_define, debug, "Define '" + define + "' is not defined.")
             {}
 
             /* Copies the MissingDefineWarning polymorphically. */

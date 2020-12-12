@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:33:25
  * Last edited:
- *   10/12/2020, 16:43:22
+ *   12/12/2020, 17:35:22
  * Auto updated?
  *   Yes
  *
@@ -45,7 +45,9 @@ namespace ArgumentParser {
         number = 0x2000,
         decimal = 0x4000,
         reference = 0x8000,
-        snippet = 0x10000
+        snippet = 0x10000,
+
+        suppress = 0x20000
     };
 
 
@@ -72,7 +74,8 @@ namespace ArgumentParser {
         { NodeType::number, "Number" },
         { NodeType::decimal, "Decimal" },
         { NodeType::reference, "Reference" },
-        { NodeType::snippet, "Snippet" }
+        { NodeType::snippet, "Snippet" },
+        { NodeType::suppress, "Suppress" }
     });
 
 

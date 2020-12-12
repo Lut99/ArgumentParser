@@ -4,7 +4,7 @@
  * Created:
  *   12/9/2020, 5:58:13 PM
  * Last edited:
- *   12/9/2020, 5:59:21 PM
+ *   12/12/2020, 18:02:58
  * Auto updated?
  *   Yes
  *
@@ -201,6 +201,107 @@ namespace ArgumentParser::Exceptions {
         virtual StrayVariadicException* copy() const { return new StrayVariadicException(*this); }
 
     };
+    
+    /* Exception for when a suppress modifier does not have a value. */
+    class EmptySuppressError: public ParseError {
+    public:
+        /* Constructor for the the EmptySuppressError class, which takes a debug info struct to the config parameter. */
+        EmptySuppressError(const DebugInfo& debug) :
+            ParseError(debug, "@suppress modifier requires a warning identifier to suppress.")
+        {}
+
+        /* Copies the EmptySuppressError polymorphically. */
+        virtual EmptySuppressError* copy() const { return new EmptySuppressError(*this); }
+
+    };
+    /* Exception for when a warning modifier does not have a value. */
+    class EmptyWarningError: public ParseError {
+    public:
+        /* Constructor for the the EmptyWarningError class, which takes a debug info struct to the config parameter. */
+        EmptyWarningError(const DebugInfo& debug) :
+            ParseError(debug, "@warning modifier requires a warning identifier or custom warning message to throw.")
+        {}
+
+        /* Copies the EmptyWarningError polymorphically. */
+        virtual EmptyWarningError* copy() const { return new EmptyWarningError(*this); }
+
+    };
+    /* Exception for when a error modifier does not have a value. */
+    class EmptyErrorError: public ParseError {
+    public:
+        /* Constructor for the the EmptyErrorError class, which takes a debug info struct to the config parameter. */
+        EmptyErrorError(const DebugInfo& debug) :
+            ParseError(debug, "@error modifier requires a custom error message to throw.")
+        {}
+
+        /* Copies the EmptyErrorError polymorphically. */
+        virtual EmptyErrorError* copy() const { return new EmptyErrorError(*this); }
+
+    };
+    /* Exception for when a string follows a suppress token. */
+    class SuppressStringError: public ParseError {
+    public:
+        /* Constructor for the the SuppressStringError class, which takes a debug info struct to the config parameter. */
+        SuppressStringError(const DebugInfo& debug) :
+            ParseError(debug, "@suppress modifier does not take a custom warning message.")
+        {}
+
+        /* Copies the SuppressStringError polymorphically. */
+        virtual SuppressStringError* copy() const { return new SuppressStringError(*this); }
+
+    };
+    /* Exception for when an identifier follows a warning token. */
+    class WarningIdentifierError: public ParseError {
+    public:
+        /* Constructor for the the WarningIdentifierError class, which takes a debug info struct to the config parameter. */
+        WarningIdentifierError(const DebugInfo& debug) :
+            ParseError(debug, "@warning modifier does not take a warning identifier; only custom warnings are allowed.")
+        {}
+
+        /* Copies the WarningIdentifierError polymorphically. */
+        virtual WarningIdentifierError* copy() const { return new WarningIdentifierError(*this); }
+
+    };
+    /* Exception for when an identifier follows an error token. */
+    class ErrorIdentifierError: public ParseError {
+    public:
+        /* Constructor for the the ErrorIdentifierError class, which takes a debug info struct to the config parameter. */
+        ErrorIdentifierError(const DebugInfo& debug) :
+            ParseError(debug, "@error modifier does not take a warning identifier.")
+        {}
+
+        /* Copies the ErrorIdentifierError polymorphically. */
+        virtual ErrorIdentifierError* copy() const { return new ErrorIdentifierError(*this); }
+
+    };
+    /* Exception for when an unkown warning type is given. */
+    class UnknownWarningError: public ParseError {
+    public:
+        const std::string given;
+
+        /* Constructor for the the UnknownWarningError class, which takes a debug info struct to the config parameter and the raw name that was unknown. */
+        UnknownWarningError(const DebugInfo& debug, const std::string& given_warning_name) :
+            ParseError(debug, "Unknown warning '" + given_warning_name + "'."),
+            given(given_warning_name)
+        {}
+
+        /* Copies the UnknownWarningError polymorphically. */
+        virtual UnknownWarningError* copy() const { return new UnknownWarningError(*this); }
+
+    };
+
+    /* Custom error that a user can throw with @error. */
+    class CustomError: public ParseError {
+    public:
+        /* Constructor for the CustomError class, which takes debug information and the custom message the user wants to display. */
+        CustomError(const DebugInfo& debug, const std::string& message) :
+            ParseError(debug, message)
+        {}
+
+        /* Polymorphically copies the CustomError class. */
+        virtual CustomError* copy() const { return new CustomError(*this); }
+
+    };
 
 
 
@@ -208,8 +309,8 @@ namespace ArgumentParser::Exceptions {
     class ParseWarning : public ADLCompileWarning {
     public:
         /* Constructor for the ParseWarning class, which takes a DebugInfo struct linking this warning to a location in the source file and optionally a message. */
-        ParseWarning(const std::string& type, const DebugInfo& debug, const std::string& message = "") :
-            ADLCompileWarning("parse-" + type, debug, message)
+        ParseWarning(WarningType type, const DebugInfo& debug, const std::string& message = "") :
+            ADLCompileWarning(type, debug, message)
         {}
 
     };
@@ -219,7 +320,7 @@ namespace ArgumentParser::Exceptions {
     public:
         /* Constructor for the the EmptyStatementWarning class, which takes a debug info struct to the config parameter. */
         EmptyStatementWarning(const DebugInfo& debug) :
-            ParseWarning("empty-statement", debug, "Empty property statement encountered.")
+            ParseWarning(WarningType::empty_statement, debug, "Empty property statement encountered.")
         {}
 
         /* Copies the EmptyStatementWarning polymorphically. */
@@ -231,11 +332,36 @@ namespace ArgumentParser::Exceptions {
     public:
         /* Constructor for the the StraySemicolonWarning class, which takes a debug info struct to the config parameter. */
         StraySemicolonWarning(const DebugInfo& debug) :
-            ParseWarning("stray-statement", debug, "Unnecessary semicolon encountered.")
+            ParseWarning(WarningType::stray_semicolon, debug, "Unnecessary semicolon encountered.")
         {}
 
         /* Copies the StraySemicolonWarning polymorphically. */
         virtual StraySemicolonWarning* copy() const { return new StraySemicolonWarning(*this); }
+
+    };
+    /* Exception for when a suppress-modifier is at a non-sensible location. */
+    class StraySuppressWarning: public ParseWarning {
+    public:
+        /* Constructor for the StraySuppressWarning class, which takes debugging information where the modifier illegally occurred. */
+        StraySuppressWarning(const DebugInfo& debug) :
+            ParseWarning(WarningType::stray_suppress, debug, "Unexpected modifier encountered; doesn't do anything.")
+        {}
+
+        /* Copies the StraySuppressWarning polymorphically. */
+        virtual StraySuppressWarning* copy() const { return new StraySuppressWarning(*this); }
+
+    };
+    
+    /* Custom warning that a user can throw with @warning. */
+    class CustomWarning: public ParseWarning {
+    public:
+        /* Constructor for the CustomWarning class, which takes debug information and the custom message the user wants to display. */
+        CustomWarning(const DebugInfo& debug, const std::string& message) :
+            ParseWarning(WarningType::custom, debug, message)
+        {}
+
+        /* Polymorphically copies the CustomWarning class. */
+        virtual CustomWarning* copy() const { return new CustomWarning(*this); }
 
     };
 

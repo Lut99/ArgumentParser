@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   11/12/2020, 19:35:50
+ *   12/12/2020, 18:11:33
  * Auto updated?
  *   Yes
  *
@@ -35,6 +35,8 @@
 #include "ADLBoolean.hpp"
 #include "ADLReference.hpp"
 #include "ADLSnippet.hpp"
+
+#include "ADLSuppress.hpp"
 
 #include "SymbolStack.hpp"
 #include "ADLPreprocessor.hpp"
@@ -94,6 +96,11 @@ std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& s
                     prev_term = term->token();
                     goto definition_start;
                 
+                case TokenType::identifier:
+                    // See if it maybe belows to a modifier
+                    prev_term = term->token();
+                    goto modifier_identifier;
+                
                 case TokenType::type:
                     // If the tokentype is preceded by an identifier, shortlabel, longlabel or TYPES list, promote it to a TYPES list
                     prev_term = term->token();
@@ -107,8 +114,8 @@ std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& s
                 case TokenType::string:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
                     prev_nonterm = new ADLString(term->debug(), term->raw());
-                    applied_rule = "string";
-                    goto value_merge;
+                    // In the string's case, it's either merging with a value or with a warning or error token
+                    goto modifier_string;
                 
                 case TokenType::regex:
                     // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
@@ -882,13 +889,13 @@ config_start:
                 case TokenType::semicolon:
                     // Simply an empty statement; we'll allow it (but with warning)
                     Exceptions::log(Exceptions::EmptyStatementWarning(prev_term->debug));
-                    stack.remove(1);
-                    return "";
+                    n_symbols = 1;
+                    goto empty_statement_warning;
                 
                 case TokenType::config:
                     // Missing value!
                     Exceptions::log(Exceptions::EmptyConfigError(term->debug()));
-                    stack.remove(2);
+                    stack.replace(2);
                     return "";
                 
                 default:
@@ -905,6 +912,14 @@ config_start:
                     // Store this as the previous nonterm and then go to the config's final stage
                     prev_nonterm = nterm->node();
                     goto config_values;
+                
+                case NodeType::suppress:
+                    // Check if it's our warning, and thus only throw if that one isn't suppressed
+                    if (nterm->node<ADLSuppress>()->warning != Exceptions::WarningType::stray_semicolon) {
+                        Exceptions::log(Exceptions::StraySemicolonWarning(nterm->debug()));
+                    }
+                    stack.remove(2);
+                    return "";
                 
                 default:
                     // Unexpected symbol to follow a termination; let the user know
@@ -947,6 +962,156 @@ config_values:
         // Also remove the two symbols from the stack, for the simple reason as to not infuriate later errors
         stack.remove(2);
         return "";
+    }
+
+
+
+
+
+/***** MODIFIER RULES *****/
+modifier_identifier:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // If it's a suppress or warning token, then we parse it as such
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch(term->type()) {
+                case TokenType::suppress:
+                    {
+                        // Try to parse the identifier
+                        Exceptions::WarningType warning = ADLSuppress::parse_warning(prev_term->raw);
+                        if (warning == Exceptions::WarningType::unknown) {
+                            // We don't know that warning name
+                            Exceptions::log(Exceptions::UnknownWarningError(prev_term->debug, prev_term->raw));
+                            stack.remove(2);
+                            return "";
+                        }
+
+                        // Replace it with a suppress-node and we're done (for now)
+                        stack.replace(2, new NonTerminal(
+                            new ADLSuppress(term->debug() + prev_term->debug, warning, prev_term->raw)
+                        ));
+                        return "suppress";
+                    }
+
+                case TokenType::warning:
+                    // Warning doesn't take identifiers
+                    {
+                        // Create a new Debug struct wrapping both the error and the value
+                        DebugInfo debug = term->debug();
+                        debug.line2 = prev_term->debug.line2;
+                        debug.col2 = prev_term->debug.col2;
+
+                        // Throw the error with the new DebugInfo, removing both the id and warning from the stack
+                        Exceptions::log(Exceptions::WarningIdentifierError(debug));
+                        stack.remove(2);
+                        return "";
+                    }
+
+                case TokenType::error:
+                    // Error doesn't take identifiers
+                    {
+                        // Create a new Debug struct wrapping both the error and the value
+                        DebugInfo debug = term->debug();
+                        debug.line2 = prev_term->debug.line2;
+                        debug.col2 = prev_term->debug.col2;
+
+                        // Throw the error with the new DebugInfo, removing both the id and error from the stack
+                        Exceptions::log(Exceptions::ErrorIdentifierError(debug));
+                        stack.remove(2);
+                        return "";
+                    }
+
+                default:
+                    // Leave the identifier be
+                    return "";
+            }
+        }
+
+        // Otherwise, we just leave the identifier be
+        return "";
+    }
+
+
+
+modifier_string:
+    {
+        // Start by looking at the top of the stack
+        PEEK(symbol, iter, n_symbols);
+
+        // If it's a suppress or warning token, then we parse it as such
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (symbol->is_terminal) {
+            Terminal* term = (Terminal*) symbol;
+            switch(term->type()) {
+                case TokenType::suppress:
+                    // Suppress doesn't take strings
+                    {
+                        // Create a new Debug struct wrapping both the suppress and the value
+                        DebugInfo debug = term->debug();
+                        debug.line2 = prev_nonterm->debug.line2;
+                        debug.col2 = prev_nonterm->debug.col2;
+
+                        // Throw the error with the new DebugInfo, removing both the id and error from the stack
+                        Exceptions::log(Exceptions::SuppressStringError(debug));
+                        stack.remove(2);
+                        return "";
+                    }
+
+                case TokenType::warning:
+                    // Throw it immediately
+                    {
+                        // Create a new Debug struct wrapping both the warning and the message
+                        DebugInfo debug = term->debug();
+                        debug.line2 = prev_nonterm->debug.line2;
+                        debug.col2 = prev_nonterm->debug.col2;
+
+                        // Throw it
+                        Exceptions::log(Exceptions::CustomWarning(debug, ((ADLString*) prev_nonterm)->value));
+
+                        // Remove the string and the warning from the stack, as their usefullness is over
+                        stack.remove(2);
+                        return "warning-string";
+                    }
+
+                case TokenType::error:
+                    // Throw it immediately
+                    {
+                        // Create a new Debug struct wrapping both the error and the message
+                        DebugInfo debug = term->debug();
+                        debug.line2 = prev_nonterm->debug.line2;
+                        debug.col2 = prev_nonterm->debug.col2;
+
+                        // Throw it
+                        Exceptions::log(Exceptions::CustomError(debug, ((ADLString*) prev_nonterm)->value));
+
+                        // Remove the string and the warning from the stack, as their usefullness is over
+                        stack.remove(2);
+                        return "error";
+                    }
+
+                default:
+                    break;
+            }
+        } else if (nterm->type() == NodeType::values) {
+            // Merge this value to the previously found Values
+            nterm->node<ADLValues>()->add_node(prev_nonterm);
+            stack.remove(1);
+
+            // Update the value's debug info though
+            nterm->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
+            nterm->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
+
+            return "string-merge";
+        }
+
+        // Otherwise, we wrap the string in a new Values node
+        stack.replace(1, new NonTerminal(
+            new ADLValues(prev_nonterm->debug, prev_nonterm)
+        ));
+        return "string-new";
     }
 
 
@@ -1016,6 +1181,14 @@ config_merge:
 
                     return "config-merge";
                 
+                case NodeType::suppress:
+                    // Merge the suppress by marking its type as suppressed, and then try again
+                    ((ADLBranch*) prev_nonterm)->suppressed.push_back(nterm->node<ADLSuppress>()->warning);
+                    stack.replace(2, new NonTerminal(
+                        (ADLNode*) prev_nonterm->copy()
+                    ));
+                    return "suppress-config-merge";
+                
                 case NodeType::values:
                     // Probably a missing semicolon
                     Exceptions::log(Exceptions::MissingSemicolonError(nterm->debug()));
@@ -1044,15 +1217,15 @@ value_merge:
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
-        NonTerminal* term = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && term->type() == NodeType::values) {
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && nterm->type() == NodeType::values) {
             // Merge this value to the previously found Values
-            term->node<ADLValues>()->add_node(prev_nonterm);
+            nterm->node<ADLValues>()->add_node(prev_nonterm);
             stack.remove(n_symbols);
 
             // Update the value's debug info though
-            term->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
-            term->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
+            nterm->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
+            nterm->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
 
             return applied_rule + "-merge";
         } else {
@@ -1073,30 +1246,71 @@ toplevel_merge:
         PEEK(symbol, iter, temp);
 
         // Do different things based on whether it is a terminal or not
+        if (!symbol->is_terminal) {
+            NonTerminal* nterm = (NonTerminal*) symbol;
+            if (nterm->type() == NodeType::root) {
+                // Merge this value to the previously found File node
+                nterm->node<ADLTree>()->add_node(prev_nonterm);
+
+                // Update the Tree's debug information
+                nterm->node<ADLTree>()->debug.line2 = prev_nonterm->debug.line2;
+                nterm->node<ADLTree>()->debug.col2 = prev_nonterm->debug.col2;
+                nterm->node<ADLTree>()->debug.raw_line = prev_nonterm->debug.raw_line;
+
+                // We're done here
+                stack.remove(n_symbols);
+                return "toplevel-merge";
+            } else if (nterm->type() == NodeType::suppress) {
+                // Merge the suppress by marking its type as suppressed, and then try again
+                ((ADLBranch*) prev_nonterm)->suppressed.push_back(nterm->node<ADLSuppress>()->warning);
+                stack.replace(2, new NonTerminal(
+                    (ADLNode*) prev_nonterm->copy()
+                ));
+                return "suppress-toplevel-merge";
+            }
+        }
+
+        // The one before this is definitely not an ADLTree or an ADLSuppress; so just wrap the previously parsed on in such a NonTerminal and we're done
+        stack.replace(n_symbols, new NonTerminal(
+            new ADLTree(filename, prev_nonterm)
+        ));
+        return "toplevel-new";
+    }
+
+
+
+
+
+/***** WARNING RULES *****/
+empty_statement_warning:
+    {
+        // Start by looking at the top of the stack
+        int temp;
+        PEEK(symbol, iter, temp);
+
+        // If it's a suppress token, we may not want to throw the error
         NonTerminal* nterm = (NonTerminal*) symbol;
-        if (!symbol->is_terminal && nterm->type() == NodeType::root) {
-            // Merge this value to the previously found File node
-            nterm->node<ADLTree>()->add_node(prev_nonterm);
-
-            // Update the Tree's debug information
-            nterm->node<ADLTree>()->debug.line2 = prev_nonterm->debug.line2;
-            nterm->node<ADLTree>()->debug.col2 = prev_nonterm->debug.col2;
-            nterm->node<ADLTree>()->debug.raw_line = prev_nonterm->debug.raw_line;
-
-            // We're done here
-            stack.remove(n_symbols);
-            return "toplevel-merge";
-            
-        } else {
-            // The one before this is definitely not an ADLValues; so just wrap the previously parsed on in such a NonTerminal and we're done
-            stack.replace(n_symbols, new NonTerminal(
-                new ADLTree(filename, prev_nonterm)
-            ));
-            return "toplevel-new";
-            
+        if (!symbol->is_terminal && nterm->type() == NodeType::suppress) {
+            // Throw if the type is still incorrect
+            if (nterm->node<ADLSuppress>()->warning != Exceptions::WarningType::empty_statement)
         }
     }
 
+
+
+empty_config_warning:
+    {
+        // Start by looking at the top of the stack
+        int temp;
+        PEEK(symbol, iter, temp);
+
+        // If it's a suppress token, we may not want to throw the error
+        NonTerminal* nterm = (NonTerminal*) symbol;
+        if (!symbol->is_terminal && nterm->type() == NodeType::suppress) {
+            // Throw if the type is still incorrect
+            if (nterm->node<ADLSuppress>()->warning != Exceptions::WarningType::)
+        }
+    }
 }
 
 /* Analyses a stack that is done in principle but didn't reduce to a single ADLFile* node and prints out each of the errors. */

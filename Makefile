@@ -70,6 +70,8 @@ $(OBJ)/AST/types:
 	mkdir -p $@
 $(OBJ)/AST/identifiers:
 	mkdir -p $@
+$(OBJ)/AST/modifiers:
+	mkdir -p $@
 $(OBJ)/adl:
 	mkdir -p $@
 $(OBJ)/traversals:

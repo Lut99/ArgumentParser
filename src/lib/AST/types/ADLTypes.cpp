@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 6:12:33 PM
  * Last edited:
- *   08/12/2020, 20:49:02
+ *   12/12/2020, 16:59:45
  * Auto updated?
  *   Yes
  *
@@ -34,7 +34,7 @@ std::ostream& ADLTypes::print(std::ostream& os) const {
     // Print all internal ids, separated by spaces and wrapped in '<>'
     for (size_t i = 0; i < this->ids.size(); i++) {
         if (i > 0) { os << ' '; }
-        os << '<' << this->ids[i] << '>';
+        os << this->ids[i];
     }
     return os;
 }

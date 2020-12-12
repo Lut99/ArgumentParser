@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:16:59
  * Last edited:
- *   11/12/2020, 19:54:06
+ *   12/12/2020, 15:10:23
  * Auto updated?
  *   Yes
  *
@@ -46,8 +46,9 @@ namespace ArgumentParser {
         macro = 18,
         suppress = 19,
         warning = 20,
+        error = 21,
 
-        empty = 21,
+        empty = 22,
     };
 
     /* Dictionary that maps a tokentype to a capitalized string. */
@@ -77,6 +78,7 @@ namespace ArgumentParser {
         "Macro",
         "Suppress",
         "Warning",
+        "Error",
 
         "Empty"
     };

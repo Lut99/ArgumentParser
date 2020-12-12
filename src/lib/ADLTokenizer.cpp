@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   11/12/2020, 19:58:01
+ *   12/12/2020, 15:23:38
  * Auto updated?
  *   Yes
  *
@@ -401,7 +401,7 @@ start:
             // One of the two warning tokens
             result->debug.line1 = this->line;
             result->debug.col1 = this->col;
-            ACCEPT(c);
+            STORE(c);
             goto warning_start;
         } else if (c == '\n') {
             // Increment the line and then try again
@@ -1399,13 +1399,18 @@ warning_start:
         if (c == 's') {
             // It's the suppress-token
             result->type = TokenType::suppress;
-            ACCEPT(c);
+            STORE(c);
             goto suppress_token;
         } else if (c == 'w') {
             // It's the warning-token
             result->type = TokenType::warning;
-            ACCEPT(c);
+            STORE(c);
             goto warning_token;
+        } else if (c == 'e') {
+            // It's an error-token
+            result->type = TokenType::error;
+            STORE(c);
+            goto error_token;
         } else {
             // Unknown token
             Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
@@ -1418,18 +1423,22 @@ warning_start:
 suppress_token:
     {
         // Check each of the characters in rapid succession
-        const char* uppress = "uppress ";
-        for (size_t i = 0; i < 8; i++) {
+        const char* uppress = "uppress";
+        for (size_t i = 0; i < 7; i++) {
             PEEK(c);
             if (c != uppress[i]) {
                 // Unknown token
                 Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
                 RETRY_AT_WHITESPACE();
             }
+            if (i < 6) { STORE(c); }
         }
 
-        // If it says what we expect it to, start parsing the actual value
-        goto warning_value;
+        // Well, we're done!
+        result->debug.line2 = this->line;
+        result->debug.col2 = this->col;
+        STORE(c);
+        return result;
     }
 
 
@@ -1437,63 +1446,45 @@ suppress_token:
 warning_token:
     {
         // Check each of the characters in rapid succession
-        const char* arning = "arning ";
-        for (size_t i = 0; i < 7; i++) {
+        const char* arning = "arning";
+        for (size_t i = 0; i < 6; i++) {
             PEEK(c);
             if (c != arning[i]) {
                 // Unknown token
                 Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
                 RETRY_AT_WHITESPACE();
             }
+            if (i < 5) { STORE(c); }
         }
 
-        // If it says what we expect it to, start parsing the actual value
-        goto warning_value;
+        // Well, we're done!
+        result->debug.line2 = this->line;
+        result->debug.col2 = this->col;
+        STORE(c);
+        return result;
     }
 
 
 
-warning_value:
+error_token:
     {
-        // Get the head character on the stream
-        PEEK(c);
-
-        // Choose the correct path forward
-        if (    (c >= 'A' && c <= 'Z') ||
-                (c >= 'a' && c <= 'z') ||
-                 c == '-') {
-            // Still parsing as valid
-            STORE(c);
-            goto warning_end;
-        } else {
-            // Empty warning token
-            Exceptions::log(Exceptions::EmptyWarningException(DebugInfo(this->filenames, this->line, this->col, this->get_line())));
-            REJECT(c);
-            goto start;
+        // Check each of the characters in rapid succession
+        const char* arning = "rror";
+        for (size_t i = 0; i < 4; i++) {
+            PEEK(c);
+            if (c != arning[i]) {
+                // Unknown token
+                Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
+                RETRY_AT_WHITESPACE();
+            }
+            if (i < 3) { STORE(c); }
         }
-    }
 
-
-
-warning_end:
-    {
-        // Get the head character on the stream
-        PEEK(c);
-
-        // Choose the correct path forward
-        if (    (c >= 'A' && c <= 'Z') ||
-                (c >= 'a' && c <= 'z') ||
-                 c == '-') {
-            // Still parsing as valid
-            STORE(c);
-            goto warning_end;
-        } else {
-            // We're done here
-            result->debug.line2 = this->line;
-            result->debug.col2 = this->col;
-            REJECT(c);
-            return result;
-        }
+        // Well, we're done!
+        result->debug.line2 = this->line;
+        result->debug.col2 = this->col;
+        STORE(c);
+        return result;
     }
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   10/12/2020, 17:29:55
+ *   12/12/2020, 17:22:58
  * Auto updated?
  *   Yes
  *
@@ -20,8 +20,10 @@
 #include <exception>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <ostream>
 
+#include "WarningTypes.hpp"
 #include "DebugInfo.hpp"
 
 namespace ArgumentParser::Exceptions {
@@ -110,10 +112,10 @@ namespace ArgumentParser::Exceptions {
     class ADLWarning : public ADLException {
     public:
         /* The type of this warning. */
-        const std::string type;
+        const WarningType type;
 
         /* Constructor for the ADLWarning class, which takes the type of warning, the relevant include path of files and optionally a message. */
-        ADLWarning(const std::string& type, const std::vector<std::string>& filenames, const std::string& message = "") :
+        ADLWarning(const WarningType type, const std::vector<std::string>& filenames, const std::string& message = "") :
             ADLException(filenames, message),
             type(type)
         {}
@@ -138,7 +140,7 @@ namespace ArgumentParser::Exceptions {
          *   - a DebugInfo struct containing the location in the source file
          *   - [optional] a message
          */
-        ADLCompileWarning(const std::string& type, const DebugInfo& debug, const std::string& message = "") :
+        ADLCompileWarning(const WarningType type, const DebugInfo& debug, const std::string& message = "") :
             ADLWarning(type, debug.filenames, message),
             debug(debug)
         {}

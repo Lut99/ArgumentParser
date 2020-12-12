@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 16:34:15
  * Last edited:
- *   10/12/2020, 17:22:35
+ *   12/12/2020, 16:59:05
  * Auto updated?
  *   Yes
  *
@@ -33,28 +33,7 @@ ADLIdentifier::ADLIdentifier(const DebugInfo& debug, const std::string& identifi
 
 /* Prints the identifier's value to the given output stream, possible wrapped in <> or preceded by - or --. */
 std::ostream& ADLIdentifier::print(std::ostream& os) const {
-    switch (this->type) {
-        case IdentifierType::meta:
-        case IdentifierType::positional:
-            // Just print the value
-            return os << this->identifier;
-        
-        case IdentifierType::longlabel:
-            // Longlabel, so secretly add in one extra slash
-            os << '-';
-            [[fallthrough]];
-        case IdentifierType::shortlabel:
-            // Preceed by a single slash
-            return os << '-' << this->identifier;
-        
-        case IdentifierType::type:
-            // Type definition, so wrap in <>
-            return os << '<' << this->identifier << '>';
-        
-        default:
-            // Do nothing
-            return os;
-    }
+    return os << this->identifier;
 }
 
 /* Allows the ADLIdentifier to be copied polymorphically. */

@@ -4,7 +4,7 @@
  * Created:
  *   30/11/2020, 17:49:49
  * Last edited:
- *   10/12/2020, 17:19:19
+ *   12/12/2020, 17:00:13
  * Auto updated?
  *   Yes
  *
@@ -31,12 +31,7 @@ ADLReference::ADLReference(const DebugInfo& debug, const std::string& id, Identi
 
 /* Prints the reference to the given output stream. */
 std::ostream& ADLReference::print(std::ostream& os) const {
-    if (this->type == IdentifierType::shortlabel) { os << '-'; }
-    else if (this->type == IdentifierType::longlabel) { os << "--"; }
-    else if (this->type == IdentifierType::type) { os << '<'; }
-    os << this->id;
-    if (this->type == IdentifierType::type) { os << '>'; }
-    return os << '.' << this->property;
+    return os << this->id << '.' << this->property;
 }
 
 /* Allows the ADLReference to be copied polymorphically. */
