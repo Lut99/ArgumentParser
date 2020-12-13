@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 18:19:27
  * Last edited:
- *   12/12/2020, 17:27:50
+ *   13/12/2020, 15:38:54
  * Auto updated?
  *   Yes
  *
@@ -120,6 +120,22 @@ namespace ArgumentParser {
 
             /* Copies the UnmatchedEndifException polymorphically. */
             virtual UnmatchedEndifException* copy() const { return new UnmatchedEndifException(*this); }
+
+        };
+        /* Exception for when an ifdef is given without value. */
+        class EmptyConditionException: public PreprocessorException {
+        public:
+            /* Name of the macro that was seen before the lack of define. */
+            const std::string macro;
+
+            /* Constructor for the EmptyConditionException class, which takes a DebugInfo struct to locate this error in a source file and a macro name where the error occurred. */
+            EmptyConditionException(const DebugInfo& debug, const std::string& macro_name) :
+                PreprocessorException(debug, "Encountered " + macro_name + "-macro without define to check for."),
+                macro(macro_name)
+            {}
+
+            /* Copies the EmptyConditionException polymorphically. */
+            virtual EmptyConditionException* copy() const { return new EmptyConditionException(*this); }
 
         };
 

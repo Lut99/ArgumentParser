@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   12/12/2020, 15:23:38
+ *   13/12/2020, 15:26:14
  * Auto updated?
  *   Yes
  *
@@ -397,6 +397,20 @@ start:
             result->debug.col1 = this->col;
             ACCEPT(c);
             goto macro_start;
+        } else if (c == '&') {
+            // Must be a macro and
+            result->type = TokenType::macro_and;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            STORE(c);
+            goto macro_and;
+        } else if (c == '|') {
+            // Must be a macro or
+            result->type = TokenType::macro_or;
+            result->debug.line1 = this->line;
+            result->debug.col1 = this->col;
+            STORE(c);
+            goto macro_or;
         } else if (c == '@') {
             // One of the two warning tokens
             result->debug.line1 = this->line;
@@ -1387,6 +1401,47 @@ macro_start:
         }
     }
 
+
+
+macro_and:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '&') {
+            // Jep, succesfully got a macro-and token
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            STORE(c);
+            return result;
+        } else {
+            // Illegal token
+            Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
+            RETRY_AT_WHITESPACE();
+        }
+    }
+
+
+
+macro_or:
+    {
+        // Get the head character on the stream
+        PEEK(c);
+
+        // Choose the correct path forward
+        if (c == '|') {
+            // Jep, succesfully got a macro-or token
+            result->debug.line2 = this->line;
+            result->debug.col2 = this->col;
+            STORE(c);
+            return result;
+        } else {
+            // Illegal token
+            Exceptions::log(Exceptions::UnexpectedCharException(DebugInfo(this->filenames, this->line, this->col, this->get_line()), c));
+            RETRY_AT_WHITESPACE();
+        }
+    }
 
 
 

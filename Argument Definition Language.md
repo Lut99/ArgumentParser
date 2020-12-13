@@ -309,5 +309,32 @@ where ```NAME``` is, again, a unique identifier for a define. One can also use t
 ```
 Note that any of these macros may be nested in the if-macros, where it will be assumed that two outermost if/endif macros are a pair. Additionally, note that these macros only work as separate tokens; they cannot be used in strings or code snippets (this means you can use defines in your C++ code snippets that will be relevant for the C++-preprocessor instead of the ADL).
 
+This simple few if-statements can be extended using logical and and or's and elseif's and else's. The first of these, ands, are written as ```&&``` and can be used to only match if all of those defines are actually defined. For example:
+```
+#ifdef NAME1 && NAME2
+// Only compiled if both NAME1 and NAME2 are given
+...
+#endif
+```
+Similarly, one can also use an or, written as ```||```, which is used to match either of the given defines:
+```
+#ifdef NAME1 || NAME2
+// Only compiled if NAME1, NAME2 or both are given; but not when both are missing
+...
+#endif
+```
+
+The elseif and else macro's can be used to specify what to do if the if-match wasn't successful. They work pretty much like normal if-statements - for example:
+```
+#ifdef NAME1
+...
+#elseif NAME2
+...
+#else
+...
+#endif
+```
+compiles only the first part if NAME1 is defined, the second part if NAME1 is not defined but NAME2 is and the third part if neither are defined.
+
 ## 5. Closing thoughts
 This file specifies the Argument Definition Language so that parses can parse the file to a semantically correct Abstract Syntax Tree. More information, especially on using the ADL in the context of the ArgumentParser, can be found in the online wiki [wiki](https://github.com/Lut99/ArgumentParser/wiki) of the ArgumentParser.
