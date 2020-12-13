@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:39:22
  * Last edited:
- *   08/12/2020, 20:43:40
+ *   13/12/2020, 15:10:46
  * Auto updated?
  *   Yes
  *
@@ -12,6 +12,7 @@
  *   Baseclass for all nodes in the ADL Abstract Syntax Tree (AST).
 **/
 
+#include "ADLExceptions.hpp"
 #include "ADLNode.hpp"
 
 using namespace std;
@@ -20,10 +21,11 @@ using namespace ArgumentParser;
 
 /***** ADLNODE CLASS *****/
 
-/* Constructor for the ADLNode, which takes the type of the node and the debug information of where this nodes originates. */
+/* Constructor for the ADLNode, which takes the type of the node and the debug information of where this nodes originates. Note that it automatically assings all currently suppressed tokens in the static error handler as suppressed for this node. */
 ADLNode::ADLNode(NodeType type, const DebugInfo& debug) :
     type(type),
-    debug(debug)
+    debug(debug),
+    suppressed(Exceptions::error_handler.toplevel_suppressed | Exceptions::error_handler.config_suppressed)
 {}
 
 

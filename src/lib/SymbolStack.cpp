@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:50
  * Last edited:
- *   27/11/2020, 17:15:25
+ *   13/12/2020, 15:08:52
  * Auto updated?
  *   Yes
  *
@@ -83,6 +83,30 @@ void ArgumentParser::Parser::swap(Terminal& t1, Terminal& t2) {
     swap((Symbol&) t1, (Symbol&) t2);
     swap(t1._token, t2._token);
 }
+
+
+
+
+
+/***** NONTERMINAL CLASS *****/
+
+/* Constructor for the NonTerminal, which takes a reference to a node. */
+NonTerminal::NonTerminal(ADLNode* node) :
+    Symbol(false),
+    _node(node)
+{}
+
+
+
+/* Lets the NonTerminal print itself to the given output stream. */
+std::ostream& NonTerminal::print(std::ostream& os) const {
+    return os << "NonTerminal(" << nodetype_name.at(this->_node->type) << ")";
+}
+
+
+
+/* Copies the NonTerminal polymorphically. */
+NonTerminal* NonTerminal::copy() const { return new NonTerminal(*this); };
 
 
 

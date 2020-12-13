@@ -10,8 +10,8 @@
 #define DEBUG2
 
 #ifdef DEBUG
-#include stdtypes
-#include "tests/test_extern.adl"
+// #include stdtypes
+// #include "tests/test_extern.adl"
 #endif
 
 meta {
@@ -60,8 +60,8 @@ positional1 <int> {
     .index 1;
 }
 
-@warning "Hello there!"
-@warning "General kenobi! You are a bold one!"
+// @warning "Hello there!"
+// @warning "General kenobi! You are a bold one!"
 variadic_positional <int>... {
     .index ---5.5;
 }
@@ -71,8 +71,8 @@ variadic_positional <int>... {
 }
 
 #ifdef DEBUG
+@suppress empty-statement
 --option -o <int> {
-    @suppress empty-statement
     ;
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 16:14:52
  * Last edited:
- *   12/12/2020, 17:22:58
+ *   13/12/2020, 14:58:32
  * Auto updated?
  *   Yes
  *
@@ -209,6 +209,10 @@ namespace ArgumentParser::Exceptions {
     public:
         /* Stores whether or not we should print each exception when we add it. */
         bool print_on_add;
+        /* Stores all warnings (by their type) that we have suppressed for the toplevel. */
+        WarningType toplevel_suppressed;
+        /* Stores all warnings (by their type) that we have suppressed for the nested, config scope. */
+        WarningType config_suppressed;
         
         /* Default constructor for the ExceptionHandler class, which optionally takes whether or not exceptions should be printed immediately and the initial size of the internal array. */
         ExceptionHandler(bool print_on_add = true, size_t initial_capacity=4);
@@ -224,6 +228,19 @@ namespace ArgumentParser::Exceptions {
         /* Adds a new exception to the handler, which accompanying notes to add to this exception. */
         template <class... NOTES>
         ExceptionHandler& log(const ADLException& except, NOTES... notes) {
+            // If the exception is actually a warning, possibly ignore it
+            if (dynamic_cast<const ADLWarning*>(&except)) {
+                const ADLWarning& warning = (const ADLWarning&) except;
+                #ifdef DEBUG
+                std::cout << "[   Exception   ] Logging warning of type '" << warningtype_names.at(warning.type) << "'" << std::endl;
+                std::cout << "                  Currently suppressed types: " << extract_type_names(this->toplevel_suppressed | this->config_suppressed) << std::endl;
+                #endif
+                if ((this->toplevel_suppressed | this->config_suppressed) & warning.type) {
+                    // It's one of the suppressed types; just return, without doing anything
+                    return *this;
+                }
+            }
+
             // Log the exception in our internal list
             if (this->length >= this->max_length) { this->resize(); }
             this->exceptions[this->length++] = except.copy();
@@ -237,6 +254,21 @@ namespace ArgumentParser::Exceptions {
 
             // When done, return ourselves so we may potentially be thrown
             return *this;
+        }
+
+        /* Clears the suppressed types on the toplevel scope. */
+        inline void clear_toplevel() {
+            #ifdef DEBUG
+            std::cout << "[   Exception   ] Cleared suppressed warnings at the toplevel." << std::endl;
+            #endif
+            this->toplevel_suppressed = (WarningType) 0;
+        }
+        /* Clears the suppressed types on the nested, config scope. */
+        inline void clear_config() {
+            #ifdef DEBUG
+            std::cout << "[   Exception   ] Cleared suppressed warnings at the config scope." << std::endl;
+            #endif
+            this->config_suppressed = (WarningType) 0;
         }
         
         /* Returns a constant reference to the i'th exception in this handler. */

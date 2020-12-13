@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   08/12/2020, 20:43:44
+ *   13/12/2020, 15:10:39
  * Auto updated?
  *   Yes
  *
@@ -22,6 +22,7 @@
 
 #include "DebugInfo.hpp"
 #include "NodeType.hpp"
+#include "WarningTypes.hpp"
 
 namespace ArgumentParser {
     /* Baseclass for all nodes in the tree. */
@@ -37,12 +38,14 @@ namespace ArgumentParser {
         const NodeType type;
         /* The debug information noting where this node originates from. */
         DebugInfo debug;
+        /* A list of warnings that are suppressed for this node. */
+        Exceptions::WarningType suppressed;
 
         /* The parent node of this node. */
         ADLNode* parent;
 
 
-        /* Constructor for the ADLNode, which takes the type of the node and the debug information of where this nodes originates. */
+        /* Constructor for the ADLNode, which takes the type of the node and the debug information of where this nodes originates. Note that it automatically assings all currently suppressed tokens in the static error handler as suppressed for this node. */
         ADLNode(NodeType type, const DebugInfo& debug);
         /* Virtual destructor for the ADLNode class, which doesn't do a lot yet. */
         virtual ~ADLNode() = default;

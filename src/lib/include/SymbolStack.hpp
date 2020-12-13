@@ -4,7 +4,7 @@
  * Created:
  *   13/11/2020, 15:33:42
  * Last edited:
- *   27/11/2020, 14:30:46
+ *   13/12/2020, 15:08:16
  * Auto updated?
  *   Yes
  *
@@ -106,10 +106,7 @@ namespace ArgumentParser::Parser {
 
     public:
         /* Constructor for the NonTerminal, which takes a reference to a node. */
-        NonTerminal(ADLNode* node) :
-            Symbol(false),
-            _node(node)
-        {}
+        NonTerminal(ADLNode* node);
 
         /* Returns a reference to the internal token. */
         inline ADLNode*& node() { return this->_node; }
@@ -120,10 +117,10 @@ namespace ArgumentParser::Parser {
         inline NodeType type() const { return this->_node->type; }
 
         /* Lets the NonTerminal print itself to the given output stream. */
-        virtual std::ostream& print(std::ostream& os) const { return os << "NonTerminal(" << nodetype_name.at(this->_node->type) << ")"; }
+        virtual std::ostream& print(std::ostream& os) const;
 
         /* Copies the NonTerminal polymorphically. */
-        virtual NonTerminal* copy() const { return new NonTerminal(*this); };
+        virtual NonTerminal* copy() const;
 
         /* Returns the debug information of this token. */
         inline const DebugInfo& debug() const { return this->_node->debug; }

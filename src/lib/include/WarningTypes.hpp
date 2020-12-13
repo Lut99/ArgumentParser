@@ -4,7 +4,7 @@
  * Created:
  *   12/12/2020, 17:22:33
  * Last edited:
- *   12/12/2020, 18:03:10
+ *   13/12/2020, 15:00:37
  * Auto updated?
  *   Yes
  *
@@ -17,43 +17,63 @@
 #define WARNING_TYPES_HPP
 
 #include <string>
+#include <unordered_map>
 
 namespace ArgumentParser::Exceptions {
+    /* C-type that is used to interpret WarningTypes. */
+    using warningtype_t = uint16_t;
+
     /* Static list of all warning types defined. */
     enum class WarningType {
-        int_overflow = 0,
-        int_underflow = 1,
-        float_overflow = 2,
+        all = -1,
+        unknown = 0x1,
 
-        duplicate_define = 3,
-        missing_define = 4,
+        int_overflow = 0x2,
+        int_underflow = 0x4,
+        float_overflow = 0x8,
 
-        empty_statement = 5,
-        stray_semicolon = 6,
-        stray_suppress = 7,
+        duplicate_define = 0x10,
+        missing_define = 0x20,
+
+        empty_statement = 0x40,
+        stray_semicolon = 0x80,
+        stray_suppress = 0x100,
         
-        custom = 8,
-
-        unknown = 9
+        custom = 0x200
     };
 
     /* Maps all WarningTypes to their string equivalent. */
-    __attribute__((unused)) static const char* warningtype_names[] = {
-        "integer-overflow",
-        "integer-underflow",
-        "float-overflow",
+    // __attribute__((unused)) 
+    static const std::unordered_map<WarningType, std::string> warningtype_names = {
+        { WarningType::unknown, "unknown" },
 
-        "duplicate-define",
-        "missing-define",
+        { WarningType::int_overflow, "integer-overflow" },
+        { WarningType::int_underflow, "integer-underflow" },
+        { WarningType::float_overflow, "float-overflow" },
 
-        "empty-statement",
-        "stray-semicolon",
-        "stray-suppress",
+        { WarningType::duplicate_define, "duplicate-define" },
+        { WarningType::missing_define, "missing-define" },
 
-        "custom",
+        { WarningType::empty_statement, "empty-statement" },
+        { WarningType::stray_semicolon, "stray-semicolon" },
+        { WarningType::stray_suppress, "stray-suppress" },
 
-        "unknown"
+        { WarningType::custom, "custom" }
     };
+
+
+
+    /* Given a WarningType that may consist of multiple ones, tries to extract all the possible WarningTypes and pretty prints them in a string. */
+    std::string extract_type_names(const WarningType warnings, const std::string& concat_word = "and");
+
+    /* Overloads the &-operator for the NodeTypes. */
+    inline constexpr warningtype_t operator&(WarningType w1, WarningType w2) {
+        return (warningtype_t) w1 & (warningtype_t) w2;
+    }
+    /* Overloads the |-operator for the NodeTypes. */
+    inline constexpr WarningType operator|(WarningType w1, WarningType w2) {
+        return (WarningType) ((warningtype_t) w1 | (warningtype_t) w2);
+    }
 }
 
 #endif

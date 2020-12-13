@@ -13,12 +13,14 @@ BIN	=bin
 OBJ	=$(BIN)/obj
 TEST=tests/
 
-# Required files
+# Automatic file search
 AST_SOURCE = $(shell find $(LIB)/AST -name '*.cpp')
 AST = $(AST_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
 TRAVERSALS_SOURCE = $(shell find $(LIB)/traversals -name '*.cpp')
 TRAVERSALS = $(TRAVERSALS_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
-TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o
+
+# Dependencies for each stage of the compiler
+TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(OBJ)/WarningTypes.o
 PREPROCESSOR = $(OBJ)/ADLPreprocessor.o $(TOKENIZER)
 PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(PREPROCESSOR) $(AST)
 COMPILER = $(OBJ)/ADLCompiler.o $(PARSER) $(TRAVERSALS)

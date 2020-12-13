@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   12/12/2020, 17:20:49
+ *   13/12/2020, 15:01:52
  * Auto updated?
  *   Yes
  *
@@ -118,7 +118,7 @@ std::ostream& ADLWarning::print(std::ostream& os) const {
     }
 
     // Then, we can also always print the filename itself
-    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m" << warningtype_names[(int) this->type] << "\033[0m]" << endl;
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m" << warningtype_names.at(this->type) << "\033[0m]" << endl;
 
     // Done
     return os;
@@ -140,7 +140,7 @@ std::ostream& ADLCompileWarning::print(std::ostream& os) const {
     }
 
     // Then, we can also always print the filename itself
-    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m" << warningtype_names[(int) this->type] << "\033[0m]" << endl;
+    os << "\033[1m" << this->filenames[this->filenames.size() - 1] << ":" << debug.line1 << ":" << debug.col1  << ":" << " \033[35mwarning: \033[0m" << this->message << " [\033[35;1m" << warningtype_names.at(this->type) << "\033[0m]" << endl;
 
     // Print the line number + spacing
     std::string strline = std::to_string(debug.line1);
@@ -265,7 +265,9 @@ std::ostream& ADLNote::print(std::ostream& os) const {
 ExceptionHandler::ExceptionHandler(bool print_on_add, size_t initial_capacity) :
     length(0),
     max_length(initial_capacity),
-    print_on_add(print_on_add)
+    print_on_add(print_on_add),
+    toplevel_suppressed((WarningType) 0),
+    config_suppressed((WarningType) 0)
 {
     // Reserve space for the initial capacity
     this->exceptions = new ADLException*[this->max_length];
@@ -275,7 +277,9 @@ ExceptionHandler::ExceptionHandler(bool print_on_add, size_t initial_capacity) :
 ExceptionHandler::ExceptionHandler(const ExceptionHandler& other) :
     length(other.length),
     max_length(other.max_length),
-    print_on_add(other.print_on_add)
+    print_on_add(other.print_on_add),
+    toplevel_suppressed(other.toplevel_suppressed),
+    config_suppressed(other.config_suppressed)
 {
     // Allocate a new exceptions list
     this->exceptions = new ADLException*[this->max_length];
@@ -290,7 +294,9 @@ ExceptionHandler::ExceptionHandler(ExceptionHandler&& other) :
     exceptions(other.exceptions),
     length(other.length),
     max_length(other.max_length),
-    print_on_add(other.print_on_add)
+    print_on_add(other.print_on_add),
+    toplevel_suppressed(other.toplevel_suppressed),
+    config_suppressed(other.config_suppressed)
 {
     // Set the other's value to nullptr to prevent it from deallocating the exceptions
     other.exceptions = nullptr;
@@ -342,6 +348,18 @@ void ExceptionHandler::add_note(const ADLNote& note) {
 
 /* Adds a new exception to the handler. */
 ExceptionHandler& ExceptionHandler::log(const ADLException& except) {
+    // If the exception is actually a warning, possibly ignore it
+    if (dynamic_cast<const ADLWarning*>(&except)) {
+        const ADLWarning& warning = (const ADLWarning&) except;
+        if ((this->toplevel_suppressed | this->config_suppressed) & warning.type) {
+            // It's one of the suppressed types; just return, without doing anything
+            #ifdef DEBUG
+            cout << "[   Exception   ] Suppressed warning of type '" << warningtype_names.at(warning.type) << "'" << endl;
+            #endif
+            return *this;
+        }
+    }
+
     // Log the exception in our internal list
     if (this->length >= this->max_length) { this->resize(); }
     this->exceptions[this->length++] = except.copy();
@@ -383,4 +401,6 @@ void Exceptions::swap(ExceptionHandler& eh1, ExceptionHandler& eh2) {
     swap(eh1.length, eh2.length);
     swap(eh1.max_length, eh2.max_length);
     swap(eh1.print_on_add, eh2.print_on_add);
+    swap(eh1.toplevel_suppressed, eh2.toplevel_suppressed);
+    swap(eh1.config_suppressed, eh2.config_suppressed);
 }

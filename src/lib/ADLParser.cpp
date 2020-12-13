@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   12/12/2020, 18:19:19
+ *   13/12/2020, 15:00:53
  * Auto updated?
  *   Yes
  *
@@ -38,6 +38,7 @@
 
 #include "SymbolStack.hpp"
 #include "ADLPreprocessor.hpp"
+#include "ParseExceptions.hpp"
 #include "ADLParser.hpp"
 
 using namespace std;
@@ -57,7 +58,7 @@ using namespace ArgumentParser::Parser;
     else { (SYMBOL) = (STACK)[(I)++]; }
 
 /* Tries to match the top of the stack and the lookahead with one of the hardcoded grammar rules. Returns whether it succeeded or not. */
-std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& stack) {
+std::string reduce(ParseState& state, const std::string& filename, Token* lookahead, SymbolStack& stack) {
     // Iterates over each stack symbol, returning the empty terminal if it went out-of-range
     SymbolStack::const_iterator iter = stack.begin();
     // Placeholder for the to-be-examined symbol
@@ -89,7 +90,15 @@ std::string reduce(const std::string& filename, Token* lookahead, SymbolStack& s
             // Do different actions based on the type of symbol
             Terminal* term = (Terminal*) symbol;
             switch(term->type()) {
+                case TokenType::l_curly:
+                    // We enter the config level
+                    state.toplevel = false;
+                    return "";
+
                 case TokenType::r_curly:
+                    // We enter the toplevel again
+                    state.toplevel = true;
+
                     // See if we can parse as any of the definitions
                     prev_term = term->token();
                     goto definition_start;
@@ -888,6 +897,8 @@ config_start:
                     // Simply an empty statement; we'll allow it (but with warning)
                     Exceptions::log(Exceptions::EmptyStatementWarning(prev_term->debug));
                     stack.remove(1);
+                    // Clear the config level suppressed warnings
+                    Exceptions::error_handler.clear_config();
                     return "";
                 
                 case TokenType::config:
@@ -900,6 +911,8 @@ config_start:
                     // Unexpected symbol to follow a termination; let the user know
                     Exceptions::log(Exceptions::StraySemicolonWarning(term->debug()));
                     stack.remove(1);
+                    // Clear the config level suppressed warnings
+                    Exceptions::error_handler.clear_config();
                     return "";
 
             }
@@ -915,6 +928,8 @@ config_start:
                     // Unexpected symbol to follow a termination; let the user know
                     Exceptions::log(Exceptions::StraySemicolonWarning(nterm->debug()));
                     stack.remove(1);
+                    // Clear the config level suppressed warnings
+                    Exceptions::error_handler.clear_config();
                     return "";
 
             }
@@ -951,6 +966,8 @@ config_values:
 
         // Also remove the two symbols from the stack, for the simple reason as to not infuriate later errors
         stack.remove(2);
+        // Clear the config level suppressed warnings
+        Exceptions::error_handler.clear_config();
         return "";
     }
 
@@ -970,7 +987,26 @@ modifier_identifier:
             switch(term->type()) {
                 case TokenType::suppress:
                     {
-                        /* TBD */
+                        // Try to find the correct WarningType based on the identifier given
+                        Exceptions::WarningType warning = Exceptions::WarningType::unknown;
+                        for (const std::pair<Exceptions::WarningType, std::string>& p : Exceptions::warningtype_names) {
+                            if (prev_term->raw == p.second) {
+                                warning = p.first;
+                                break;
+                            }
+                        }
+                        if (warning == Exceptions::WarningType::unknown) {
+                            Exceptions::log(Exceptions::UnknownWarningError(prev_term->debug, prev_term->raw));
+                            stack.remove(2);
+                            return "";
+                        }
+
+                        // Add the warning to the list of suppressed warnings, depending on if we're in the toplevel or not
+                        if (state.toplevel) {
+                            Exceptions::error_handler.toplevel_suppressed = Exceptions::error_handler.toplevel_suppressed | warning;
+                        } else {
+                            Exceptions::error_handler.config_suppressed = Exceptions::error_handler.config_suppressed | warning;
+                        }
 
                         // Replace it with a suppress-node and we're done (for now)
                         stack.remove(2);
@@ -1146,6 +1182,9 @@ config_merge:
         int temp = 0;
         PEEK(symbol, iter, temp);
 
+        // Always clear the config surpressed tokens
+        Exceptions::error_handler.clear_config();
+
         // Do different things based on whether it is a configs node or not
         if (!symbol->is_terminal) {
             NonTerminal* nterm = (NonTerminal*) symbol;
@@ -1218,6 +1257,9 @@ toplevel_merge:
         int temp = 0;
         PEEK(symbol, iter, temp);
 
+        // Always clear the toplevel surpressed tokens
+        Exceptions::error_handler.clear_toplevel();
+
         // Do different things based on whether it is a terminal or not
         NonTerminal* nterm = (NonTerminal*) symbol;
         if (!symbol->is_terminal && nterm->type() == NodeType::root) {
@@ -1240,6 +1282,11 @@ toplevel_merge:
         ));
         return "toplevel-new";
     }
+
+
+
+    // Since it's unused, "use" the lookahead here
+    (void) lookahead;
 }
 
 /* Analyses a stack that is done in principle but didn't reduce to a single ADLFile* node and prints out each of the errors. */
@@ -1306,12 +1353,15 @@ ADLTree* ArgumentParser::Parser::parse(const std::string& filename) {
     cout << "[   ADLParser   ] " << "         " << stack << endl;
     #endif
 
+    // Prepare the value that's used to keep track of all the possible WarningTypes that are suppressed currently
+    ParseState state({ true });
+
     // Parse as a shift-reduce parser - in every iteration, fetch a token and attempt to reduce the stack of tokens to a tree of nodes
     Token* lookahead = in.pop();
     bool changed = true;
     while (!in.eof() || changed) {
         // Check to see if we can match any grammar rule (reduce)
-        std::string applied_rule = reduce(filename, lookahead, stack);
+        std::string applied_rule = reduce(state, filename, lookahead, stack);
         changed = !applied_rule.empty();
 
         // If we couldn't, then shift a new symbol if there are any left

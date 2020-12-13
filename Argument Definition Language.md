@@ -148,7 +148,7 @@ Warnings may also occur in the toplevel of the file, which have their own rules 
 ```
 suppress = SUPPRESS ID
 ```
-where the ID refers to a particular build-in warning. Semantically, the ```@suppress``` token will suppress the all occurences of the given warning in either a definition (if it's defined directly before it) or a property if it's defined before that. Note that it cannot suppress custom warnings (defined with a string) or errors.  
+where the ID refers to a particular build-in warning. Semantically, the ```@suppress``` token will suppress the all occurences of the given warning until the next LCURLY token (if defined at toplevel) or the next SEMICOLON token (if defined in a body). Note that it cannot suppress custom warnings (defined with a string) or errors.  
 Similarly, for the ```@warning```-modifier, the rule is:
 ```
 warning = WARNING STRING
