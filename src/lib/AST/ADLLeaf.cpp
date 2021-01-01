@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:33:54
  * Last edited:
- *   08/12/2020, 20:45:02
+ *   01/01/2021, 16:19:13
  * Auto updated?
  *   Yes
  *
@@ -35,7 +35,7 @@ void ADLLeaf::_traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*,
 }
 
 /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-void ADLLeaf::_traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*, ADLNode*, std::any&), std::any&) {
+void ADLLeaf::_traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*, ADLNode*, void*), void*) {
     // Simply do not recurse, as this node doesn't have any children
     return;
 }

@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:37:00
  * Last edited:
- *   13/12/2020, 15:10:39
+ *   01/01/2021, 16:18:24
  * Auto updated?
  *   Yes
  *
@@ -31,7 +31,7 @@ namespace ArgumentParser {
         /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
         virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) = 0;
         /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state) = 0;
+        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state) = 0;
 
     public:
         /* The type of the node. */
@@ -53,7 +53,7 @@ namespace ArgumentParser {
         /* Traverses through the tree and calls the given traversal function for any node that matches any of the given node types. The trav_id is used for debugging purposes, to help identify which traversal went wrong. This particular overlead does not carry states between trav_func calls. */
         ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
         /* Traverses through the tree and calls the given traversal function for any node that matches any of the given node types. The trav_id is used for debugging purposes, to help identify which traversal went wrong. This particular overlead carries a state between trav_func calls, which is initialized with the given value (as std::any). */
-        ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state);
+        ADLNode* traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state);
 
         /* Virtual function to let the Node (and its children, if any) print itself to the given oustream. Note that this will take multiple lines, and should reflect the structure as defined by the AST. */
         virtual std::ostream& print(std::ostream& os) const = 0;

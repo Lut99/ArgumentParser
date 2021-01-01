@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 17:24:35
  * Last edited:
- *   10/12/2020, 17:30:26
+ *   01/01/2021, 16:29:00
  * Auto updated?
  *   Yes
  *
@@ -18,6 +18,8 @@
 #include <iostream>
 
 #include "ADLParser.hpp"
+
+#include "BuildSymbolTable.hpp"
 
 using namespace std;
 using namespace ArgumentParser;
@@ -39,7 +41,10 @@ int main(int argc, char** argv) {
     }
 
     // Next, start with the first traversal
-    /* TBD */
+    SymbolTable main_table = traversal_build_symbol_table(tree);
+    if (Exceptions::error_handler.errors() > 0) {
+        return EXIT_FAILURE;
+    }
 
     // Alright, it's parsed!
     return EXIT_SUCCESS;

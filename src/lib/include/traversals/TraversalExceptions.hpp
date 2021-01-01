@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 13:08:33
  * Last edited:
- *   10/12/2020, 16:21:48
+ *   01/01/2021, 15:59:55
  * Auto updated?
  *   Yes
  *
@@ -43,28 +43,16 @@ namespace ArgumentParser::Exceptions {
             identifier(identifier)
         {}
     };
-    /* Error for when a Positional is defined multiple times. */
-    class DuplicatePositionalError: public DuplicateSymbolError {
+    /* Error for when an argument (Positional or Option) is defined multiple times. */
+    class DuplicateArgumentError: public DuplicateSymbolError {
     public:
-        /* Constructor for the DuplicatePositionalError class, which takes debugging information and the identifier that was defined twice. */
-        DuplicatePositionalError(const DebugInfo& debug, const std::string& identifier) :
-            DuplicateSymbolError(debug, identifier, "Positional '" + identifier + "' is defined more than once.")
+        /* Constructor for the DuplicateArgumentError class, which takes debugging information and the identifier that was defined twice. */
+        DuplicateArgumentError(const DebugInfo& debug, const std::string& identifier) :
+            DuplicateSymbolError(debug, identifier, "Argument '" + identifier + "' is defined more than once.")
         {}
 
-        /* Allows the DuplicatePositionalError to be copied polymorphically. */
-        virtual DuplicatePositionalError* copy() const { return new DuplicatePositionalError(*this); }
-
-    };
-    /* Error for when an Option is defined multiple times. */
-    class DuplicateOptionError: public DuplicateSymbolError {
-    public:
-        /* Constructor for the DuplicateOptionError class, which takes debugging information and the identifier that was defined twice. */
-        DuplicateOptionError(const DebugInfo& debug, const std::string& identifier) :
-            DuplicateSymbolError(debug, identifier, "Option '" + identifier + "' is defined more than once.")
-        {}
-
-        /* Allows the DuplicateOptionError to be copied polymorphically. */
-        virtual DuplicateOptionError* copy() const { return new DuplicateOptionError(*this); }
+        /* Allows the DuplicateArgumentError to be copied polymorphically. */
+        virtual DuplicateArgumentError* copy() const { return new DuplicateArgumentError(*this); }
 
     };
     /* Error for when a type is defined multiple times. */
@@ -98,7 +86,7 @@ namespace ArgumentParser::Exceptions {
     class TraversalWarning: public ParseWarning {
     public:
         /* Constructor for the TraversalWarning class, which takes the type of the warning, debug information and optionally a message. */
-        TraversalWarning(const std::string& type, const DebugInfo& debug, const std::string& message = "") :
+        TraversalWarning(WarningType type, const DebugInfo& debug, const std::string& message = "") :
             ParseWarning(type, debug, message)
         {}
         

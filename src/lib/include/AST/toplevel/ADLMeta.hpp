@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 17:26:20
  * Last edited:
- *   10/12/2020, 16:44:46
+ *   01/01/2021, 16:04:05
  * Auto updated?
  *   Yes
  *
@@ -22,12 +22,17 @@
 #include "ADLBranch.hpp"
 #include "ADLIdentifier.hpp"
 #include "ADLConfigs.hpp"
+#include "ADLSymbolTable.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
     /* The ADLMeta class is used to represent the toplevel Meta-namespace. */
     class ADLMeta: public ADLBranch {
     public:
+        /* The symbol table of the Meta namespace. */
+        SymbolTable symbol_table;
+
+
         /* Constructor for the ADLMeta class, which takes debug information linking this node back to the source file, an identifier to store the 'meta' in and optionally properties to store in the meta namespace. */
         ADLMeta(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs = nullptr);
         

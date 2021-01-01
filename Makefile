@@ -22,7 +22,7 @@ TRAVERSALS = $(TRAVERSALS_SOURCE:$(LIB)/%.cpp=$(OBJ)/%.o)
 # Dependencies for each stage of the compiler
 TOKENIZER = $(OBJ)/ADLTokenizer.o $(OBJ)/ADLExceptions.o $(OBJ)/WarningTypes.o
 PREPROCESSOR = $(OBJ)/ADLPreprocessor.o $(TOKENIZER)
-PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(PREPROCESSOR) $(AST)
+PARSER = $(OBJ)/ADLParser.o $(OBJ)/SymbolStack.o $(OBJ)/ADLSymbolTable.o $(PREPROCESSOR) $(AST)
 COMPILER = $(OBJ)/ADLCompiler.o $(PARSER) $(TRAVERSALS)
 
 # Prepare the list of includes and use that to extend the list of directories we need to make

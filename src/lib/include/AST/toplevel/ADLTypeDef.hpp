@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:03:08
  * Last edited:
- *   10/12/2020, 17:03:30
+ *   01/01/2021, 16:03:48
  * Auto updated?
  *   Yes
  *
@@ -24,12 +24,17 @@
 #include "ADLBranch.hpp"
 #include "ADLIdentifier.hpp"
 #include "ADLConfigs.hpp"
+#include "ADLSymbolTable.hpp"
 #include "NodeType.hpp"
 
 namespace ArgumentParser {
     /* The ADLTypeDef class is used to represent new type definitions. */
     class ADLTypeDef: public ADLBranch {
     public:
+        /* The symbol table of a type definition namespace. */
+        SymbolTable symbol_table;
+
+
         /* Constructor for the ADLTypeDef class, which takes debug information about the node's origin, the type definition's identifier and optionally an ADLConfigs node. */
         ADLTypeDef(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs = nullptr);
 

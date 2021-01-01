@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:39:35
  * Last edited:
- *   12/12/2020, 18:14:46
+ *   01/01/2021, 16:19:47
  * Auto updated?
  *   Yes
  *
@@ -104,7 +104,7 @@ void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLN
 }
 
 /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state) {
+void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state) {
     std::string context = "ADL" + nodetype_name.at(this->type) + "::_traverse_recurse()";
 
     // Simply loop through all children, possibly replacing them

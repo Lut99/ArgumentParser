@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:39:22
  * Last edited:
- *   13/12/2020, 15:10:46
+ *   01/01/2021, 16:18:45
  * Auto updated?
  *   Yes
  *
@@ -46,7 +46,7 @@ ADLNode* ADLNode::traverse(const char* trav_id, NodeType node_types, ADLNode* (*
 }
 
 /* Actual traversal-function for traversal. Takes a list of nodes to traverse (in order), which nodes we should trigger the traversal function, the traversal function itself and the initial state. */
-ADLNode* ADLNode::traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, std::any&), std::any& state) {
+ADLNode* ADLNode::traverse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state) {
     // Only call the traversal function on this node if we're of the target type
     if (this->type & node_types) {
         // Note that in this case, we leave it to the traversal function to actually recurse deeper (so it may choose the timing)
