@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 21:52:46
  * Last edited:
- *   13/12/2020, 15:39:05
+ *   01/01/2021, 14:39:46
  * Auto updated?
  *   Yes
  *
@@ -252,38 +252,23 @@ Token* Preprocessor::undefine_handler(bool pop, Token* token) {
 Token* Preprocessor::ifdef_handler(bool pop, Token* token) {
     // Store the debug information of this macro for error handling
     DebugInfo debug = token->debug;
-
-    // Try to see if all defined identifiers are present
     
-    while (true) {
-        // Get the next token from the stream
-        if (!pop) { this->current->pop(); }
+    // Get the next token from the stream
+    if (!pop) { this->current->pop(); }
+    delete token;
+    token = this->current->pop();
+
+    // If it's not an identifier, throw a tantrum
+    if (token->type != TokenType::identifier) {
+        Exceptions::log(Exceptions::EmptyConditionException(token->debug, "ifdef"));
+        // Use recursion to find the next token instead
         delete token;
-        token = this->current->pop();
-
-        // If it's not an identifier, throw a tantrum
-        if (token->type != TokenType::identifier) {
-            Exceptions::log(Exceptions::EmptyConditionException(token->debug, "ifdef"));
-            // Use recursion to find the next token instead
-            delete token;
-            return this->read_head(pop);
-        }
-
-        // Otherwise, update the debug information
-        debug.line2 = token->debug.line2;
-        debug.col2 = token->debug.col2;
-
-        // See if the identifier is present and add that to the should_compile boolean in the way specified by should_compile
-        if (TokenType::macro_and) {
-            // 
-        } else {
-            // Add as or, i.e., either previous or this has to be true
-        }
+        return this->read_head(pop);
     }
-    
-    
 
-    // Update the debug info with the identifier
+    // Otherwise, update the debug information
+    debug.line2 = token->debug.line2;
+    debug.col2 = token->debug.col2;
 
     #ifdef DEBUG
     cout << "[ADLPreprocessor] Handling ifdef with define '" << token->raw << "'..." << endl; 
