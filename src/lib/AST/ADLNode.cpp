@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:39:22
  * Last edited:
- *   01/01/2021, 16:18:45
+ *   04/01/2021, 17:51:57
  * Auto updated?
  *   Yes
  *
@@ -38,7 +38,7 @@ ADLNode* ADLNode::traverse(const char* trav_id, NodeType node_types, ADLNode* (*
         return trav_func(trav_id, this);
     } else {
         // Default to the normal recursion
-        this->_traverse_recurse(trav_id, node_types, trav_func);
+        this->traverse_recurse(trav_id, node_types, trav_func);
     }
     
     // Otherwise, just return ourselves
@@ -53,7 +53,7 @@ ADLNode* ADLNode::traverse(const char* trav_id, NodeType node_types, ADLNode* (*
         return trav_func(trav_id, this, state);
     } else {
         // Default to the normal recursion
-        this->_traverse_recurse(trav_id, node_types, trav_func, state);
+        this->traverse_recurse(trav_id, node_types, trav_func, state);
     }
     
     // Otherwise, just return ourselves

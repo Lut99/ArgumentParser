@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:33:54
  * Last edited:
- *   01/01/2021, 16:19:13
+ *   04/01/2021, 17:52:18
  * Auto updated?
  *   Yes
  *
@@ -29,13 +29,13 @@ ADLLeaf::ADLLeaf(NodeType type, const DebugInfo& debug) :
 
 
 /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-void ADLLeaf::_traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*, ADLNode*)) {
+void ADLLeaf::traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*, ADLNode*)) {
     // Simply do not recurse, as this node doesn't have any children
     return;
 }
 
 /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-void ADLLeaf::_traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*, ADLNode*, void*), void*) {
+void ADLLeaf::traverse_recurse(const char*, NodeType, ADLNode* (*)(const char*, ADLNode*, void*), void*) {
     // Simply do not recurse, as this node doesn't have any children
     return;
 }

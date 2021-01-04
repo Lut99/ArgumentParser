@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:36:56
  * Last edited:
- *   01/01/2021, 16:19:38
+ *   04/01/2021, 17:50:25
  * Auto updated?
  *   Yes
  *
@@ -28,12 +28,6 @@
 namespace ArgumentParser {
     /* The ADLBranch class forms the baseclass for all nodes with children in the AST, centralizing memory management and traversal. */
     class ADLBranch: public ADLNode {
-    protected:
-        /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
-        /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-        virtual void _traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state);
-    
     public:
         /* Indicates whether or not the number of children is bounded. */
         bool has_max;
@@ -63,6 +57,11 @@ namespace ArgumentParser {
         std::vector<ADLNode*> get_nodes(NodeType type) const;
         /* Returns the number of children currently in this node. */
         inline size_t size() const { return this->children.size(); }
+
+        /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*));
+        /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
+        virtual void traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state);
 
     };
 }

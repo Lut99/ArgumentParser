@@ -4,7 +4,7 @@
  * Created:
  *   01/01/2021, 16:07:21
  * Last edited:
- *   01/01/2021, 16:29:37
+ *   04/01/2021, 18:02:14
  * Auto updated?
  *   Yes
  *
@@ -19,6 +19,7 @@
 #include "ADLPositional.hpp"
 #include "ADLOption.hpp"
 #include "ADLTypeDef.hpp"
+#include "ADLConfig.hpp"
 #include "BuildSymbolTable.hpp"
 
 using namespace std;
@@ -39,22 +40,22 @@ static ADLNode* traversal_function(const char* trav_id, ADLNode* node, void* vsy
         switch(parent->type) {
             case NodeType::meta:
                 // Add it the meta table
-                ((ADLMeta*) parent)->symbol_table.add(((ADLIdentifier*) ((ADLBranch*) node)->children[0])->identifier, node);
+                ((ADLMeta*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
                 break;
 
             case NodeType::positional:
                 // Add it the meta table
-                ((ADLPositional*) parent)->symbol_table.add(((ADLIdentifier*) ((ADLBranch*) node)->children[0])->identifier, node);
+                ((ADLPositional*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
                 break;
 
             case NodeType::option:
                 // Add it the meta table
-                ((ADLOption*) parent)->symbol_table.add(((ADLIdentifier*) ((ADLBranch*) node)->children[0])->identifier, node);
+                ((ADLOption*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
                 break;
 
             case NodeType::type_def:
                 // Add it the meta table
-                ((ADLTypeDef*) parent)->symbol_table.add(((ADLIdentifier*) ((ADLBranch*) node)->children[0])->identifier, node);
+                ((ADLTypeDef*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
                 break;
 
             default:
@@ -64,7 +65,7 @@ static ADLNode* traversal_function(const char* trav_id, ADLNode* node, void* vsy
     } else {
         // Simply add the node, then recurse through it
         symbol_table->add(((ADLIdentifier*) ((ADLBranch*) node)->children[0])->identifier, node);
-        node->traverse(
+        node->traverse_recurse(
             trav_id,
             build_symbol_table_types,
             traversal_function,

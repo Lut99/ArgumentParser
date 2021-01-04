@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:39:35
  * Last edited:
- *   01/01/2021, 16:19:47
+ *   04/01/2021, 17:50:39
  * Auto updated?
  *   Yes
  *
@@ -80,9 +80,50 @@ ADLBranch::~ADLBranch() {
 
 
 
+/* Adds a node as child of this node. */
+void ADLBranch::add_node(ADLNode* node) {
+    std::string context = "ADL" + nodetype_name.at(this->type) + "::add_node()";
+
+    // Check if we have a maximum and, if so, if we're at it
+    if (this->has_max && this->children.size() == this->max) {
+        throw Exceptions::MaximumChildrenException(context, "???", this->max);
+    }
+    // Make sure the node is of a valid type
+    if (!(node->type & this->whitelist)) {
+        throw Exceptions::IllegalChildException(context, "???", this->whitelist, node->type);
+    }
+
+    // Finally, just add the node and set its parent
+    this->children.push_back(node);
+    node->parent = this;
+}
+
+
+
+/* Returns all nodes (as vector) with the given type(s) stored as child of this node. */
+std::vector<ADLNode*> ADLBranch::get_nodes(NodeType type) const {
+    // Reserve a list with enough space to return
+    std::vector<ADLNode*> result;
+    result.reserve(this->children.size());
+
+    // Search for nodes with one of the given types
+    for (size_t i = 0; i < this->children.size(); i++) {
+        if (this->children[i]->type & type) {
+            // It's one of the desired types
+            result.push_back(this->children[i]);
+        }
+    }
+
+    // Shrink the resulting vector back to the correct size, and then return it
+    result.reserve(result.size());
+    return result;
+}
+
+
+
 /* Function that will recurse the (stateless) traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) {
-    std::string context = "ADL" + nodetype_name.at(this->type) + "::_traverse_recurse(stateless)";
+void ADLBranch::traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*)) {
+    std::string context = "ADL" + nodetype_name.at(this->type) + "::traverse_recurse(stateless)";
 
     // Simply loop through all children, possibly replacing them
     for (size_t i = 0; i < this->children.size(); i++) {
@@ -104,8 +145,8 @@ void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLN
 }
 
 /* Function that will recurse the traversal one layer deeper if the trav function needn't be called for this one. Note that this function may replace (and therefore deallocate) older nodes if it proves needed. */
-void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state) {
-    std::string context = "ADL" + nodetype_name.at(this->type) + "::_traverse_recurse()";
+void ADLBranch::traverse_recurse(const char* trav_id, NodeType node_types, ADLNode* (*trav_func)(const char*, ADLNode*, void*), void* state) {
+    std::string context = "ADL" + nodetype_name.at(this->type) + "::traverse_recurse()";
 
     // Simply loop through all children, possibly replacing them
     for (size_t i = 0; i < this->children.size(); i++) {
@@ -124,43 +165,4 @@ void ADLBranch::_traverse_recurse(const char* trav_id, NodeType node_types, ADLN
             new_node->parent = this;
         }
     }
-}
-
-
-
-/* Adds a node as child of this node. */
-void ADLBranch::add_node(ADLNode* node) {
-    std::string context = "ADL" + nodetype_name.at(this->type) + "::add_node()";
-
-    // Check if we have a maximum and, if so, if we're at it
-    if (this->has_max && this->children.size() == this->max) {
-        throw Exceptions::MaximumChildrenException(context, "???", this->max);
-    }
-    // Make sure the node is of a valid type
-    if (!(node->type & this->whitelist)) {
-        throw Exceptions::IllegalChildException(context, "???", this->whitelist, node->type);
-    }
-
-    // Finally, just add the node and set its parent
-    this->children.push_back(node);
-    node->parent = this;
-}
-
-/* Returns all nodes (as vector) with the given type(s) stored as child of this node. */
-std::vector<ADLNode*> ADLBranch::get_nodes(NodeType type) const {
-    // Reserve a list with enough space to return
-    std::vector<ADLNode*> result;
-    result.reserve(this->children.size());
-
-    // Search for nodes with one of the given types
-    for (size_t i = 0; i < this->children.size(); i++) {
-        if (this->children[i]->type & type) {
-            // It's one of the desired types
-            result.push_back(this->children[i]);
-        }
-    }
-
-    // Shrink the resulting vector back to the correct size, and then return it
-    result.reserve(result.size());
-    return result;
 }

@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 14:44:57
  * Last edited:
- *   01/01/2021, 16:08:58
+ *   04/01/2021, 18:07:27
  * Auto updated?
  *   Yes
  *
@@ -57,8 +57,8 @@ void SymbolTable::add(const std::string& id, ADLNode* node) {
             // Switch based on the node's type
             switch(node->type) {
                 case NodeType::meta:
-                    // This is allowed, so just don't add it
-                    return;
+                    // This is allowed
+                    break;
 
                 case NodeType::positional:
                 case NodeType::option:
@@ -89,6 +89,7 @@ void SymbolTable::add(const std::string& id, ADLNode* node) {
                     // Sanity check failed
                     throw std::runtime_error("Node with unexpected type '" + nodetype_name.at(node->type) + "' given to SymbolTable::add");
             }
+            break;
         }
     }
 
