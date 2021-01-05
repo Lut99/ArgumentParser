@@ -33,3 +33,6 @@
 
 # Valgrind coredumps
 vgcore.*
+
+# Ignore any binary files
+bin/*

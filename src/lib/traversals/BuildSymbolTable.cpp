@@ -4,7 +4,7 @@
  * Created:
  *   01/01/2021, 16:07:21
  * Last edited:
- *   04/01/2021, 18:02:14
+ *   05/01/2021, 14:03:51
  * Auto updated?
  *   Yes
  *
@@ -15,10 +15,8 @@
 **/
 
 #include "ADLIdentifier.hpp"
-#include "ADLMeta.hpp"
-#include "ADLPositional.hpp"
+#include "ADLDefinition.hpp"
 #include "ADLOption.hpp"
-#include "ADLTypeDef.hpp"
 #include "ADLConfig.hpp"
 #include "BuildSymbolTable.hpp"
 
@@ -34,37 +32,18 @@ static ADLNode* traversal_function(const char* trav_id, ADLNode* node, void* vsy
     // Do different things depending on if we're definitions or property statements
     if (node->type == NodeType::config) {
         // Get the parent of the node (skip the ADLConfigs list)
-        ADLNode* parent = node->parent->parent;
-
-        // Switch to the correct parent node
-        switch(parent->type) {
-            case NodeType::meta:
-                // Add it the meta table
-                ((ADLMeta*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
-                break;
-
-            case NodeType::positional:
-                // Add it the meta table
-                ((ADLPositional*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
-                break;
-
-            case NodeType::option:
-                // Add it the meta table
-                ((ADLOption*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
-                break;
-
-            case NodeType::type_def:
-                // Add it the meta table
-                ((ADLTypeDef*) parent)->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
-                break;
-
-            default:
-                // Should NEVER occur
-                throw std::runtime_error("Parent with illegal type '" + nodetype_name.at(parent->type) + "' occurred while building symbol table");
-        }
+        ADLDefinition* parent = (ADLDefinition*) node->parent->parent;
+        
+        // Add this node to the symbol table
+        parent->symbol_table.add(((ADLConfig*) node)->param.c_str(), node);
     } else {
-        // Simply add the node, then recurse through it
-        symbol_table->add(((ADLIdentifier*) ((ADLBranch*) node)->children[0])->identifier, node);
+        // Add one entry for each identifier that works
+        ADLDefinition* def = (ADLDefinition*) node;
+        if (def->identifier != nullptr) { symbol_table->add(def->identifier->identifier, node); }
+        if (def->shortlabel != nullptr) { symbol_table->add(def->shortlabel->identifier, node); }
+        if (def->longlabel != nullptr) { symbol_table->add(def->longlabel->identifier, node); }
+        
+        // Continue with the recursion
         node->traverse_recurse(
             trav_id,
             build_symbol_table_types,

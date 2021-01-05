@@ -4,7 +4,7 @@
  * Created:
  *   14/11/2020, 18:05:10
  * Last edited:
- *   13/12/2020, 15:01:52
+ *   05/01/2021, 14:23:36
  * Auto updated?
  *   Yes
  *
@@ -309,7 +309,7 @@ ExceptionHandler::~ExceptionHandler() {
         for (size_t i = 0; i < this->length; i++) {
             delete this->exceptions[i];
         }
-        delete this->exceptions;
+        delete[] this->exceptions;
     }
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 16:15:55
  * Last edited:
- *   10/12/2020, 17:23:18
+ *   05/01/2021, 13:38:38
  * Auto updated?
  *   Yes
  *
@@ -13,6 +13,7 @@
 **/
 
 #include "ADLOption.hpp"
+#include "ParseExceptions.hpp"
 
 using namespace std;
 using namespace ArgumentParser;
@@ -22,19 +23,13 @@ using namespace ArgumentParser;
 
 /* Constructor for the ADLOption class, which takes a DebugInfo struct linking this node to the source code, the shortlabel for this Option (empty to disable), the longlabel of this Option (empty to disable), an optional list of types that make up this Option as ADLTypes, optionally a list of configuration parameters for this Positional as ADLConfigs, whether or not this Option is optional, whether or not this Option's type may be omitted and whether or not this Positional is variadic. */
 ADLOption::ADLOption(const DebugInfo& debug, ADLIdentifier* shortlabel, ADLIdentifier* longlabel, ADLTypes* types, ADLConfigs* configs, bool is_optional, bool type_is_optional, bool is_variadic) :
-    ADLBranch(NodeType::option, debug, 4, NodeType::identifier | NodeType::types | NodeType::configs),
+    ADLDefinition(NodeType::option, debug, 4, NodeType::identifier | NodeType::types | NodeType::configs, shortlabel, longlabel, configs),
     optional(is_optional),
     type_optional(type_is_optional),
     variadic(is_variadic)
 {
-    // Only add the shortlabel if it is given
-    if (shortlabel != nullptr) { this->add_node((ADLNode*) shortlabel); }
-    // Only add the longlabel if it is given
-    if (longlabel != nullptr) { this->add_node((ADLNode*) longlabel); }
     // Only add the types if they are given
     if (types != nullptr) { this->add_node((ADLNode*) types); }
-    // Only add the values if they are given
-    if (configs != nullptr) { this->add_node((ADLNode*) configs); }
 }
 
 /* Prints the Option definition and all its configuration parameters to the given output stream. */

@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:03:01
  * Last edited:
- *   12/12/2020, 17:02:04
+ *   05/01/2021, 13:54:19
  * Auto updated?
  *   Yes
  *
@@ -25,13 +25,8 @@ using namespace ArgumentParser;
 
 /* Constructor for the ADLTypeDef class, which takes debug information about the node's origin, the type definition's identifier and optionally an ADLConfigs node. */
 ADLTypeDef::ADLTypeDef(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs) :
-    ADLBranch(NodeType::type_def, debug, 2, NodeType::identifier | NodeType::configs)
-{
-    // Always add the id
-    this->add_node((ADLNode*) id);
-    // Add the given configs node if it isn't empty
-    if (configs != nullptr) { this->add_node((ADLNode*) configs); }
-}
+    ADLDefinition(NodeType::type_def, debug, 2, NodeType::identifier | NodeType::configs, id, configs)
+{}
 
 
 

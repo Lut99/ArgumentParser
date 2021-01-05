@@ -72,8 +72,10 @@ variadic_positional <int>... {
 
 #ifdef DEBUG
 @suppress empty-statement
+@suppress custom
 --option -o <int> {
     ;
+    @warning "Hello, there!"
 }
 
 #ifdef DEBUG2

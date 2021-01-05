@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   13/12/2020, 15:00:53
+ *   05/01/2021, 14:35:40
  * Auto updated?
  *   Yes
  *
@@ -1090,6 +1090,7 @@ modifier_string:
 
                         // Remove the string and the warning from the stack, as their usefullness is over
                         stack.remove(2);
+                        delete prev_nonterm;
                         return "warning-string";
                     }
 
@@ -1106,6 +1107,7 @@ modifier_string:
 
                         // Remove the string and the warning from the stack, as their usefullness is over
                         stack.remove(2);
+                        delete prev_nonterm;
                         return "error";
                     }
 
@@ -1113,13 +1115,16 @@ modifier_string:
                     break;
             }
         } else if (nterm->type() == NodeType::values) {
+            
             // Merge this value to the previously found Values
             nterm->node<ADLValues>()->add_node(prev_nonterm);
-            stack.remove(1);
 
-            // Update the value's debug info though
+            // Update the value's debug info
             nterm->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
             nterm->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
+            
+            // Remove the obsolete nonterm
+            stack.remove(1);
 
             return "string-merge";
         }
@@ -1192,12 +1197,14 @@ config_merge:
                 case NodeType::configs:
                     // Merge this configs node and the one we parsed earlier together
                     nterm->node<ADLConfigs>()->add_node(prev_nonterm);
-                    stack.remove(n_symbols);
 
                     // Update the value's debug info though
                     nterm->node<ADLConfigs>()->debug.line2 = prev_nonterm->debug.line2;
                     nterm->node<ADLConfigs>()->debug.col2 = prev_nonterm->debug.col2;
                     nterm->node<ADLConfigs>()->debug.raw_line = prev_nonterm->debug.raw_line;
+
+                    // Remove the merged nonterms
+                    stack.remove(n_symbols);
 
                     return "config-merge";
                 
@@ -1233,11 +1240,13 @@ value_merge:
         if (!symbol->is_terminal && nterm->type() == NodeType::values) {
             // Merge this value to the previously found Values
             nterm->node<ADLValues>()->add_node(prev_nonterm);
-            stack.remove(n_symbols);
 
             // Update the value's debug info though
             nterm->node<ADLValues>()->debug.line2 = prev_nonterm->debug.line2;
             nterm->node<ADLValues>()->debug.col2 = prev_nonterm->debug.col2;
+
+            // Remove the merged nonterms
+            stack.remove(n_symbols);
 
             return applied_rule + "-merge";
         } else {

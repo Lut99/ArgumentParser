@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:36:56
  * Last edited:
- *   04/01/2021, 17:50:25
+ *   05/01/2021, 13:56:34
  * Auto updated?
  *   Yes
  *
@@ -51,7 +51,7 @@ namespace ArgumentParser {
         virtual ~ADLBranch();
 
         /* Adds a node as child of this node. */
-        void add_node(ADLNode* node);
+        virtual void add_node(ADLNode* node);
 
         /* Returns all nodes (as vector) with the given type(s) stored as child of this node. */
         std::vector<ADLNode*> get_nodes(NodeType type) const;

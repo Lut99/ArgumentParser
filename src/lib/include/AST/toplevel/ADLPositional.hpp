@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 5:55:52 PM
  * Last edited:
- *   01/01/2021, 16:03:54
+ *   05/01/2021, 13:40:21
  * Auto updated?
  *   Yes
  *
@@ -20,7 +20,7 @@
 #include <vector>
 #include <ostream>
 
-#include "ADLBranch.hpp"
+#include "ADLDefinition.hpp"
 #include "ADLIdentifier.hpp"
 #include "ADLTypes.hpp"
 #include "ADLConfigs.hpp"
@@ -29,16 +29,14 @@
 
 namespace ArgumentParser {
     /* The ADLPositional class is used to represent a Positional definition. */
-    class ADLPositional: public ADLBranch {
+    class ADLPositional: public ADLDefinition {
     public:
         /* Stores whether or not this Positional is optional. */
         bool optional;
         /* Stores whether or not this Positional is variadic. */
         bool variadic;
-        /* The symbol table of a Positional namespace. */
-        SymbolTable symbol_table;
-
-
+        
+        
         /* Constructor for the ADLPositional, which takes a DebugInfo struct linking this node to the source code, the identifier of this Positional, a list of types that make up this Positional as ADLTypes, whether or not this Positional is optional, whether or not this Positional is variadic and optionally a list of configuration parameters for this Positional as ADLConfigs. */
         ADLPositional(const DebugInfo& debug, ADLIdentifier* id, ADLTypes* types, bool is_optional, bool is_variadic, ADLConfigs* configs = nullptr);
 

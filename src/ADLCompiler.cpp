@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 17:24:35
  * Last edited:
- *   04/01/2021, 18:05:39
+ *   05/01/2021, 14:09:27
  * Auto updated?
  *   Yes
  *
@@ -41,18 +41,26 @@ int main(int argc, char** argv) {
     }
 
     // Next, start with the first traversal
-    SymbolTable main_table = traversal_build_symbol_table(tree);
+    tree->symbol_table = traversal_build_symbol_table(tree);
     if (Exceptions::error_handler.errors() > 0) {
         return EXIT_FAILURE;
     }
 
+    #ifdef DEBUG
     // Print the table
     std::cout << "--------------------------------------" << std::endl;
-    std::vector<SymbolTable> to_print;
-    for (size_t i = 0; i < main_table.size(); i++) {
-        std::cout << main_table[i].id << " (" << nodetype_name.at(main_table[i].node_type) << ")" << std::endl;
+    for (size_t i = 0; i < tree->symbol_table.size(); i++) {
+        std::cout << tree->symbol_table[i].id << " (" << nodetype_name.at(tree->symbol_table[i].node_type) << ")" << std::endl;
+        if (dynamic_cast<ADLDefinition*>(tree->symbol_table[i].node)) {
+            // Print that symbol table as well
+            ADLDefinition* def = (ADLDefinition*) tree->symbol_table[i].node;
+            for (size_t i = 0; i < def->symbol_table.size(); i++) {
+                std::cout << "   " << def->symbol_table[i].id << " (" << nodetype_name.at(def->symbol_table[i].node_type) << ")" << std::endl;
+            }
+        }
     }
     std::cout << "--------------------------------------" << std::endl;
+    #endif
 
     // Alright, it's parsed!
     return EXIT_SUCCESS;
