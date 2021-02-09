@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 14:44:57
  * Last edited:
- *   04/01/2021, 18:07:27
+ *   2/9/2021, 3:43:54 PM
  * Auto updated?
  *   Yes
  *
@@ -13,7 +13,7 @@
  *   collect the different definitions and references to them.
 **/
 
-#include "ADLBranch.hpp"
+#include "ADLDefinition.hpp"
 #include "TraversalExceptions.hpp"
 #include "ADLSymbolTable.hpp"
 
@@ -63,26 +63,35 @@ void SymbolTable::add(const std::string& id, ADLNode* node) {
                 case NodeType::positional:
                 case NodeType::option:
                     // Throw an error that this node has a duplicate ID
-                    Exceptions::log(Exceptions::DuplicateArgumentError(
-                        ((ADLBranch*) node)->children[0]->debug,
-                        id
-                    ));
+                    Exceptions::log(
+                        Exceptions::DuplicateArgumentError(
+                            ((ADLDefinition*) node)->identifier->debug,
+                            id
+                        ),
+                        Exceptions::DuplicateSymbolNote(((ADLDefinition*) (*iter).node)->identifier->debug)
+                    );
                     return;
 
                 case NodeType::type_def:
                     // Throw an error that this node has a duplicate ID
-                    Exceptions::log(Exceptions::DuplicateTypeError(
-                        ((ADLBranch*) node)->children[0]->debug,
-                        id
-                    ));
+                    Exceptions::log(
+                        Exceptions::DuplicateTypeError(
+                            ((ADLDefinition*) node)->identifier->debug,
+                            id
+                        ),
+                        Exceptions::DuplicateSymbolNote(((ADLDefinition*) (*iter).node)->identifier->debug)
+                    );
                     return;
 
                 case NodeType::config:
                     // Throw an error that this node has a duplicate ID
-                    Exceptions::log(Exceptions::DuplicatePropertyError(
-                        ((ADLBranch*) node)->debug,
-                        id
-                    ));
+                    Exceptions::log(
+                        Exceptions::DuplicatePropertyError(
+                            ((ADLDefinition*) node)->debug,
+                            id
+                        ),
+                        Exceptions::DuplicateSymbolNote(((ADLDefinition*) (*iter).node)->identifier->debug)
+                    );
                     return;
                     
                 default:

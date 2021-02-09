@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:58
  * Last edited:
- *   12/12/2020, 17:21:52
+ *   2/9/2021, 3:50:19 PM
  * Auto updated?
  *   Yes
  *
@@ -349,6 +349,8 @@ namespace ArgumentParser {
 
         };
 
+
+
         /* Baseclass exception for when a value goes out of the allowed range. */
         class OutOfRangeWarning: public ADLCompileWarning {
         public:
@@ -394,6 +396,19 @@ namespace ArgumentParser {
             virtual UnderflowWarning* copy() const { return new UnderflowWarning(*this); }
 
         };
+    
+    
+
+        /* Note accompanying the unterminated-range of exceptions, telling the user where the unterminated symbol started. */
+        class UnterminatedStartNote: public ADLNote {
+        public:
+            /* Constructor for the UnterminatedStartNote, which takes the debugging info of where the symbol started. */
+            UnterminatedStartNote(const DebugInfo& debug) :
+                ADLNote(debug, "Symbol started here:")
+            {}
+            
+        };
+
     }
 
 

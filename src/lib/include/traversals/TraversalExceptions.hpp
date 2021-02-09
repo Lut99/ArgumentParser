@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 13:08:33
  * Last edited:
- *   01/01/2021, 15:59:55
+ *   2/9/2021, 3:45:50 PM
  * Auto updated?
  *   Yes
  *
@@ -32,14 +32,14 @@ namespace ArgumentParser::Exceptions {
     };
 
     /* Baseclass error for when a symbol is defined twice. */
-    class DuplicateSymbolError: public ParseError {
+    class DuplicateSymbolError: public TraversalError {
     public:
         /* The identifier which was defined twice or more. */
         const std::string identifier;
 
         /* Constructor for the DuplicateSymbolError class, which takes debug information, the identifier in question which was given twice and optionally a message. */
         DuplicateSymbolError(const DebugInfo& debug, const std::string& identifier, const std::string& message = "") :
-            ParseError(debug, message),
+            TraversalError(debug, message),
             identifier(identifier)
         {}
     };
@@ -48,7 +48,7 @@ namespace ArgumentParser::Exceptions {
     public:
         /* Constructor for the DuplicateArgumentError class, which takes debugging information and the identifier that was defined twice. */
         DuplicateArgumentError(const DebugInfo& debug, const std::string& identifier) :
-            DuplicateSymbolError(debug, identifier, "Argument '" + identifier + "' is defined more than once.")
+            DuplicateSymbolError(debug, identifier, "Argument '" + identifier + "' is already declared.")
         {}
 
         /* Allows the DuplicateArgumentError to be copied polymorphically. */
@@ -60,7 +60,7 @@ namespace ArgumentParser::Exceptions {
     public:
         /* Constructor for the DuplicateTypeError class, which takes debugging information and the identifier that was defined twice. */
         DuplicateTypeError(const DebugInfo& debug, const std::string& identifier) :
-            DuplicateSymbolError(debug, identifier, "Type '" + identifier + "' is defined more than once.")
+            DuplicateSymbolError(debug, identifier, "Type '" + identifier + "' is already declared.")
         {}
 
         /* Allows the DuplicateTypeError to be copied polymorphically. */
@@ -72,7 +72,7 @@ namespace ArgumentParser::Exceptions {
     public:
         /* Constructor for the DuplicatePropertyError class, which takes debugging information and the identifier that was defined twice. */
         DuplicatePropertyError(const DebugInfo& debug, const std::string& identifier) :
-            DuplicateSymbolError(debug, identifier, "Property '" + identifier + "' is already specified for this meta, argument or type definition.")
+            DuplicateSymbolError(debug, identifier, "Property '" + identifier + "' is already declared for this meta, argument or type definition.")
         {}
 
         /* Allows the DuplicatePropertyError to be copied polymorphically. */
@@ -90,6 +90,28 @@ namespace ArgumentParser::Exceptions {
             ParseWarning(type, debug, message)
         {}
         
+    };
+
+
+
+    /* Baseclass exception for all Traversal notes accompanying errors or warnings. */
+    class TraversalNote: public ParseNote {
+    public:
+        /* Constructor for the TraversalNote class, which takes debug information and optionally a message. */
+        TraversalNote(const DebugInfo& debug, const std::string& message = "") :
+            ParseNote(debug, message)
+        {}
+        
+    };
+
+    /* Note accompanying the duplicate errors, saying where the previous declaration was. */
+    class DuplicateSymbolNote: public TraversalNote {
+    public:
+        /* Constructor for the DuplicateSymbolNote class, which takes debugging information where the symbol was previously declared. */
+        DuplicateSymbolNote(const DebugInfo& debug) :
+            TraversalNote(debug, "Previously declared here:")
+        {}
+
     };
 
 }

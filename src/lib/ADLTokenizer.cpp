@@ -4,7 +4,7 @@
  * Created:
  *   05/11/2020, 16:17:44
  * Last edited:
- *   13/12/2020, 15:26:14
+ *   2/9/2021, 3:50:38 PM
  * Auto updated?
  *   Yes
  *
@@ -808,7 +808,7 @@ string_start:
             result->debug.col2 = result->debug.col1;
             Exceptions::ExceptionHandler& eh = Exceptions::log(
                 Exceptions::UnterminatedStringException(DebugInfo(this->filenames, this->line, this->col, this->get_line())),
-                Exceptions::ADLNote(result->debug, "String started here.")
+                Exceptions::UnterminatedStartNote(result->debug)
             );
             
             // If we didn't see an EOF, continue trying; otherwise just throw and be done with it
@@ -1159,7 +1159,7 @@ snippet_multiline_start:
             // Whoa! Reached unterminated comment!
             throw Exceptions::log(
                 Exceptions::UnterminatedMultilineException(DebugInfo(this->filenames, this->line, this->col, this->get_line())),
-                Exceptions::ADLNote(debug, "C++ multi-line comment started here.")
+                Exceptions::UnterminatedStartNote(debug)
             );
         } else {
             // Simply skip this item
@@ -1338,7 +1338,7 @@ multiline_start:
             // Whoa! Reached unterminated comment!
             throw Exceptions::log(
                 Exceptions::UnterminatedMultilineException(DebugInfo(this->filenames, this->line, this->col, this->get_line())),
-                Exceptions::ADLNote(debug, "Multi-line comment started here.")
+                Exceptions::UnterminatedStartNote(debug)
             );
         } else {
             // Simply skip this item

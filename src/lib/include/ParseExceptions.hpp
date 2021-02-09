@@ -4,7 +4,7 @@
  * Created:
  *   12/9/2020, 5:58:13 PM
  * Last edited:
- *   05/01/2021, 13:03:30
+ *   2/9/2021, 3:38:05 PM
  * Auto updated?
  *   Yes
  *
@@ -362,6 +362,18 @@ namespace ArgumentParser::Exceptions {
 
         /* Polymorphically copies the CustomWarning class. */
         virtual CustomWarning* copy() const { return new CustomWarning(*this); }
+
+    };
+
+
+
+    /* Baseclass exception for all Parser-related notes, accompanying any of the above errors or warnings. */
+    class ParseNote: public ADLNote {
+    public:
+        /* Constructor for the ParseNote class, which takes a DebugInfo struct linking this note to a location in the source file and optionally a message. */
+        ParseNote(const DebugInfo& debug, const std::string& message = "") :
+            ADLNote(debug, message)
+        {}
 
     };
 
