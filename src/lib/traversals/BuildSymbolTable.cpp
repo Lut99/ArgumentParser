@@ -4,7 +4,7 @@
  * Created:
  *   01/01/2021, 16:07:21
  * Last edited:
- *   05/01/2021, 14:03:51
+ *   11/02/2021, 15:16:11
  * Auto updated?
  *   Yes
  *
@@ -73,6 +73,33 @@ SymbolTable ArgumentParser::traversal_build_symbol_table(ADLTree* tree) {
         traversal_function,
         (void*) &result
     );
+
+    // Once done, merge any 'meta' divs
+    ADLDefinition* first_meta = nullptr;
+    std::vector<size_t> duplicate_metas;
+    duplicate_metas.reserve(result.size());
+    for (size_t i = 0; i < result.size(); i++) {
+        SymbolTableEntry& entry = result[i];
+        if (entry.node_type == NodeType::meta) {
+            // Set it as the first meta if we didn't set one already
+            if (first_meta == nullptr) {
+                first_meta = (ADLDefinition*) entry.node;
+                continue;
+            }
+
+            // Otherwise, merge the symbol table of the new meta with that of the first
+            for (const SymbolTableEntry& nested_entry : ((ADLDefinition*) entry.node)->symbol_table) {
+                first_meta->symbol_table.add(nested_entry.id, nested_entry.node);
+            }
+            // Mark this entry for removal
+            duplicate_metas.push_back(i);
+        }
+    }
+
+    // Remove the metas we marked to remove so
+    for (size_t i = 0; i < duplicate_metas.size(); i++) {
+        result.remove(duplicate_metas[i]);
+    }
 
     // We're done
     return result;

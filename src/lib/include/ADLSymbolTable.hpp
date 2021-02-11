@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 14:43:50
  * Last edited:
- *   01/01/2021, 16:00:29
+ *   11/02/2021, 15:12:00
  * Auto updated?
  *   Yes
  *
@@ -51,6 +51,8 @@ namespace ArgumentParser {
         void add(const std::string& id, ADLNode* node);
         /* Removes a symbol with given id from the table. Note that it simply does nothing if the id isn't present. */
         void remove(const std::string& id);
+        /* Removes a symbol at the given location from the table. Note that it simply does nothing if the table is not that large. */
+        void remove(size_t index);
 
         /* Returns whether or not a symbol with the given id exists. */
         bool contains(const std::string& id) const;

@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 14:44:57
  * Last edited:
- *   2/9/2021, 3:43:54 PM
+ *   11/02/2021, 15:19:49
  * Auto updated?
  *   Yes
  *
@@ -120,8 +120,17 @@ void SymbolTable::remove(const std::string& id) {
         }
     }
 
-    // Otherwise, we did found nothing bu that's okay
+    // Otherwise, we did found nothing but that's okay
     return;
+}
+
+/* Removes a symbol at the given location from the table. Note that it simply does nothing if the table is not that large. */
+void SymbolTable::remove(size_t index) {
+    // Check if within bounds
+    if (index >= this->entries.size()) { return; }
+
+    // Otherwise, remove it
+    this->entries.erase(this->entries.begin() + index);
 }
 
 
