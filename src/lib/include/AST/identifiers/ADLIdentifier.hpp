@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 16:33:50
  * Last edited:
- *   10/12/2020, 16:41:03
+ *   11/02/2021, 16:45:07
  * Auto updated?
  *   Yes
  *
@@ -32,7 +32,8 @@ namespace ArgumentParser {
         positional,
         shortlabel,
         longlabel,
-        type 
+        type,
+        property
     };
 
     /* The ADLIdentifier class is used to wrap the identifiers used in the ADL. */

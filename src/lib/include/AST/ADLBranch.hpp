@@ -4,7 +4,7 @@
  * Created:
  *   26/11/2020, 11:36:56
  * Last edited:
- *   05/01/2021, 13:56:34
+ *   11/02/2021, 16:23:24
  * Auto updated?
  *   Yes
  *
@@ -52,6 +52,9 @@ namespace ArgumentParser {
 
         /* Adds a node as child of this node. */
         virtual void add_node(ADLNode* node);
+        /* Returns a node as a given type. */
+        template <class T, typename = std::enable_if_t<std::is_base_of<ADLNode, T>::value> >
+        inline T* get_node(size_t index) const { return (T*) this->children[index]; }
 
         /* Returns all nodes (as vector) with the given type(s) stored as child of this node. */
         std::vector<ADLNode*> get_nodes(NodeType type) const;

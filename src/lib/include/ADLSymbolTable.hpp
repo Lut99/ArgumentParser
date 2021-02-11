@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 14:43:50
  * Last edited:
- *   11/02/2021, 15:12:00
+ *   11/02/2021, 16:39:02
  * Auto updated?
  *   Yes
  *
@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <ostream>
 
 #include "ADLNode.hpp"
 
@@ -32,7 +33,9 @@ namespace ArgumentParser {
         /* The type of the entry's node. */
         NodeType node_type;
         /* A pointer to the relevant node in the AST. */
-        ADLNode* node;  
+        ADLNode* node;
+        /* References any nodes that reference this entry. */
+        std::vector<ADLNode*> references;
     };
 
 
@@ -67,6 +70,9 @@ namespace ArgumentParser {
         inline const SymbolTableEntry& operator[](size_t index) const { return this->entries[index]; }
         /* Returns the number of symbols stored in this symbol table. */
         inline size_t size() const { return this->entries.size(); }
+
+        /* Writes the symbol table neatly to the given output stream, with the optional indent for each line printed. */
+        std::ostream& print(std::ostream& os, size_t indent = 0) const;
 
         /* Returns a muteable reference to the start iterator of the internal symbol table map. Note that this may not be ordered. */
         inline std::vector<SymbolTableEntry>::iterator begin() { return this->entries.begin(); }

@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 16:15:55
  * Last edited:
- *   05/01/2021, 13:38:38
+ *   11/02/2021, 17:59:19
  * Auto updated?
  *   Yes
  *
@@ -31,6 +31,18 @@ ADLOption::ADLOption(const DebugInfo& debug, ADLIdentifier* shortlabel, ADLIdent
     // Only add the types if they are given
     if (types != nullptr) { this->add_node((ADLNode*) types); }
 }
+
+
+
+/* Lets the Option-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+bool ADLOption::set_property(const std::string& key, const std::string& value) {
+    // category
+    // description
+    // default
+    return false;
+}
+
+
 
 /* Prints the Option definition and all its configuration parameters to the given output stream. */
 std::ostream& ADLOption::print(std::ostream& os) const {
@@ -66,6 +78,8 @@ std::ostream& ADLOption::print(std::ostream& os) const {
     // Close with a bracket and newline, then we're done
     return os << '}' << endl;
 }
+
+
 
 /* Allows the ADLOption to be copied polymorphically. */
 ADLOption* ADLOption::copy() const { return new ADLOption(*this); }

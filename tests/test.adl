@@ -40,7 +40,7 @@ meta {
 }
 #endif
 
-positional1 <int> {
+positional1 <int32> {
     /* Common stuff */
     
     // Sets the category for the help string
@@ -62,24 +62,24 @@ positional1 <int> {
 
 // @warning "Hello there!"
 // @warning "General kenobi! You are a bold one!"
-variadic_positional <int>... {
+variadic_positional <int32>... {
     .index ---5.5;
 }
 
-[optional_positional] <int> <uint> {
-    .category "Wouldn't you like to know, wheater boy";
+[optional_positional] <int32> <uint32> {
+    .category positional1.category;
 }
 
 #ifdef DEBUG
 @suppress empty-statement
 @suppress custom
---option -o <int> {
+--option -o <int32> {
     ;
     @warning "Hello, there!"
 }
 
 #ifdef DEBUG2
-[--optional_option] <int> {
+[--optional_option] <int32> {
 
 }
 #endif

@@ -4,7 +4,7 @@
  * Created:
  *   04/01/2021, 18:09:03
  * Last edited:
- *   05/01/2021, 13:56:39
+ *   11/02/2021, 17:53:59
  * Auto updated?
  *   Yes
  *
@@ -62,6 +62,9 @@ namespace ArgumentParser {
 
         /* Adds a node as child of this node. */
         virtual void add_node(ADLNode* node);
+        
+        /* Lets derived classes have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for the derived class. */
+        virtual bool set_property(const std::string& key, const std::string& value) = 0;
 
         /* Checks whether this node matches with the given identifier. */
         inline bool has_identifier(ADLIdentifier* identifier) const {
@@ -71,6 +74,7 @@ namespace ArgumentParser {
                 (this->longlabel != nullptr && this->longlabel->identifier == identifier->identifier)
             ;
         }
+
     };
 }
 

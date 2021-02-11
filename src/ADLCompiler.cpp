@@ -4,7 +4,7 @@
  * Created:
  *   10/12/2020, 17:24:35
  * Last edited:
- *   05/01/2021, 14:09:27
+ *   11/02/2021, 17:35:58
  * Auto updated?
  *   Yes
  *
@@ -20,6 +20,7 @@
 #include "ADLParser.hpp"
 
 #include "BuildSymbolTable.hpp"
+#include "CheckReferences.hpp"
 
 using namespace std;
 using namespace ArgumentParser;
@@ -48,19 +49,17 @@ int main(int argc, char** argv) {
 
     #ifdef DEBUG
     // Print the table
+    std::cout << std::endl << "Symbol table:" << std::endl;
     std::cout << "--------------------------------------" << std::endl;
-    for (size_t i = 0; i < tree->symbol_table.size(); i++) {
-        std::cout << tree->symbol_table[i].id << " (" << nodetype_name.at(tree->symbol_table[i].node_type) << ")" << std::endl;
-        if (dynamic_cast<ADLDefinition*>(tree->symbol_table[i].node)) {
-            // Print that symbol table as well
-            ADLDefinition* def = (ADLDefinition*) tree->symbol_table[i].node;
-            for (size_t i = 0; i < def->symbol_table.size(); i++) {
-                std::cout << "   " << def->symbol_table[i].id << " (" << nodetype_name.at(def->symbol_table[i].node_type) << ")" << std::endl;
-            }
-        }
-    }
-    std::cout << "--------------------------------------" << std::endl;
+    tree->symbol_table.print(cout);
+    std::cout << "--------------------------------------" << std::endl << std::endl;
     #endif
+
+    // Move to the second traversal; this one checks the references
+    traversal_check_references(tree);
+    if (Exceptions::error_handler.errors() > 0) {
+        return EXIT_FAILURE;
+    }
 
     // Alright, it's parsed!
     return EXIT_SUCCESS;

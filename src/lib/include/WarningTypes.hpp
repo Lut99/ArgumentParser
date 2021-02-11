@@ -4,7 +4,7 @@
  * Created:
  *   12/12/2020, 17:22:33
  * Last edited:
- *   13/12/2020, 15:00:37
+ *   11/02/2021, 17:30:22
  * Auto updated?
  *   Yes
  *
@@ -38,8 +38,11 @@ namespace ArgumentParser::Exceptions {
         empty_statement = 0x40,
         stray_semicolon = 0x80,
         stray_suppress = 0x100,
+
+        empty_meta = 0x200,
+        unused_property = 0x400,
         
-        custom = 0x200
+        custom = 0x800
     };
 
     /* Maps all WarningTypes to their string equivalent. */
@@ -57,6 +60,9 @@ namespace ArgumentParser::Exceptions {
         { WarningType::empty_statement, "empty-statement" },
         { WarningType::stray_semicolon, "stray-semicolon" },
         { WarningType::stray_suppress, "stray-suppress" },
+
+        { WarningType::empty_meta, "empty-meta" },
+        { WarningType::unused_property, "unused-property" },
 
         { WarningType::custom, "custom" }
     };

@@ -4,7 +4,7 @@
  * Created:
  *   18/11/2020, 20:36:22
  * Last edited:
- *   05/01/2021, 13:39:19
+ *   11/02/2021, 17:59:44
  * Auto updated?
  *   Yes
  *
@@ -27,6 +27,9 @@ namespace ArgumentParser {
     public:
         /* Constructor for the ADLTree class, which takes the filename of the root file and optionally takes a toplevel node. */
         ADLTree(const std::string& root_file, ADLNode* toplevel = nullptr);
+        
+        /* Lets the Tree-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+        virtual bool set_property(const std::string& key, const std::string& value);
 
         /* Prints all nodes in this file, reflecting the AST structure. */
         virtual std::ostream& print(std::ostream& os) const;

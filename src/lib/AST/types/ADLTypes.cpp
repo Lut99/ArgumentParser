@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 6:12:33 PM
  * Last edited:
- *   12/12/2020, 16:59:45
+ *   11/02/2021, 17:36:50
  * Auto updated?
  *   Yes
  *
@@ -22,19 +22,19 @@ using namespace ArgumentParser;
 /***** ADLTYPES CLASS *****/
 
 /* Constructor for the ADLTypes class, which takes a DebugInfo struct that links this node to the source file and optionally already one type identifier (as raw value). */
-ADLTypes::ADLTypes(const DebugInfo& debug, const std::string& type_id) :
-    ADLLeaf(NodeType::types, debug)
+ADLTypes::ADLTypes(const DebugInfo& debug, ADLIdentifier* type_id) :
+    ADLBranch(NodeType::types, debug, NodeType::identifier)
 {
-    // Only add the string if it isn't empty
-    if (!type_id.empty()) { this->ids.push_back(type_id); }
+    // Only add the identifier if it isn't empty
+    if (type_id != nullptr) { this->add_node(type_id); }
 }
 
 /* Prints the list of identifiers to the given output stream. */
 std::ostream& ADLTypes::print(std::ostream& os) const {
     // Print all internal ids, separated by spaces and wrapped in '<>'
-    for (size_t i = 0; i < this->ids.size(); i++) {
+    for (size_t i = 0; i < this->children.size(); i++) {
         if (i > 0) { os << ' '; }
-        os << this->ids[i];
+        this->children[i]->print(os);
     }
     return os;
 }

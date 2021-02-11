@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 17:29:00
  * Last edited:
- *   05/01/2021, 13:38:02
+ *   11/02/2021, 17:55:01
  * Auto updated?
  *   Yes
  *
@@ -27,6 +27,16 @@ ADLMeta::ADLMeta(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs)
     ADLDefinition(NodeType::meta, debug, 2, NodeType::identifier | NodeType::configs, id, configs)
 {}
 
+
+
+/* Lets the Meta-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+bool ADLMeta::set_property(const std::string& key, const std::string& value) {
+    // For now, the Meta class accepts no keys
+    return false;
+}
+
+
+
 /* Prints all the toplevel properties, reflecting the AST structure. */
 std::ostream& ADLMeta::print(std::ostream& os) const {
     this->children[0]->print(os);
@@ -41,6 +51,8 @@ std::ostream& ADLMeta::print(std::ostream& os) const {
     // Close with a bracket and newline, then we're done
     return os << '}' << endl;
 }
+
+
 
 /* Allows the ADLMeta to be copied polymorphically. */
 ADLMeta* ADLMeta::copy() const { return new ADLMeta(*this); }

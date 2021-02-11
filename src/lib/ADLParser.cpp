@@ -4,7 +4,7 @@
  * Created:
  *   11/12/2020, 5:38:51 PM
  * Last edited:
- *   05/01/2021, 14:35:40
+ *   11/02/2021, 16:52:13
  * Auto updated?
  *   Yes
  *
@@ -172,8 +172,14 @@ std::string reduce(ParseState& state, const std::string& filename, Token* lookah
                             reference_type = IdentifierType::type;
                         }
 
+                        // With that over, create new debug info's for the two identifiers we'll use
+                        DebugInfo didentifier = term->debug();
+                        DebugInfo dproperty = term->debug();
+                        didentifier.col2 = string_pos - 1;
+                        dproperty.col1 = string_pos + 1;
+
                         // Store the non-terminal equivalent of this terminal as the previous symbol, and then move to the next state
-                        prev_nonterm = new ADLReference(term->debug(), identifier, reference_type, property);
+                        prev_nonterm = new ADLReference(term->debug(), new ADLIdentifier(didentifier, identifier, reference_type), new ADLIdentifier(dproperty, property, IdentifierType::property));
                         applied_rule = "reference";
                         goto value_merge;
                     }
@@ -1157,13 +1163,13 @@ types_merge:
                                     term->type() == TokenType::l_square)) {
             // Create a new ADLTypes nonterminal
             stack.replace(n_symbols, new NonTerminal(
-                new ADLTypes(prev_term->debug, prev_term->raw)
+                new ADLTypes(prev_term->debug, new ADLIdentifier(prev_term->debug, prev_term->raw, IdentifierType::type))
             ));
             return "types-new";
 
         } else if (nterm->type() == NodeType::types) {
             // Merge it with the previous types list
-            nterm->node<ADLTypes>()->ids.push_back(prev_term->raw);
+            nterm->node<ADLTypes>()->add_node(new ADLIdentifier(prev_term->debug, prev_term->raw, IdentifierType::type));
 
             // Update the debug info of the types list we merged with
             nterm->node<ADLTypes>()->debug.line2 = prev_term->debug.line2;

@@ -4,7 +4,7 @@
  * Created:
  *   27/11/2020, 16:03:01
  * Last edited:
- *   05/01/2021, 13:54:19
+ *   11/02/2021, 17:59:13
  * Auto updated?
  *   Yes
  *
@@ -27,6 +27,13 @@ using namespace ArgumentParser;
 ADLTypeDef::ADLTypeDef(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs) :
     ADLDefinition(NodeType::type_def, debug, 2, NodeType::identifier | NodeType::configs, id, configs)
 {}
+        
+
+
+/* Lets the TypeDef-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+bool ADLTypeDef::set_property(const std::string& key, const std::string& value) {
+    return false;
+}
 
 
 

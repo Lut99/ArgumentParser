@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 5:55:59 PM
  * Last edited:
- *   05/01/2021, 13:59:51
+ *   11/02/2021, 17:59:17
  * Auto updated?
  *   Yes
  *
@@ -31,6 +31,18 @@ ADLPositional::ADLPositional(const DebugInfo& debug, ADLIdentifier* id, ADLTypes
     this->add_node((ADLNode*) types);
 }
 
+
+
+/* Lets the Option-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+bool ADLPositional::set_property(const std::string& key, const std::string& value) {
+    // category
+    // description
+    // default
+    return false;
+}
+
+
+
 /* Prints thePositional definition and all its configuration parameters to the given output stream. */
 std::ostream& ADLPositional::print(std::ostream& os) const {
     // Print the type definition header
@@ -49,6 +61,8 @@ std::ostream& ADLPositional::print(std::ostream& os) const {
     // Close with a bracket and newline, then we're done
     return os << '}' << endl;
 }
+
+
 
 /* Allows the ADLPositional to be copied polymorphically. */
 ADLPositional* ADLPositional::copy() const { return new ADLPositional(*this); }

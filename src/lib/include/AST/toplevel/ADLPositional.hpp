@@ -4,7 +4,7 @@
  * Created:
  *   12/1/2020, 5:55:52 PM
  * Last edited:
- *   05/01/2021, 13:40:21
+ *   11/02/2021, 17:58:08
  * Auto updated?
  *   Yes
  *
@@ -39,6 +39,9 @@ namespace ArgumentParser {
         
         /* Constructor for the ADLPositional, which takes a DebugInfo struct linking this node to the source code, the identifier of this Positional, a list of types that make up this Positional as ADLTypes, whether or not this Positional is optional, whether or not this Positional is variadic and optionally a list of configuration parameters for this Positional as ADLConfigs. */
         ADLPositional(const DebugInfo& debug, ADLIdentifier* id, ADLTypes* types, bool is_optional, bool is_variadic, ADLConfigs* configs = nullptr);
+        
+        /* Lets the Positional-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+        virtual bool set_property(const std::string& key, const std::string& value);
 
         /* Prints thePositional definition and all its configuration parameters to the given output stream. */
         virtual std::ostream& print(std::ostream& os) const;

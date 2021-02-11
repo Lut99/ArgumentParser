@@ -4,7 +4,7 @@
  * Created:
  *   03/12/2020, 17:26:20
  * Last edited:
- *   05/01/2021, 13:37:49
+ *   11/02/2021, 17:54:28
  * Auto updated?
  *   Yes
  *
@@ -31,6 +31,9 @@ namespace ArgumentParser {
     public:
         /* Constructor for the ADLMeta class, which takes debug information linking this node back to the source file, an identifier to store the 'meta' in and optionally properties to store in the meta namespace. */
         ADLMeta(const DebugInfo& debug, ADLIdentifier* id, ADLConfigs* configs = nullptr);
+        
+        /* Lets the Meta-node have a go at trying to store the given value/node for the given property key. Returns 'true' if it was successfull, or 'false' if no such property is relevant for this class. */
+        virtual bool set_property(const std::string& key, const std::string& value);
         
         /* Prints all the toplevel properties, reflecting the AST structure. */
         virtual std::ostream& print(std::ostream& os) const;
